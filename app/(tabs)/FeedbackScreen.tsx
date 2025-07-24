@@ -1,11 +1,16 @@
 import React, {useCallback, useState} from 'react';
 import {Appbar, Text, useTheme} from 'react-native-paper';
 import ScreenContainer from '@/components/ScreenContainer';
-import {StyleSheet, View} from "react-native";
+import {StyleSheet, useColorScheme, View} from "react-native";
+import {getCustomColors, getStyles} from "@/utils/colorUtils";
 
 export default function FeedbackScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const {colors} = useTheme();
+
+    const schema = useColorScheme();
+    const customColors = getCustomColors(schema);
+    const styles = getStyles(customColors);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -16,9 +21,9 @@ export default function FeedbackScreen() {
     }, []);
 
     return (
-        <View style={{backgroundColor: colors.background}}>
+        <View style={{ flex: 1, backgroundColor: colors.background}}>
             <Appbar.Header style={styles.appbar}>
-                <Appbar.Content title="Feedback"/>
+                <Appbar.Content title="Feedbacks"/>
             </Appbar.Header>
 
             <ScreenContainer onRefresh={onRefresh}>
@@ -30,17 +35,3 @@ export default function FeedbackScreen() {
 
     );
 }
-
-const styles = StyleSheet.create({
-    appbar: {
-        backgroundColor: '#e0e0e0', // light gray; adjust as needed
-    },
-    progressCard: {
-        borderRadius: 12,
-        elevation: 2,
-    },
-    progressBar: {
-        height: 10,
-        borderRadius: 5,
-    },
-});

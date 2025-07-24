@@ -1,5 +1,5 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import {FlatList, StyleSheet, Text, View} from 'react-native';
+import {FlatList, StyleSheet, Text, useColorScheme, View} from 'react-native';
 import {Appbar, Button, Card, Checkbox, Divider, List, Modal, Portal, useTheme} from 'react-native-paper';
 import {useFocusEffect} from 'expo-router';
 import type {Weekday} from '@/utils/readingPlans';
@@ -8,10 +8,14 @@ import {readingRepo} from '@/services/repository/reading.repository';
 import ScreenContainer from '@/components/ScreenContainer';
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {MaterialCommunityIcons, MaterialIcons} from "@expo/vector-icons";
-import MaterialCommunityIcon from "react-native-paper/src/components/MaterialCommunityIcon";
+import {getCustomColors, getStyles} from "@/utils/colorUtils";
 
 export default function HomeScreen() {
     const {colors} = useTheme();
+
+    const colorScheme = useColorScheme();
+    const customColors = getCustomColors(colorScheme);
+    const styles = getStyles(customColors);
 
     const today = useMemo(() => {
         const now = new Date();
@@ -116,8 +120,8 @@ export default function HomeScreen() {
                                     onPress={() => setConfirmationTask(task)}
                                     title={() => (
                                         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                            <MaterialCommunityIcons name="bookshelf" color={'#000'} size={20} style={{ marginRight: 8 }} />
-                                            <Text>
+                                            <MaterialCommunityIcons name="bookshelf" size={20} style={styles.icon} />
+                                            <Text style={styles.itemTitle}>
                                                 {task}
                                             </Text>
                                         </View>
@@ -138,9 +142,9 @@ export default function HomeScreen() {
     };
 
     return (
-        <View style={{backgroundColor: colors.background}}>
+        <View style={{ flex: 1, backgroundColor: colors.background}}>
             <Appbar.Header style={styles.appbar}>
-                <Appbar.Content title="Home" titleStyle={{color: '#000'}}/>
+                <Appbar.Content title="Home" />
             </Appbar.Header>
 
             <View style={styles.dailyBanner}>
@@ -157,13 +161,11 @@ export default function HomeScreen() {
                                     <Button
                                         key={task}
                                         onPress={() => setConfirmationTask(task)}
-                                        textColor="#1a73e8"
                                         icon={() => (
                                             <MaterialCommunityIcons
                                                 name="calendar"
                                                 size={20}
-                                                color={'#0064ff'}
-                                                style={{ marginRight: -6 }}
+                                                style={styles.icon}
                                             />
                                         )}
                                         labelStyle={styles.dailyLinkText}
@@ -199,8 +201,8 @@ export default function HomeScreen() {
                                         key={item}
                                         title={() => (
                                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                <MaterialCommunityIcons name="book-open-variant" color={'#000'} size={20} style={{ marginRight: 8 }} />
-                                                <Text>
+                                                <MaterialCommunityIcons name="book-open-variant"  size={20} style={styles.icon}/>
+                                                <Text style = {styles.itemTitle}>
                                                     {item}
                                                 </Text>
                                             </View>
@@ -248,56 +250,4 @@ export default function HomeScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    appbar: {
-        backgroundColor: '#e0e0e0',
-    },
-    card: {
-        marginBottom: 16,
-        borderRadius: 12,
-        elevation: 2,
-        backgroundColor: '#fff',
-    },
-    cardTitle: {
-        fontSize: 16,
-        alignSelf: 'center',
-        fontWeight: 'bold',
-        marginBottom: 8,
-    },
-    listItem: {
-        borderRadius: 6,
-    },
-    itemTitle: {
-        fontSize: 16,
-    },
-    modalContainer: {
-        alignSelf: 'center',
-        width: '80%',
-    },
-    modalCard: {
-        padding: 16,
-    },
-    dailyBanner: {
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 12,
-        marginTop: 0,       // Ensures no space under the Appbar
-        marginBottom: 12,   // Leaves room before next card
-        elevation: 1,
-    },
-    dailyTitle: {
-        fontSize: 16,
-        alignSelf: 'center',
-        fontWeight: 'bold',
-        marginBottom: 8,
-    },
-    dailyLink: {
-        alignSelf: 'center',
-        paddingVertical: 4,
-    },
-    dailyLinkText: {
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
 
-});

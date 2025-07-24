@@ -1,7 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useMemo } from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {PaperProvider, MD3LightTheme, MD3DarkTheme, Card} from 'react-native-paper';
 import { useFonts } from 'expo-font';
@@ -9,6 +9,7 @@ import { useFonts } from 'expo-font';
 // @ts-ignore
 import { initDatabase } from '@/services/db';
 import {useColorScheme} from "react-native";
+import {getCustomColors} from "@/utils/colorUtils";
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -25,30 +26,32 @@ export default function RootLayout() {
         ...FontAwesome.font,
     });
 
+    const [dbReady, setDbReady] = useState(false);
+
     useEffect(() => {
         if (error) throw error;
     }, [error]);
 
-    // Prepare DB and hide splash screen
     const prepare = useCallback(async () => {
         try {
             await initDatabase();
             console.log('✅ Database initialized successfully');
+            setDbReady(true);
         } catch (err) {
             console.error('❌ Error initializing database:', err);
-        }
-        finally {
+        } finally {
             if (loaded) await SplashScreen.hideAsync();
         }
     }, [loaded]);
 
     useEffect(() => {
-        if (loaded) {
+        if (loaded && !dbReady) {
             prepare();
         }
-    }, [loaded, prepare]);
+    }, [loaded, dbReady, prepare]);
 
-    if (!loaded) return null;
+    // ❗ Don't render anything until fonts and DB are ready
+    if (!loaded || !dbReady) return null;
 
     return <RootLayoutNav />;
 }
@@ -58,16 +61,10 @@ function RootLayoutNav() {
 
     const theme = useMemo(() => {
         const baseTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
-        const background = colorScheme === 'dark' ? '#121212' : '#f1f1f1';
+        const colors = getCustomColors(colorScheme);
         return {
             ...baseTheme,
-            colors: {
-                ...baseTheme.colors,
-                primary: '#6200ee',
-                secondary: '#03dac6',
-                background: background,
-                surface: baseTheme.colors.surface,
-            },
+            colors,
         };
     }, [colorScheme]);
 

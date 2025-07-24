@@ -2,20 +2,22 @@ import { Tabs } from 'expo-router';
 import {MaterialCommunityIcons, MaterialIcons} from '@expo/vector-icons';
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {useTheme} from "react-native-paper";
+import {useColorScheme} from "react-native";
+import {getCustomColors} from "@/utils/colorUtils";
 
 export default function TabLayout() {
     const theme = useTheme();
-
+    const colorScheme = useColorScheme();
+    const custom = getCustomColors(colorScheme);
     return (
         <Tabs
             screenOptions={{
                 tabBarStyle: {
-                    backgroundColor: '#e0e0e0', // match Appbar
-                    borderTopColor: '#ccc',
+                    backgroundColor: custom.footerBackground,
                 },
                 tabBarActiveTintColor: theme.colors.primary,
-                tabBarInactiveTintColor: '#666',
-                headerShown: false, // since you're using Appbar separately
+                tabBarInactiveTintColor: custom.footerForeground,
+                headerShown: false,
             }}
         >
             <Tabs.Screen
