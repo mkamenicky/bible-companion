@@ -2,6 +2,7 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "baseUrl": ".",   // 👈 REQUIRED for paths to work!
     "paths": {
       "@/*": [
         "./*"
@@ -11,6 +12,7 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "**/*.sql",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
   ]
