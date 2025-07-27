@@ -6,16 +6,17 @@ import { useColorScheme, View } from 'react-native';
 import { Appbar, Portal, useTheme } from 'react-native-paper';
 
 // Local component imports
-import ScreenContainer from '@/components/ScreenContainer';
-import TaskConfirmationModal from '@/components/tasks/TaskConfirmationModal';
-import WeeklyChecklistCard from '@/components/tasks/WeeklyChecklistCard';
-import ReadingPlanCard from '@/components/tasks/ReadingPlanCard';
-import DailyTextBanner from '@/components/tasks/DailyTextBanner';
+import {
+    ScreenContainer,
+    TaskConfirmationModal,
+    WeeklyChecklistCard,
+    ReadingPlanCard,
+    DailyTextBanner
+} from '@/components';
 
 // Service and utility imports
-import { useHomeData } from '@/hooks/useHomeData';
-import { DateFormattingService } from '@/services/date/DateFormattingService';
-import { ThemeService } from '@/services/theme/ThemeService';
+import { useHomeData } from '@/hooks';
+import { DateFormattingService, ThemeService } from '@/services';
 
 export default function HomeScreen() {
     // Custom hook for data management

@@ -14,8 +14,8 @@ import {
 } from 'react-native-paper';
 
 // Service and utility imports
-import { useSettingsData } from '@/hooks/useSettingsData';
-import { ThemeService } from '@/services/theme/ThemeService';
+import { useSettingsData } from '@/hooks';
+import { ThemeService } from '@/services';
 
 export default function SettingsScreen() {
     // Custom hook for data management

@@ -2,7 +2,7 @@ import React from 'react';
 import {FlatList, View} from 'react-native';
 import {Card, Checkbox, Divider, List, Text} from 'react-native-paper';
 import {MaterialCommunityIcons} from '@expo/vector-icons';
-import {ReadingPlan} from '@/repository/reading.repository';
+import {ReadingPlan} from '@/models';
 
 interface Props {
     readingPlan: ReadingPlan[];

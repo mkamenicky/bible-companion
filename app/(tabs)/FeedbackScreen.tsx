@@ -9,8 +9,8 @@ import {Appbar, Button, Card, TextInput, useTheme} from 'react-native-paper';
 import ScreenContainer from '@/components/ScreenContainer';
 
 // Service and utility imports
-import {useFeedbackData} from '@/hooks/useFeedbackData';
-import {ThemeService} from '@/services/theme/ThemeService';
+import {useFeedbackData} from '@/hooks';
+import {ThemeService} from '@/services';
 
 export default function FeedbackScreen() {
     // Custom hook for data management

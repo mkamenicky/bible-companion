@@ -3,7 +3,7 @@ import {MaterialIcons} from '@expo/vector-icons';
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {useTheme} from "react-native-paper";
 import {useColorScheme} from "react-native";
-import {ThemeService} from "@/services/theme/ThemeService";
+import {ThemeService} from "@/services";
 
 export default function TabLayout() {
     const theme = useTheme();

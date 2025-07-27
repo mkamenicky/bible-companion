@@ -7,9 +7,9 @@ import {PaperProvider, MD3LightTheme, MD3DarkTheme, Card} from 'react-native-pap
 import { useFonts } from 'expo-font';
 
 // @ts-ignore
-import { initDatabase } from '@/services/database/db';
+import { initDatabase } from '@/services/(services)/database/db';
 import {useColorScheme} from "react-native";
-import {ThemeService} from "@/services/theme/ThemeService";
+import {ThemeService} from "@/services/(services)/theme/ThemeService";
 
 export { ErrorBoundary } from 'expo-router';
 

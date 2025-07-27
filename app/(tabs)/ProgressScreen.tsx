@@ -13,11 +13,11 @@ import {
 } from 'react-native-paper';
 
 // Local component imports
-import ScreenContainer from '@/components/ScreenContainer';
+import { ScreenContainer } from '@/components';
 
 // Service and utility imports
-import { useProgressData } from '@/hooks/useProgressData';
-import { ThemeService } from '@/services/theme/ThemeService';
+import { useProgressData } from '@/hooks';
+import { ThemeService } from '@/services';
 
 export default function ProgressScreen() {
     // Custom hook for data management
