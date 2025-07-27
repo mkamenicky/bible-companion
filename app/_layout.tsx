@@ -7,9 +7,9 @@ import {PaperProvider, MD3LightTheme, MD3DarkTheme, Card} from 'react-native-pap
 import { useFonts } from 'expo-font';
 
 // @ts-ignore
-import { initDatabase } from '@/services/db';
+import { initDatabase } from '@/services/database/db';
 import {useColorScheme} from "react-native";
-import {getCustomColors} from "@/utils/colorUtils";
+import {ThemeService} from "@/services/theme/ThemeService";
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -61,7 +61,7 @@ function RootLayoutNav() {
 
     const theme = useMemo(() => {
         const baseTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
-        const colors = getCustomColors(colorScheme);
+        const colors = ThemeService.getCustomColors(colorScheme);
         return {
             ...baseTheme,
             colors,

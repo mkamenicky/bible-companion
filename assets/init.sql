@@ -15,12 +15,6 @@ CREATE TABLE IF NOT EXISTS feedback (
                                         feedback TEXT
 );
 
-CREATE TABLE IF NOT EXISTS chapter_verse_counts (
-                                                    id INTEGER PRIMARY KEY,
-                                                    chapter TEXT,
-                                                    verse_count INTEGER
-);
-
 CREATE TABLE IF NOT EXISTS tasks (
                                      id INTEGER PRIMARY KEY,
                                      date TEXT NOT NULL,
@@ -54,3 +48,11 @@ CREATE TABLE IF NOT EXISTS BibleChapter (
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_BibleChapter_BookChapter
     ON BibleChapter (BibleBookId, BibleChapterId);
+
+CREATE TABLE IF NOT EXISTS BibleVerseProgress (
+                                         id           INTEGER PRIMARY KEY,
+                                         bibleVerseId INTEGER           NOT NULL REFERENCES BibleVerse,
+                                         dateRead     TEXT              NOT NULL,
+                                         isRead       INTEGER DEFAULT 1 NOT NULL,
+                                         UNIQUE(bibleVerseId, dateRead)
+);
