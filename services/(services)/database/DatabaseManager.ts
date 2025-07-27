@@ -1,6 +1,9 @@
 import {Platform} from 'react-native';
 import {SQLiteDatabase} from 'expo-sqlite';
-import {AndroidDatabaseService, DatabaseService, IOSDatabaseService, WebDatabaseService} from '@/services';
+import {AndroidDatabaseService} from '@/services/(services)/database/db.android';
+import {DatabaseService} from '@/services/(services)/database/DatabaseService';
+import {IOSDatabaseService} from '@/services/(services)/database/db.ios';
+import {WebDatabaseService} from '@/services/(services)/database/db.web';
 import type {DatabaseConfig} from '@/models';
 
 export class DatabaseManager {

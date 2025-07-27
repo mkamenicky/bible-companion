@@ -2,7 +2,7 @@ import {Asset} from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
 import {openDatabaseAsync, openDatabaseSync, SQLiteDatabase} from 'expo-sqlite';
 import {DatabaseError} from '@/errors';
-import {DatabaseService} from '@/services';
+import {DatabaseService} from '@/services/(services)/database/DatabaseService';
 import type {DatabaseConfig} from '@/models';
 
 export class IOSDatabaseService extends DatabaseService {

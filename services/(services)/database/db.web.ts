@@ -1,5 +1,5 @@
 import { SQLiteDatabase } from 'expo-sqlite';
-import { DatabaseService} from '@/services';
+import { DatabaseService} from '@/services/(services)/database/DatabaseService';
 import { DatabaseError } from '@/errors';
 import type { DatabaseConfig } from '@/models';
 

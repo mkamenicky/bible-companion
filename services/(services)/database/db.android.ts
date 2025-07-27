@@ -1,7 +1,7 @@
 import {Asset} from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
 import {openDatabaseAsync, SQLiteDatabase} from 'expo-sqlite';
-import {DatabaseService} from '@/services';
+import {DatabaseService} from '@/services/(services)/database/DatabaseService';
 import {DatabaseError } from '@/errors'
 import type {DatabaseConfig} from '@/models';
 
