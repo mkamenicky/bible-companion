@@ -1,25 +1,15 @@
 // React imports
 import React from 'react';
-import { useColorScheme, View, ScrollView } from 'react-native';
+import {ScrollView, useColorScheme, View} from 'react-native';
 
 // Third-party library imports
-import {
-    Appbar,
-    Card,
-    List,
-    Switch,
-    ActivityIndicator,
-    useTheme,
-    Divider,
-    Text
-} from 'react-native-paper';
+import {ActivityIndicator, Appbar, Card, Divider, List, Switch, Text} from 'react-native-paper';
 
 // Service and utility imports
-import { useSettingsData } from '@/hooks';
-import { ThemeService } from '@/services';
-import { ThemeSelector } from '@/components/theme/ThemeSelector';
-import { ThemeVariant } from '@/services/(services)/theme/ThemeService';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import {useSettingsData} from '@/hooks';
+import {ThemeService} from '@/services';
+import {ThemeSelector} from '@/components/theme/ThemeSelector';
+import {ThemeVariant} from '@/services/(services)/theme/ThemeService';
 
 export default function SettingsScreen() {
     const {
@@ -28,7 +18,6 @@ export default function SettingsScreen() {
         updateSetting,
         resetSettings,
         exportSettings,
-        importSettings,
     } = useSettingsData();
 
     const colorScheme = useColorScheme();
@@ -41,9 +30,9 @@ export default function SettingsScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={customColors.accent} />
-                <Text style={{ marginTop: 16, color: customColors.text }}>Loading settings...</Text>
+            <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
+                <ActivityIndicator size="large" color={customColors.accent}/>
+                <Text style={{marginTop: 16, color: customColors.text}}>Loading settings...</Text>
             </View>
         );
     }
@@ -55,16 +44,16 @@ export default function SettingsScreen() {
     return (
         <View style={styles.container}>
             <Appbar.Header style={styles.appbar}>
-                <Appbar.Content title="Settings" />
+                <Appbar.Content title="Settings"/>
             </Appbar.Header>
 
-            <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+            <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 16}}>
                 <Card style={styles.card}>
-                    <Card.Title title="Notifications" titleStyle={{ color: customColors.text }} />
+                    <Card.Title title="Notifications" titleStyle={{color: customColors.text}}/>
                     <Card.Content>
                         <List.Item
                             title="Enable Notifications"
-                            titleStyle={{ color: customColors.text }}
+                            titleStyle={{color: customColors.text}}
                             right={() => (
                                 <Switch
                                     value={settings.notifications}
@@ -73,10 +62,10 @@ export default function SettingsScreen() {
                                 />
                             )}
                         />
-                        <Divider />
+                        <Divider/>
                         <List.Item
                             title="Daily Reminder"
-                            titleStyle={{ color: customColors.text }}
+                            titleStyle={{color: customColors.text}}
                             right={() => (
                                 <Switch
                                     value={settings.dailyReminder}
@@ -89,15 +78,15 @@ export default function SettingsScreen() {
                 </Card>
 
                 <Card style={styles.card}>
-                    <Card.Title title="Appearance" titleStyle={{ color: customColors.text }} />
+                    <Card.Title title="Appearance" titleStyle={{color: customColors.text}}/>
                     <Card.Content>
-                        <ThemeSelector onThemeChange={handleThemeChange} />
-                        <Divider style={{ marginVertical: 12 }} />
+                        <ThemeSelector onThemeChange={handleThemeChange}/>
+                        <Divider style={{marginVertical: 12}}/>
                         <List.Item
                             title="Font Size"
                             description={`Current: ${settings.fontSize}`}
-                            titleStyle={{ color: customColors.text }}
-                            descriptionStyle={{ color: customColors.subtleGray }}
+                            titleStyle={{color: customColors.text}}
+                            descriptionStyle={{color: customColors.subtleGray}}
                             onPress={() => {
                                 // TODO: Implement font size picker modal
                             }}
@@ -106,11 +95,11 @@ export default function SettingsScreen() {
                 </Card>
 
                 <Card style={styles.card}>
-                    <Card.Title title="Data & Storage" titleStyle={{ color: customColors.text }} />
+                    <Card.Title title="Data & Storage" titleStyle={{color: customColors.text}}/>
                     <Card.Content>
                         <List.Item
                             title="Offline Mode"
-                            titleStyle={{ color: customColors.text }}
+                            titleStyle={{color: customColors.text}}
                             right={() => (
                                 <Switch
                                     value={settings.offlineMode}
@@ -119,16 +108,16 @@ export default function SettingsScreen() {
                                 />
                             )}
                         />
-                        <Divider />
+                        <Divider/>
                         <List.Item
                             title="Export Settings"
-                            titleStyle={{ color: customColors.text }}
+                            titleStyle={{color: customColors.text}}
                             onPress={exportSettings}
                         />
-                        <Divider />
+                        <Divider/>
                         <List.Item
                             title="Reset Settings"
-                            titleStyle={{ color: customColors.text }}
+                            titleStyle={{color: customColors.text}}
                             onPress={resetSettings}
                         />
                     </Card.Content>

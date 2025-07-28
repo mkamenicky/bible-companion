@@ -3,7 +3,7 @@ import React from 'react';
 import {useColorScheme, View} from 'react-native';
 
 // Third-party library imports
-import {Appbar, Portal, useTheme} from 'react-native-paper';
+import {Appbar, Portal} from 'react-native-paper';
 
 // Local component imports
 import {
@@ -17,13 +17,10 @@ import {
 // Service and utility imports
 import {useHomeData} from '@/hooks';
 import {DateFormattingService, ThemeService} from '@/services';
-import {ThemeVariant} from "@/services/(services)/theme/ThemeService";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function HomeScreen() {
     // Custom hook for data management
     const {
-        refreshing,
         readingPlan,
         taskStatus,
         confirmationTask,
@@ -38,7 +35,6 @@ export default function HomeScreen() {
     } = useHomeData();
 
     // Theme and styling - Now using Instagram theme by default
-    const {colors} = useTheme();
     const colorScheme = useColorScheme();
 
     // Get Instagram-style colors and styles

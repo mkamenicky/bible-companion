@@ -1,18 +1,18 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Stack } from 'expo-router';
+import {Stack} from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import {PaperProvider, MD3LightTheme, MD3DarkTheme, Card} from 'react-native-paper';
-import { useFonts } from 'expo-font';
+import {useCallback, useEffect, useMemo, useState} from 'react';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {MD3DarkTheme, MD3LightTheme, PaperProvider} from 'react-native-paper';
+import {useFonts} from 'expo-font';
 
 // @ts-ignore
-import { initDatabase } from '@/services/(services)/database/db';
+import {initDatabase} from '@/services/(services)/database/db';
 import {useColorScheme} from "react-native";
 import {ThemeService} from "@/services/(services)/theme/ThemeService";
 import {useThemeInitializer} from "@/components/theme/ThemeSelector";
 
-export { ErrorBoundary } from 'expo-router';
+export {ErrorBoundary} from 'expo-router';
 
 export const unstable_settings = {
     initialRouteName: '(tabs)',
@@ -54,7 +54,7 @@ export default function RootLayout() {
     // ❗ Don't render anything until fonts and DB are ready
     if (!loaded || !dbReady) return null;
 
-    return <RootLayoutNav />;
+    return <RootLayoutNav/>;
 }
 
 function RootLayoutNav() {
@@ -75,7 +75,7 @@ function RootLayoutNav() {
     return (
         <SafeAreaProvider>
             <PaperProvider theme={theme}>
-                <Stack screenOptions={{ headerShown: false }} />
+                <Stack screenOptions={{headerShown: false}}/>
             </PaperProvider>
         </SafeAreaProvider>
     );
