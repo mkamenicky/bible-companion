@@ -24,10 +24,6 @@ export default function SettingsScreen() {
     const customColors = ThemeService.getCustomColors(colorScheme);
     const styles = ThemeService.getStyles(customColors);
 
-    const handleThemeChange = async (newTheme: ThemeVariant) => {
-        console.log("Theme changed: " + newTheme);
-    };
-
     if (loading) {
         return (
             <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
@@ -80,7 +76,7 @@ export default function SettingsScreen() {
                 <Card style={styles.card}>
                     <Card.Title title="Appearance" titleStyle={{color: customColors.text}}/>
                     <Card.Content>
-                        <ThemeSelector onThemeChange={handleThemeChange}/>
+                        <ThemeSelector onThemeChange={() => {}}/>
                         <Divider style={{marginVertical: 12}}/>
                         <List.Item
                             title="Font Size"
