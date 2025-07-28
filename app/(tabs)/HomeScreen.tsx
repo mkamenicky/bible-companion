@@ -21,14 +21,12 @@ import {DateFormattingService, ThemeService} from '@/services';
 export default function HomeScreen() {
     // Custom hook for data management
     const {
-        taskStatus,
-        confirmationTask,
         today,
-        weeklyChecklistItems,
-        dailyChecklistItems,
         onRefresh,
+        taskStatus,
         handleToggleVerses,
-        handleConfirmationCancel,
+        dailyChecklistItems,
+        weeklyChecklistItems,
         confirmTaskCompletion,
         dailyReadingAssignments,
     } = useHomeData();
@@ -79,17 +77,6 @@ export default function HomeScreen() {
                     customColors={customColors}
                 />
             </ScreenContainer>
-
-            <Portal>
-                <TaskConfirmationModal
-                    visible={!!false}
-                    task={confirmationTask}
-                    onCancel={handleConfirmationCancel}
-                    onConfirm={confirmTaskCompletion}
-                    styles={styles}
-                    customColors={customColors}
-                />
-            </Portal>
         </View>
     );
 }
