@@ -20,11 +20,8 @@ import { useProgressData } from '@/hooks';
 import { ThemeService } from '@/services';
 
 export default function ProgressScreen() {
-    // Custom hook for data management
     const { stats, loading, refreshing, onRefresh } = useProgressData();
 
-    // Theme and styling
-    const { colors } = useTheme();
     const colorScheme = useColorScheme();
     const customColors = ThemeService.getCustomColors(colorScheme);
     const styles = ThemeService.getStyles(customColors);
@@ -32,8 +29,8 @@ export default function ProgressScreen() {
     if (loading) {
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" />
-                <Text style={{ marginTop: 16 }}>Loading progress...</Text>
+                <ActivityIndicator size="large" color={customColors.accent} />
+                <Text style={{ marginTop: 16, color: customColors.text }}>Loading progress...</Text>
             </View>
         );
     }
@@ -48,38 +45,48 @@ export default function ProgressScreen() {
                 {stats && (
                     <>
                         <Card style={styles.card}>
-                            <Card.Title title="Reading Progress" />
+                            <Card.Title title="Reading Progress" titleStyle={{ color: customColors.text }} />
                             <Card.Content>
-                                <Text style={{ marginBottom: 8 }}>
+                                <Text style={{ marginBottom: 8, color: customColors.text }}>
                                     Total Verses Read: {stats.totalVersesRead}
                                 </Text>
-                                <Text style={{ marginBottom: 4 }}>Weekly Progress</Text>
-                                <ProgressBar progress={stats.weeklyProgress / 100} style={{ marginBottom: 12 }} />
-                                <Text style={{ marginBottom: 4 }}>Monthly Progress</Text>
-                                <ProgressBar progress={stats.monthlyProgress / 100} />
+                                <Text style={{ marginBottom: 4, color: customColors.text }}>Weekly Progress</Text>
+                                <ProgressBar
+                                    progress={stats.weeklyProgress / 100}
+                                    style={{ marginBottom: 12, backgroundColor: customColors.lightGray }}
+                                    color={customColors.accent}
+                                />
+                                <Text style={{ marginBottom: 4, color: customColors.text }}>Monthly Progress</Text>
+                                <ProgressBar
+                                    progress={stats.monthlyProgress / 100}
+                                    style={{ backgroundColor: customColors.lightGray }}
+                                    color={customColors.accent}
+                                />
                             </Card.Content>
                         </Card>
 
                         <Card style={styles.card}>
-                            <Card.Title title="Streaks" />
+                            <Card.Title title="Streaks" titleStyle={{ color: customColors.text }} />
                             <Card.Content>
-                                <Text style={{ marginBottom: 8 }}>
+                                <Text style={{ marginBottom: 8, color: customColors.text }}>
                                     Current Streak: {stats.currentStreak} days
                                 </Text>
-                                <Text>
+                                <Text style={{ color: customColors.text }}>
                                     Longest Streak: {stats.longestStreak} days
                                 </Text>
                             </Card.Content>
                         </Card>
 
                         <Card style={styles.card}>
-                            <Card.Title title="Task Completion" />
+                            <Card.Title title="Task Completion" titleStyle={{ color: customColors.text }} />
                             <Card.Content>
-                                <Text style={{ marginBottom: 8 }}>
+                                <Text style={{ marginBottom: 8, color: customColors.text }}>
                                     Completed: {stats.completedTasks} / {stats.totalTasks}
                                 </Text>
                                 <ProgressBar
                                     progress={stats.totalTasks > 0 ? stats.completedTasks / stats.totalTasks : 0}
+                                    style={{ backgroundColor: customColors.lightGray }}
+                                    color={customColors.completedGreen}
                                 />
                             </Card.Content>
                         </Card>

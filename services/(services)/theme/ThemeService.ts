@@ -45,7 +45,6 @@ export class ThemeService {
         }
     }
 
-    // Instagram-style theme (clean, white-based with Instagram blue)
     private static getInstagramColors(isDark: boolean, baseTheme: any): ThemeColors {
         if (isDark) {
             return {
@@ -63,12 +62,11 @@ export class ThemeService {
                 footerForeground: '#8e8e8e',
                 text: '#ffffff',
                 accent: '#0095f6',
-                // Instagram-specific
                 instagramBlue: '#0095f6',
                 subtleGray: '#8e8e8e',
                 lightGray: '#262626',
                 borderColor: '#363636',
-                completedGreen: '#34d399',
+                completedGreen: '#10b981',
                 shadowColor: 'rgba(0, 0, 0, 0.25)',
             };
         }
@@ -88,63 +86,87 @@ export class ThemeService {
             footerForeground: '#8e8e8e',
             text: '#262626',
             accent: '#0095f6',
-            // Instagram-specific
             instagramBlue: '#0095f6',
             subtleGray: '#8e8e8e',
             lightGray: '#f0f0f0',
             borderColor: '#dbdbdb',
-            completedGreen: '#34d399',
+            completedGreen: '#10b981',
             shadowColor: 'rgba(0, 0, 0, 0.1)',
         };
     }
 
-    // Minimal theme (very clean, almost no colors)
     private static getMinimalColors(isDark: boolean, baseTheme: any): ThemeColors {
-        const base = this.getInstagramColors(isDark, baseTheme);
         return {
-            ...base,
+            ...baseTheme.colors,
             primary: isDark ? '#ffffff' : '#000000',
+            secondary: '#03dac6',
+            color: isDark ? '#ffffff' : '#000000',
+            background: isDark ? '#000000' : '#ffffff',
+            surface: isDark ? '#121212' : '#f8f8f8',
+            onSurface: isDark ? '#ffffff' : '#000000',
+            onBackground: isDark ? '#ffffff' : '#000000',
+            foreground: isDark ? '#121212' : '#ffffff',
+            titleBackground: isDark ? '#000000' : '#ffffff',
+            footerBackground: isDark ? '#000000' : '#ffffff',
+            footerForeground: '#999999',
+            text: isDark ? '#ffffff' : '#000000',
+            accent: isDark ? '#ffffff' : '#000000',
             instagramBlue: isDark ? '#ffffff' : '#000000',
+            subtleGray: '#999999',
+            lightGray: isDark ? '#1e1e1e' : '#f2f2f2',
+            borderColor: isDark ? '#333333' : '#e0e0e0',
             completedGreen: isDark ? '#ffffff' : '#000000',
+            shadowColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
         };
     }
 
-    // Dark modern theme (your current style but refined)
     private static getDarkModernColors(isDark: boolean, baseTheme: any): ThemeColors {
         return {
             ...baseTheme.colors,
-            primary: '#79aafb',
-            secondary: '#03dac6',
-            color: isDark ? '#fefefe' : '#000000',
-            background: isDark ? '#121212' : '#f1f1f1',
-            surface: baseTheme.colors.surface,
+            primary: '#144cfb',
+            secondary: '#009789',
+            color: isDark ? '#f1f1f1' : '#000000',
+            background: isDark ? '#0f0f0f' : '#f1f1f1',
+            surface: isDark ? '#1a1a1a' : '#ffffff',
             onSurface: baseTheme.colors.onSurface,
             onBackground: baseTheme.colors.onBackground,
             foreground: isDark ? '#1e1e1e' : '#ffffff',
             titleBackground: isDark ? '#1e1e1e' : '#e0e0e0',
             footerBackground: isDark ? '#1e1e1e' : '#e0e0e0',
-            footerForeground: isDark ? '#a1a1a1' : '#818080',
-            text: isDark ? '#fefefe' : '#000000',
-            accent: '#79aafb',
-            // Instagram-specific (adapted for dark modern)
-            instagramBlue: '#79aafb',
-            subtleGray: isDark ? '#a1a1a1' : '#818080',
+            footerForeground: isDark ? '#a3a3a3' : '#818080',
+            text: isDark ? '#f1f1f1' : '#000000',
+            accent: '#144cfb',
+            instagramBlue: '#144cfb',
+            subtleGray: isDark ? '#a3a3a3' : '#818080',
             lightGray: isDark ? '#2a2a2a' : '#f0f0f0',
-            borderColor: isDark ? '#333333' : '#dbdbdb',
-            completedGreen: '#34d399',
-            shadowColor: isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.1)',
+            borderColor: isDark ? '#2e2e2e' : '#dbdbdb',
+            completedGreen: '#008a34',
+            shadowColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.1)',
         };
     }
 
-    // Default theme (your current implementation)
     private static getDefaultColors(isDark: boolean, baseTheme: any): ThemeColors {
-        const modernColors = this.getDarkModernColors(isDark, baseTheme);
         return {
-            ...modernColors,
-            background: isDark ? '#292929' : '#f1f1f1',
+            ...baseTheme.colors,
+            primary: '#8aade6',
+            secondary: '#7adcd2',
+            color: isDark ? '#f1f1f1' : '#1f2937',
+            background: isDark ? '#292929' : '#f3f4f6',
+            surface: '#ffffff',
+            onSurface: '#1f2937',
+            onBackground: '#1f2937',
             foreground: isDark ? '#121212' : '#ffffff',
             titleBackground: isDark ? '#292929' : '#e0e0e0',
             footerBackground: isDark ? '#292929' : '#e0e0e0',
+            footerForeground: '#6b7280',
+            text: isDark ? '#f1f1f1' : '#1f2937',
+            accent: '#8aade6',
+            instagramBlue: '#8aade6',
+            subtleGray: '#6b7280',
+            lightGray: '#e5e7eb',
+            borderColor: '#d1d5db',
+            completedGreen: '#7d9e98',
+            shadowColor: isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.05)',
         };
     }
 

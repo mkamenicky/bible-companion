@@ -42,8 +42,8 @@ export default function HomeScreen() {
     const colorScheme = useColorScheme();
 
     // Get Instagram-style colors and styles
-    const customColors = ThemeService.getCustomColors(colorScheme, 'instagram');
-    const styles = ThemeService.getStyles(customColors, 'instagram');
+    const customColors = ThemeService.getCustomColors(colorScheme);
+    const styles = ThemeService.getStyles(customColors);
 
     // Formatted date values
     const weekday = DateFormattingService.getWeekday(today);

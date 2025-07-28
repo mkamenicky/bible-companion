@@ -64,8 +64,10 @@ function RootLayoutNav() {
     const theme = useMemo(() => {
         const baseTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
         const colors = ThemeService.getCustomColors(colorScheme);
+        const styles = ThemeService.getStyles(colors);
         return {
             ...baseTheme,
+            ...styles,
             colors,
         };
     }, [colorScheme]);
