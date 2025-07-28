@@ -10,6 +10,7 @@ import { useFonts } from 'expo-font';
 import { initDatabase } from '@/services/(services)/database/db';
 import {useColorScheme} from "react-native";
 import {ThemeService} from "@/services/(services)/theme/ThemeService";
+import {useThemeInitializer} from "@/components/theme/ThemeSelector";
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -58,6 +59,7 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
     const colorScheme = useColorScheme();
+    useThemeInitializer();
 
     const theme = useMemo(() => {
         const baseTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;

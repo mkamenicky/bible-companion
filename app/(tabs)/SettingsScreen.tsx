@@ -16,6 +16,9 @@ import {
 // Service and utility imports
 import { useSettingsData } from '@/hooks';
 import { ThemeService } from '@/services';
+import {ThemeSelector} from "@/components/theme/ThemeSelector";
+import {ThemeVariant} from "@/services/(services)/theme/ThemeService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function SettingsScreen() {
     // Custom hook for data management
@@ -32,7 +35,11 @@ export default function SettingsScreen() {
     const { colors } = useTheme();
     const colorScheme = useColorScheme();
     const customColors = ThemeService.getCustomColors(colorScheme);
-    const styles = ThemeService.getStyles(customColors);
+    const styles = ThemeService.getStyles(customColors, colorScheme);
+
+    const handleThemeChange = async (newTheme: ThemeVariant) => {
+        await AsyncStorage.setItem('selectedTheme', newTheme)
+    };
 
     if (loading) {
         return (
@@ -81,13 +88,7 @@ export default function SettingsScreen() {
                 <Card style={styles.card}>
                     <Card.Title title="Appearance" />
                     <Card.Content>
-                        <List.Item
-                            title="Theme"
-                            description={`Current: ${settings.theme}`}
-                            onPress={() => {
-                                // TODO: Implement theme picker modal
-                            }}
-                        />
+                        <ThemeSelector onThemeChange={handleThemeChange} />
                         <Divider />
                         <List.Item
                             title="Font Size"
