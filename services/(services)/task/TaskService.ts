@@ -27,9 +27,9 @@ export class TaskService {
         return await readingService.fetchReadingAssignments()
     }
 
-    async confirmTaskCompletion(taskName: string | null): Promise<void> {
+    async toggleTaskCompletion(taskName: string, done: boolean): Promise<void> {
         if (!taskName) return;
-        await readingService.setTaskState(taskName, this.today, true);
+        await readingService.setTaskState(taskName, this.today, done);
     }
 
     async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {

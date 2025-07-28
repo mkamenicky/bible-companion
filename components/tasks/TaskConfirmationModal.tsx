@@ -5,7 +5,7 @@ import { Modal, Portal } from 'react-native-paper';
 interface Props {
     visible: boolean;
     task: string | null;
-    onConfirm: () => void;
+    onConfirm: (task: string, status: any) => void;
     onCancel: () => void;
     styles: any;
     customColors?: any;
@@ -78,7 +78,7 @@ export default function TaskConfirmationModal({
 
                         {/* Confirm button */}
                         <TouchableOpacity
-                            onPress={onConfirm}
+                            onPress={() => onConfirm(task, undefined)}
                             style={{
                                 flex: 1,
                                 padding: 16,

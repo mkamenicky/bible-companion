@@ -5,7 +5,7 @@ interface Props {
     today: Date;
     dailyChecklistItems: string[];
     taskStatus: Record<string, boolean>;
-    onConfirm: (task: string) => void;
+    onConfirm: (task: string, status: boolean) => void;
     styles: any;
     customColors?: any;
 }
@@ -51,8 +51,7 @@ export default function DailyTextBanner({
                                 isLast && styles.listItemLast,
                                 isCompleted && { opacity: 0.6 }
                             ]}
-                            onPress={() => !isCompleted && onConfirm(task)}
-                            disabled={isCompleted}
+                            onPress={() => onConfirm(task, !isCompleted)}
                         >
                             <View style={[
                                 styles.itemIcon,

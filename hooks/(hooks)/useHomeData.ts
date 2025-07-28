@@ -74,13 +74,20 @@ export function useHomeData() {
         setConfirmationTask(null);
     }, []);
 
-    const confirmTaskCompletion = useCallback(async (): Promise<void> => {
-        if (!confirmationTask) return;
+    const confirmTaskCompletion = useCallback(async (task: string | null = confirmationTask, status: any ): Promise<void> => {
+        if (!task) return;
 
-        await taskService.confirmTaskCompletion(confirmationTask);
-        setTaskStatus(prev => ({ ...prev, [confirmationTask]: true }));
+        if(status === undefined){
+            status = !taskStatus[task];
+        }
+
+        console.log('Confirming task completion:', task);
+
+        await taskService.toggleTaskCompletion(task, status);
+        setTaskStatus(prev => ({ ...prev, [task]: status }));
         setConfirmationTask(null);
-    }, [confirmationTask, taskService]);
+        onRefresh()
+    }, [confirmationTask, taskService, onRefresh]);
 
     // Lifecycle effects
     useFocusEffect(
@@ -107,6 +114,6 @@ export function useHomeData() {
         handleToggleVerses,
         handleConfirmationTaskSet,
         handleConfirmationCancel,
-        confirmTaskCompletion,
+        confirmTaskCompletion
     };
 }

@@ -6,7 +6,7 @@ interface Props {
     items: string[];
     title: string;
     taskStatus: Record<string, boolean>;
-    onConfirm: (task: string) => void;
+    onConfirm: (task: string, status: boolean) => void;
     styles: any;
     customColors?: any; // Add this for color access
 }
@@ -55,8 +55,7 @@ export default function WeeklyChecklistCard({ items, title, taskStatus, onConfir
                                 isLast && styles.listItemLast,
                                 isCompleted && { opacity: 0.6 }
                             ]}
-                            onPress={() => !isCompleted && onConfirm(task)}
-                            disabled={isCompleted}
+                            onPress={() => onConfirm(task, !isCompleted)}
                         >
                             <View style={[
                                 styles.itemIcon,

@@ -21,7 +21,6 @@ import {DateFormattingService, ThemeService} from '@/services';
 export default function HomeScreen() {
     // Custom hook for data management
     const {
-        readingPlan,
         taskStatus,
         confirmationTask,
         today,
@@ -29,10 +28,9 @@ export default function HomeScreen() {
         dailyChecklistItems,
         onRefresh,
         handleToggleVerses,
-        handleConfirmationTaskSet,
         handleConfirmationCancel,
         confirmTaskCompletion,
-        dailyReadingAssignments
+        dailyReadingAssignments,
     } = useHomeData();
 
     // Theme and styling - Now using Instagram theme by default
@@ -60,7 +58,7 @@ export default function HomeScreen() {
                     today={today}
                     dailyChecklistItems={dailyChecklistItems}
                     taskStatus={taskStatus}
-                    onConfirm={handleConfirmationTaskSet}
+                    onConfirm={confirmTaskCompletion}
                     styles={styles}
                     customColors={customColors}
                 />
@@ -76,7 +74,7 @@ export default function HomeScreen() {
                     items={weeklyChecklistItems}
                     title={`Week: ${weekRange}`}
                     taskStatus={taskStatus}
-                    onConfirm={handleConfirmationTaskSet}
+                    onConfirm={confirmTaskCompletion}
                     styles={styles}
                     customColors={customColors}
                 />
@@ -84,7 +82,7 @@ export default function HomeScreen() {
 
             <Portal>
                 <TaskConfirmationModal
-                    visible={!!confirmationTask}
+                    visible={!!false}
                     task={confirmationTask}
                     onCancel={handleConfirmationCancel}
                     onConfirm={confirmTaskCompletion}
