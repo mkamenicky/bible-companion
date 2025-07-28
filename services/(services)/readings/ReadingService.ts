@@ -1,13 +1,13 @@
-import type {ReadingPlan, TaskStates, MutableTaskStates} from "@/models";
+import {DailyReadingAssignment, MutableTaskStates, ReadingPlan, TaskStates} from "@/models";
 import {DatabaseMessageError, ValidationError} from '@/errors';
 import {getMondayOfWeek} from "@/utils";
-import {
-    bibleBookRepository,
-    bibleChapterRepository,
-    bibleVerseProgressRepository,
-    bibleVerseRepository,
-    tasksRepository
-} from '@/repository';
+import {bibleBookRepository} from '@/repository/(repositories)/bible-book.repository'
+import {bibleChapterRepository} from '@/repository/(repositories)/bible-chapter.repository'
+import {bibleVerseProgressRepository} from '@/repository/(repositories)/bible-verse-progress.repository'
+import {bibleVerseRepository} from '@/repository/(repositories)/bible-verse.repository'
+import {dailyReadingAssignmentsRepository} from '@/repository/(repositories)/daily-reading-assignments.repository'
+import {readingPlanConfigRepository} from '@/repository/(repositories)/reading-plan-config.repository'
+import {tasksRepository} from '@/repository/(repositories)/tasks.repository'
 
 /**
  * Service class for managing Bible reading progress and tasks
@@ -176,6 +176,41 @@ export class ReadingService {
         }
     }
 
+    async markDailyReadingAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment, date: Date = new Date(), isRead: boolean = true): Promise<void> {
+        this.validateInput(date, 'date', 'date');
+        try {
+            console.log("marking assignment as read:", dailyReadingAssignment);
+            const readAssignments = await dailyReadingAssignmentsRepository.findAll();
+            const existingAssignment = readAssignments.find(assignment =>
+                assignment.start_verse_id == dailyReadingAssignment.start_verse_id && assignment.end_verse_id == assignment.end_verse_id
+            )
+
+            console.log("existing assignment:", existingAssignment);
+            if (existingAssignment) {
+                dailyReadingAssignmentsRepository.update({
+                    id: existingAssignment.id,
+                    is_completed: isRead,
+                    completed_at: date?.toISOString().split('T')[0]
+                })
+                return;
+            }
+
+            console.log("creating assignment:", dailyReadingAssignment);
+            dailyReadingAssignmentsRepository.create({
+                date: date?.toISOString().split('T')[0],
+                plan_name: "cronological",
+                start_verse_id: dailyReadingAssignment.start_verse_id,
+                end_verse_id: dailyReadingAssignment.end_verse_id,
+                display_title: "Cronological",
+                is_completed: true,
+                completed_at: date?.toISOString().split('T')[0]
+            })
+
+        } catch (error: any) {
+            throw new DatabaseMessageError(`Failed to mark dailyReadingAssignment as read: ${dailyReadingAssignment}`, error as Error);
+        }
+    }
+
     /**
      * Unmarks a Bible verse as read by removing its progress record
      */
@@ -202,52 +237,28 @@ export class ReadingService {
      * Gets the current reading plan with books, chapters, and verses
      */
     async getReadingPlan(): Promise<ReadingPlan[]> {
+        console.log("fetching plans:");
         try {
-            // Get the first Bible book (you may want to make this configurable)
-            const book = await bibleBookRepository.findById(1);
-            if (!book) {
-                return [];
-            }
-
-            // Use repository method to find chapters by book number if available
-            // Otherwise fallback to filtering all chapters
-            let bookChapters;
-            if (typeof bibleChapterRepository.findByBookNumber === 'function') {
-                bookChapters = await bibleChapterRepository.findByBookNumber(book.BibleBookId);
-            } else {
-                const allChapters = await bibleChapterRepository.findAll();
-                bookChapters = allChapters.filter(chapter =>
-                    chapter.BookNumber === book.BibleBookId
-                );
-            }
-
-            if (bookChapters.length === 0) {
-                return [];
-            }
-
-            // For now, get the first chapter (you may want to implement more logic here)
-            const chapter = bookChapters[0];
-
-            // Get verses for this chapter using repository method
-            if (!chapter.FirstVerseId || !chapter.LastVerseId) {
-                return [{
-                    bibleBook: book,
-                    bibleChapter: chapter,
-                    bibleVerses: []
-                }];
-            }
-
-            const verses = await bibleVerseRepository.findByRange(
-                chapter.FirstVerseId,
-                chapter.LastVerseId
+            const readingPlanConfigs = await readingPlanConfigRepository.findAll();
+            console.log("existingPlan:", readingPlanConfigs);
+            let existingPlan = readingPlanConfigs.find(config =>
+                config.plan_type === "cronological" && config.is_active
             );
 
+            console.log("existingPlan:", existingPlan);
+
+            if(!existingPlan){
+                existingPlan = await readingPlanConfigRepository.create({
+                    plan_name: "Maximilians Test Plan",
+                    plan_type: "cronological",
+                    is_active: true
+                })
+            }
+
             return [{
-                bibleBook: book,
-                bibleChapter: chapter,
-                bibleVerses: verses
+                readingPlanConfig: existingPlan
             }];
-        } catch (error: unknown) {
+        } catch (error: any) {
             throw new DatabaseMessageError('Failed to get reading plan', error as Error);
         }
     }
@@ -283,4 +294,34 @@ export class ReadingService {
         if (totalExpectedVerses === 0) return 0;
         return Math.round((completedVerses / totalExpectedVerses) * 100);
     }
+
+    async fetchReadingAssignments(): Promise<DailyReadingAssignment[]> {
+        try {
+            console.log("fetching assignments:");
+            const assignments = await dailyReadingAssignmentsRepository.findAll();
+            const dailyReadingAssignments = assignments.filter(assignment => assignment.date === new Date().toISOString().split('T')[0]);
+
+            console.log("found assignments:", dailyReadingAssignments);
+
+            if(dailyReadingAssignments.length > 0){
+                return dailyReadingAssignments;
+            }
+
+            const dailyReadingAssignment = await dailyReadingAssignmentsRepository.create({
+                date: new Date().toISOString().split('T')[0],
+                plan_name: "cronological",
+                start_verse_id: 1,
+                end_verse_id: 30,
+                display_title: "Genesis 1:1 - Genesis 1:30",
+                is_completed: false
+            });
+            console.log("returning created assignments:", [dailyReadingAssignment]);
+
+            return [dailyReadingAssignment];
+        } catch (error: any) {
+            throw new DatabaseMessageError(`Failed to fetch readingAssignments`, error as Error);
+        }
+    }
 }
+
+export const readingService = new ReadingService();

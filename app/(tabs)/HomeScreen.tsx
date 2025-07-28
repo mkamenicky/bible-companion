@@ -8,7 +8,7 @@ import {Appbar, Portal} from 'react-native-paper';
 // Local component imports
 import {
     DailyTextBanner,
-    ReadingPlanCard,
+    DailyAssignmentsCard,
     ScreenContainer,
     TaskConfirmationModal,
     WeeklyChecklistCard
@@ -32,6 +32,7 @@ export default function HomeScreen() {
         handleConfirmationTaskSet,
         handleConfirmationCancel,
         confirmTaskCompletion,
+        dailyReadingAssignments
     } = useHomeData();
 
     // Theme and styling - Now using Instagram theme by default
@@ -64,10 +65,8 @@ export default function HomeScreen() {
                     customColors={customColors}
                 />
 
-
-                <ReadingPlanCard
-                    readingPlan={readingPlan}
-                    readChapters={[]}
+                <DailyAssignmentsCard
+                    dailyReadingAssignments={dailyReadingAssignments}
                     onToggle={handleToggleVerses}
                     title={`Reading Plan for ${weekday}`}
                     styles={styles}

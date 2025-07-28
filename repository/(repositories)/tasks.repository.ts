@@ -1,6 +1,5 @@
-import {BaseRepository} from '@/repository';
-import { ValidationError } from '@/errors';
-import type { 
+import {BaseRepository} from '@/repository/base/base.repository';
+import type {
     Task, 
     CreateTaskDto, 
     UpdateTaskDto 

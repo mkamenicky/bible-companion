@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { TaskService } from '@/services';
-import {ReadingPlan} from "@/models";
+import {DailyReadingAssignment, ReadingPlan} from "@/models";
 
 // Constants
 const WEEKLY_CHECKLIST_ITEMS = [
@@ -17,6 +17,7 @@ export function useHomeData() {
     // State management
     const [refreshing, setRefreshing] = useState(false);
     const [readingPlan, setReadingPlan] = useState<ReadingPlan[]>([]);
+    const [dailyReadingAssignments, setDailyReadingAssignments] = useState<DailyReadingAssignment[]>([]);
     const [taskStatus, setTaskStatus] = useState<Record<string, boolean>>({});
     const [confirmationTask, setConfirmationTask] = useState<string | null>(null);
 
@@ -42,17 +43,28 @@ export function useHomeData() {
         setTaskStatus(states);
     }, [taskService]);
 
+    const fetchAssignments = useCallback(async (): Promise<void> => {
+        const assignments = await taskService.fetchReadingAssignments();
+        setDailyReadingAssignments(assignments);
+    }, [taskService]);
+
     const onRefresh = useCallback(async (): Promise<void> => {
         setRefreshing(true);
-        await Promise.all([fetchReadingPlan(), fetchTaskStates()]);
+        await Promise.all([fetchAssignments(), fetchTaskStates()]);
         setRefreshing(false);
-    }, [fetchReadingPlan, fetchTaskStates]);
+    }, [fetchAssignments, fetchTaskStates]);
 
     // Event handlers
-    const handleToggleVerses = useCallback(async (item: ReadingPlan): Promise<void> => {
-        await taskService.markReadingPlanVersesAsRead(item);
+    const handleToggleVerses = useCallback(async (item: DailyReadingAssignment): Promise<void> => {
+        if(item.is_completed) {
+            await taskService.unmarkDailyAssignmentAsRead(item);
+        }else{
+            await taskService.markDailyAssignmentAsRead(item);
+        }
+
+        await fetchAssignments();
         await fetchTaskStates();
-    }, [taskService, fetchTaskStates]);
+    }, [taskService, fetchTaskStates, fetchAssignments]);
 
     const handleConfirmationTaskSet = useCallback((task: string): void => {
         setConfirmationTask(task);
@@ -84,6 +96,7 @@ export function useHomeData() {
         taskStatus,
         confirmationTask,
         today,
+        dailyReadingAssignments,
 
         // Constants
         weeklyChecklistItems: WEEKLY_CHECKLIST_ITEMS,

@@ -1,42 +1,40 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { ReadingPlan } from '@/models';
+import {DailyReadingAssignment} from '@/models';
 
 interface Props {
-    readingPlan: ReadingPlan[];
-    readChapters: ReadingPlan[];
-    onToggle: (item: ReadingPlan) => void;
+    dailyReadingAssignments: DailyReadingAssignment[];
+    onToggle: (item: DailyReadingAssignment) => void;
     title: string;
     styles: any;
     customColors?: any;
 }
 
-export default function ReadingPlanCard({
-                                            readingPlan,
-                                            readChapters,
+export default function DailyAssignmentsCard({
+                                            dailyReadingAssignments,
                                             onToggle,
                                             title,
                                             styles,
                                             customColors
                                         }: Props) {
-    const isRead = (item: ReadingPlan) =>
-        readChapters.some(read => read.bibleChapter.BibleChapterId === item.bibleChapter.BibleChapterId);
+    const isRead = (item: DailyReadingAssignment) =>
+        dailyReadingAssignments.some(dailyReadingAssignment => dailyReadingAssignment.is_completed);
 
-    const completedCount = readingPlan.filter(isRead).length;
-    const allDone = readingPlan.length === 0 || readingPlan.every(isRead);
-    const progressPercentage = readingPlan.length > 0 ? (completedCount / readingPlan.length) * 100 : 100;
+    const completedCount = dailyReadingAssignments.filter(isRead).length;
+    const allDone = dailyReadingAssignments.length === 0 || dailyReadingAssignments.every(isRead);
+    const progressPercentage = dailyReadingAssignments.length > 0 ? (completedCount / dailyReadingAssignments.length) * 100 : 100;
 
     // Estimate reading time (roughly 1 minute per chapter)
-    const getReadingTime = (item: ReadingPlan) => {
+    const getReadingTime = (item: DailyReadingAssignment) => {
         // @ts-ignore
-        const verseCount = item.bibleChapter?.LastVerseId - item.bibleChapter?.FirstVerseId + 1;
+        const verseCount = item.end_verse_id - item.start_verse_id;
         const minutes = Math.max(1, Math.round(verseCount / 6)); // Rough estimate: 6 verses per minute
         return `${minutes} min`;
     };
 
-    const getVerseCount = (item: ReadingPlan) => {
+    const getVerseCount = (item: DailyReadingAssignment) => {
         // @ts-ignore
-        const count = item.bibleChapter?.LastVerseId -  item.bibleChapter?.FirstVerseId + 1;
+        const count = item.end_verse_id - item.start_verse_id;
         return `${count} verses`;
     };
 
@@ -50,20 +48,20 @@ export default function ReadingPlanCard({
 
             {/* Reading list */}
             <View>
-                {readingPlan.length === 0 ? (
+                {dailyReadingAssignments.length === 0 ? (
                     <View style={[styles.listItem, { justifyContent: 'center' }]}>
                         <Text style={[styles.itemTitle, { textAlign: 'center', fontStyle: 'italic' }]}>
                             No reading plan available for today
                         </Text>
                     </View>
                 ) : (
-                    readingPlan.map((item, index) => {
+                    dailyReadingAssignments.map((item, index) => {
                         const isCompleted = isRead(item);
-                        const isLast = index === readingPlan.length - 1;
+                        const isLast = index === dailyReadingAssignments.length - 1;
 
                         return (
                             <TouchableOpacity
-                                key={item.bibleChapter.BibleChapterId}
+                                key={item.id}
                                 style={[
                                     styles.listItem,
                                     isLast && styles.listItemLast,
@@ -86,7 +84,7 @@ export default function ReadingPlanCard({
                                             color: customColors?.subtleGray || '#8e8e8e'
                                         }
                                     ]}>
-                                        {item.bibleBook.BookDisplayTitle} {item.bibleChapter.ChapterNumber}:{item.bibleChapter.FirstVerseId}-{item.bibleChapter.LastVerseId}
+                                        {item.display_title}
                                     </Text>
                                     <Text style={styles.itemSubtitle}>
                                         {getReadingTime(item)} • {getVerseCount(item)}
@@ -108,11 +106,11 @@ export default function ReadingPlanCard({
             </View>
 
             {/* Progress section - only show if there are items */}
-            {readingPlan.length > 0 && (
+            {dailyReadingAssignments.length > 0 && (
                 <View style={styles.progressContainer}>
                     <View style={styles.progressHeader}>
                         <Text style={styles.progressLabel}>Today's Progress</Text>
-                        <Text style={styles.progressValue}>{completedCount}/{readingPlan.length}</Text>
+                        <Text style={styles.progressValue}>{completedCount}/{dailyReadingAssignments.length}</Text>
                     </View>
                     <View style={styles.progressBar}>
                         <View style={[
@@ -124,7 +122,7 @@ export default function ReadingPlanCard({
             )}
 
             {/* Completion message */}
-            {allDone && readingPlan.length > 0 && (
+            {allDone && dailyReadingAssignments.length > 0 && (
                 <View style={{
                     padding: 16,
                     alignItems: 'center',

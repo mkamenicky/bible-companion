@@ -1,5 +1,6 @@
-import {ReadingPlan} from "@/models";
-import {readingService} from "@/services";
+import {DailyReadingAssignment, ReadingPlan} from "@/models";
+import {readingService} from "@/services/(services)/readings/ReadingService";
+import {dateFormattingService} from "@/services";
 
 export class TaskService {
     private today: Date;
@@ -22,14 +23,32 @@ export class TaskService {
         return await readingService.getReadingPlan();
     }
 
+    async fetchReadingAssignments(): Promise<DailyReadingAssignment[]>{
+        return await readingService.fetchReadingAssignments()
+    }
+
     async confirmTaskCompletion(taskName: string | null): Promise<void> {
         if (!taskName) return;
         await readingService.setTaskState(taskName, this.today, true);
     }
 
-    async markReadingPlanVersesAsRead(readingPlan: ReadingPlan): Promise<void> {
-        for (const verse of readingPlan.bibleVerses) {
-            await readingService.markVerseAsRead(verse.BibleVerseId, this.today);
+    async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
+        console.log('Marking daily assignment as read:', dailyReadingAssignment);
+        for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
+            console.log('Marking verse as read:', verseId);
+            await readingService.markVerseAsRead(verseId, this.today);
         }
+
+        await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, new Date(), true);
+    }
+
+    async unmarkDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
+        console.log('Unmarking daily assignment as not read:', dailyReadingAssignment);
+        for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
+            console.log('Marking verse as not read:', verseId);
+            await readingService.unmarkVerseAsRead(verseId);
+        }
+
+        await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, undefined, false);
     }
 }

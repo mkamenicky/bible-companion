@@ -1,4 +1,4 @@
-import {BaseRepository} from '@/repository';
+import {BaseRepository} from '@/repository/base/base.repository';
 import type { BibleBook, CreateBibleBookDto, UpdateBibleBookDto } from '@/models';
 
 /**
