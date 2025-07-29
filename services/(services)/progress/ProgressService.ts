@@ -199,7 +199,11 @@ export class ProgressService {
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const startOfYear = new Date(now.getFullYear(), 0, 1);
 
-            const today = this.countVersesInPeriod(readVerses, startOfToday, now);
+            // Set end of day for today to include all of today's readings
+            const endOfToday = new Date(startOfToday);
+            endOfToday.setHours(23, 59, 59, 999);
+
+            const today = this.countVersesInPeriod(readVerses, startOfToday, endOfToday);
             const thisWeek = this.countVersesInPeriod(readVerses, startOfWeek, now);
             const thisMonth = this.countVersesInPeriod(readVerses, startOfMonth, now);
             const thisYear = this.countVersesInPeriod(readVerses, startOfYear, now);
@@ -222,7 +226,10 @@ export class ProgressService {
         const d = new Date(date);
         const day = d.getDay();
         const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-        return new Date(d.setDate(diff));
+        const startOfWeek = new Date(d.setDate(diff));
+        // Set to beginning of day
+        startOfWeek.setHours(0, 0, 0, 0);
+        return startOfWeek;
     }
 
     /**
@@ -230,7 +237,7 @@ export class ProgressService {
      */
     private countVersesInPeriod(readVerses: any[], startDate: Date, endDate: Date): number {
         return readVerses.filter(verse => {
-            const verseDate = new Date(verse.dateRead);
+            const verseDate = new Date(verse.dateRead + 'T00:00:00.000Z'); // Ensure consistent parsing
             return verseDate >= startDate && verseDate <= endDate;
         }).length;
     }
