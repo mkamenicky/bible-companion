@@ -15,6 +15,7 @@ const DAILY_CHECKLIST_ITEMS = ['Daily Text'] as string[];
 
 export function useHomeData() {
     // State management
+    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [readingPlan, setReadingPlan] = useState<ReadingPlan[]>([]);
     const [dailyReadingAssignments, setDailyReadingAssignments] = useState<DailyReadingAssignment[]>([]);
@@ -48,10 +49,22 @@ export function useHomeData() {
         setDailyReadingAssignments(assignments);
     }, [taskService]);
 
+    const loadInitialData = useCallback(async (): Promise<void> => {
+        setLoading(true);
+        try {
+            await Promise.all([fetchAssignments(), fetchTaskStates()]);
+        } finally {
+            setLoading(false);
+        }
+    }, [fetchAssignments, fetchTaskStates]);
+
     const onRefresh = useCallback(async (): Promise<void> => {
         setRefreshing(true);
-        await Promise.all([fetchAssignments(), fetchTaskStates()]);
-        setRefreshing(false);
+        try {
+            await Promise.all([fetchAssignments(), fetchTaskStates()]);
+        } finally {
+            setRefreshing(false);
+        }
     }, [fetchAssignments, fetchTaskStates]);
 
     // Event handlers
@@ -92,12 +105,13 @@ export function useHomeData() {
     // Lifecycle effects
     useFocusEffect(
         useCallback(() => {
-            onRefresh();
-        }, [onRefresh])
+            loadInitialData();
+        }, [loadInitialData])
     );
 
     return {
         // State
+        loading,
         refreshing,
         readingPlan,
         taskStatus,

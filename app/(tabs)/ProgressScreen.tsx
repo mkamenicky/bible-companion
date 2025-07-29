@@ -1,20 +1,26 @@
 // React imports
 import React from 'react';
-import { useColorScheme, View, Text } from 'react-native';
+import {useColorScheme, View} from 'react-native';
 
 // Third-party library imports
-import { ActivityIndicator, Appbar } from 'react-native-paper';
+import {Appbar} from 'react-native-paper';
 
 // Local component imports
-import { ScreenContainer } from '@/components';
-import {StreakCard, AchievementsCard, ReadingStatsCard, PeriodStatsCard} from '@/components';
+import {
+    AchievementsCard,
+    LoadingScreen,
+    PeriodStatsCard,
+    ReadingStatsCard,
+    ScreenContainer,
+    StreakCard
+} from '@/components';
 
 // Service and utility imports
-import { useProgressData } from '@/hooks';
-import { ThemeService } from '@/services';
+import {useProgressData} from '@/hooks';
+import {ThemeService} from '@/services';
 
 export default function ProgressScreen() {
-    const { stats, loading, onRefresh } = useProgressData();
+    const {stats, loading, onRefresh} = useProgressData();
 
     const colorScheme = useColorScheme();
     const customColors = ThemeService.getCustomColors(colorScheme);
@@ -22,10 +28,11 @@ export default function ProgressScreen() {
 
     if (loading || !stats) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color={customColors.accent} />
-                <Text style={{ marginTop: 16, color: customColors.text }}>Loading progress...</Text>
-            </View>
+            <LoadingScreen
+                message="Loading progress..."
+                styles={styles}
+                customColors={customColors}
+            />
         );
     }
 
@@ -34,7 +41,7 @@ export default function ProgressScreen() {
             <Appbar.Header style={styles.appbar}>
                 <Appbar.Content
                     title="Progress"
-                    titleStyle={{ color: customColors.color, fontWeight: '600' }}
+                    titleStyle={{color: customColors.color, fontWeight: '600'}}
                 />
             </Appbar.Header>
 

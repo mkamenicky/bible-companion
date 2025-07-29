@@ -11,3 +11,5 @@ export { default as PeriodStatsCard } from './progress/PeriodStatsCard';
 export { default as AchievementsCard } from './progress/AchievementsCard';
 export { default as ReadingStatsCard } from './progress/ReadingStatsCard';
 export { default as StreakCard } from './progress/StreakCard';
+
+export { LoadingScreen } from './loading/LoadingScreen';

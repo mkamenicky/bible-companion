@@ -3,7 +3,7 @@ import React from 'react';
 import {useColorScheme, View} from 'react-native';
 
 // Third-party library imports
-import {Appbar, Portal} from 'react-native-paper';
+import {Appbar} from 'react-native-paper';
 
 // Local component imports
 import {
@@ -11,7 +11,8 @@ import {
     DailyAssignmentsCard,
     ScreenContainer,
     TaskConfirmationModal,
-    WeeklyChecklistCard
+    WeeklyChecklistCard,
+    LoadingScreen
 } from '@/components';
 
 // Service and utility imports
@@ -29,6 +30,7 @@ export default function Index() {
         weeklyChecklistItems,
         confirmTaskCompletion,
         dailyReadingAssignments,
+        loading, // Add loading state if not already present in hook
     } = useHomeData();
 
     // Theme and styling - Now using Instagram theme by default
@@ -37,6 +39,17 @@ export default function Index() {
     // Get Instagram-style colors and styles
     const customColors = ThemeService.getCustomColors(colorScheme);
     const styles = ThemeService.getStyles(customColors);
+
+    // Show loading screen if data is still loading
+    if (loading) {
+        return (
+            <LoadingScreen
+                message="Loading home..."
+                styles={styles}
+                customColors={customColors}
+            />
+        );
+    }
 
     // Formatted date values
     const weekday = DateFormattingService.getWeekday(today);
