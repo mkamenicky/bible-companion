@@ -11,7 +11,7 @@ export class IOSDatabaseService extends DatabaseService {
     private dbName: string;
     private assetPath: string;
 
-    constructor(config: DatabaseConfig, assetPath: string = '../../assets/bible_ios.db') {
+    constructor(config: DatabaseConfig, assetPath: string = '../../assets/bible.db') {
         super(config);
         this.assetPath = assetPath;
         this.sqlDir = `${FileSystem.documentDirectory}SQLite/`;
@@ -54,7 +54,7 @@ export class IOSDatabaseService extends DatabaseService {
 
             // Load and download the asset
             this.log('info', 'Loading database asset...');
-            const bibleDbAsset = Asset.fromModule(require('../../../assets/bible_ios.db'));
+            const bibleDbAsset = Asset.fromModule(require('../../../assets/bible.db'));
 
             await bibleDbAsset.downloadAsync();
             this.log('info', 'Database asset downloaded');
@@ -148,7 +148,7 @@ let iosDatabaseService: IOSDatabaseService | null = null;
 
 export const createIOSDatabaseService = (config?: Partial<DatabaseConfig>): IOSDatabaseService => {
     const defaultConfig: DatabaseConfig = {
-        databaseName: 'bible_ios.db',
+        databaseName: 'bible.db',
         version: 1,
         enableLogging: __DEV__,
         maxRetries: 3,

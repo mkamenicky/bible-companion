@@ -19,7 +19,7 @@ export default function TabLayout() {
     };
     return (<Tabs screenOptions={screenOptions}>
         <Tabs.Screen
-            name="HomeScreen"
+            name="index"
             options={{
                 title: 'Home',
                 tabBarIcon: ({color, size}) => (<FontAwesome name="home" color={color} size={size}/>),

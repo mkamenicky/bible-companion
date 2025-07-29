@@ -115,7 +115,7 @@ let webDatabaseService: WebDatabaseService | null = null;
 
 export const createWebDatabaseService = (config?: Partial<DatabaseConfig>): WebDatabaseService => {
     const defaultConfig: DatabaseConfig = {
-        databaseName: 'bible_ios.db',
+        databaseName: 'bible.db',
         version: 1,
         enableLogging: __DEV__,
         maxRetries: 1, // Fewer retries for web

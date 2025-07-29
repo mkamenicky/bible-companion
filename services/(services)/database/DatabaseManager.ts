@@ -18,7 +18,7 @@ export class DatabaseManager {
     static getInstance(config?: Partial<DatabaseConfig>): DatabaseManager {
         if (!DatabaseManager.instance) {
             const defaultConfig: DatabaseConfig = {
-                databaseName: 'bible_ios.db',
+                databaseName: 'bible.db',
                 version: 1,
                 enableLogging: __DEV__,
                 maxRetries: 3,

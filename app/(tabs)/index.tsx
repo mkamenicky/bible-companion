@@ -18,7 +18,7 @@ import {
 import {useHomeData} from '@/hooks';
 import {DateFormattingService, ThemeService} from '@/services';
 
-export default function HomeScreen() {
+export default function Index() {
     // Custom hook for data management
     const {
         today,

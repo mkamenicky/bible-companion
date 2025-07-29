@@ -81,7 +81,7 @@ npx eas update --branch preview
 .
 ├── app/
 │   ├── (tabs)/
-│   │   ├── HomeScreen.tsx         # Main dashboard with daily/weekly tasks
+│   │   ├── index.tsx              # Main dashboard with daily/weekly tasks
 │   │   ├── ProgressScreen.tsx     # Reading progress visualization
 │   │   ├── FeedbackScreen.tsx     # Chapter feedback and notes
 │   │   └── SettingsScreen.tsx     # User preferences
