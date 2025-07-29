@@ -7,4 +7,7 @@ export { default as DailyAssignmentsCard } from './tasks/DailyAssignmentsCard';
 export { default as TaskConfirmationModal } from './tasks/TaskConfirmationModal';
 export { default as WeeklyChecklistCard } from './tasks/WeeklyChecklistCard';
 
-// Re-export any component types or interfaces if they exist
+export { default as PeriodStatsCard } from './progress/PeriodStatsCard';
+export { default as AchievementsCard } from './progress/AchievementsCard';
+export { default as ReadingStatsCard } from './progress/ReadingStatsCard';
+export { default as StreakCard } from './progress/StreakCard';
