@@ -3,7 +3,6 @@ import type {
     BibleVerse,
     BibleVerseDb,
     CreateBibleVerseDto,
-    mapBibleVerseDbToVerse,
     UpdateBibleVerseDto
 } from '@/models';
 import {ValidationError} from "@/errors";
