@@ -12,4 +12,8 @@ export { default as AchievementsCard } from './progress/AchievementsCard';
 export { default as ReadingStatsCard } from './progress/ReadingStatsCard';
 export { default as StreakCard } from './progress/StreakCard';
 
+export {default as CalendarGrid} from './calendar/calendar.grid'
+export {default as YearSelector} from './calendar/year-selector'
+export {default as MonthNavigator} from './calendar/month-navigator'
+
 export { LoadingScreen } from './loading/LoadingScreen';

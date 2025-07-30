@@ -1,42 +1,39 @@
 import {DailyReadingAssignment, ReadingPlan} from "@/models";
 import {readingService} from "@/services/(services)/readings/ReadingService";
-import {dateFormattingService} from "@/services";
 
 export class TaskService {
-    private today: Date;
     private weeklyTasks: string[];
     private dailyTasks: string[];
 
-    constructor(today: Date = new Date(), weeklyTasks: string[] = [], dailyTasks: string[] = []) {
-        this.today = today;
+    constructor(weeklyTasks: string[] = [], dailyTasks: string[] = []) {
         this.weeklyTasks = weeklyTasks;
         this.dailyTasks = dailyTasks;
     }
 
     async fetchTaskStates(): Promise<Record<string, boolean>> {
-        const weekly = await readingService.getWeeklyTaskStates(this.today, this.weeklyTasks);
-        const daily = await readingService.getDailyTaskStates(this.today, this.dailyTasks);
-        return { ...weekly, ...daily };
+        const weekly = await readingService.getWeeklyTaskStates(new Date(), this.weeklyTasks);
+        const daily = await readingService.getDailyTaskStates(new Date(), this.dailyTasks);
+        return {...weekly, ...daily};
     }
 
     async fetchReadingPlan(): Promise<ReadingPlan[]> {
         return await readingService.getReadingPlan();
     }
 
-    async fetchReadingAssignments(): Promise<DailyReadingAssignment[]>{
+    async fetchReadingAssignments(): Promise<DailyReadingAssignment[]> {
         return await readingService.fetchReadingAssignments()
     }
 
     async toggleTaskCompletion(taskName: string, done: boolean): Promise<void> {
         if (!taskName) return;
-        await readingService.setTaskState(taskName, this.today, done);
+        await readingService.setTaskState(taskName, new Date(), done);
     }
 
     async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
         console.log('Marking daily assignment as read:', dailyReadingAssignment);
         for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-            console.log('Marking verse as read:', verseId);
-            await readingService.markVerseAsRead(verseId, this.today);
+            console.log('Marking verse as read on:', verseId, new Date());
+            await readingService.markVerseAsRead(verseId, new Date());
         }
 
         await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, new Date(), true);

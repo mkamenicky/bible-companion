@@ -17,3 +17,11 @@ export { TasksRepository, tasksRepository } from '@/repository/(repositories)/ta
 // Configuration repositories
 export { ReadingPlanConfigRepository, readingPlanConfigRepository } from '@/repository/(repositories)/reading-plan-config.repository';
 export { DailyReadingAssignmentsRepository, dailyReadingAssignmentsRepository } from '@/repository/(repositories)/daily-reading-assignments.repository';
+
+// Progress repositories
+export { AchievementProgressRepository, achievementProgressRepository } from '@/repository/(repositories)/achievement-progress.repository';
+export { ReadingGoalsRepository, readingGoalsRepository } from '@/repository/(repositories)/reading-goals.repository';
+export { ReadingPreferencesRepository, readingPreferencesRepository } from '@/repository/(repositories)/reading-preferences.repository';
+export { ReadingSessionRepository, readingSessionRepository } from '@/repository/(repositories)/reading-session.repository';
+export { ReadingStreakRepository, readingStreakRepository } from '@/repository/(repositories)/reading-streak.repository';
+

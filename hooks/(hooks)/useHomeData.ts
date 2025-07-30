@@ -26,10 +26,10 @@ export function useHomeData() {
     const today = useMemo(() => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    }, []);
+    }, [new Date().toDateString()]); // Updates when date string changes
 
     const taskService = useMemo(
-        () => new TaskService(today, [...WEEKLY_CHECKLIST_ITEMS], [...DAILY_CHECKLIST_ITEMS]),
+        () => new TaskService([...WEEKLY_CHECKLIST_ITEMS], [...DAILY_CHECKLIST_ITEMS]),
         [today]
     );
 

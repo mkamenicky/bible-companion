@@ -1,63 +1,206 @@
-import { bibleVerseProgressRepository } from '@/repository/(repositories)/bible-verse-progress.repository';
-import { tasksRepository } from '@/repository/(repositories)/tasks.repository';
-import { DatabaseMessageError, ValidationError } from '@/errors';
-import {bibleVerseRepository} from "@/repository/(repositories)/bible-verse.repository";
+import {
+    achievementProgressRepository,
+    bibleVerseProgressRepository,
+    bibleVerseRepository,
+    readingPreferencesRepository,
+    readingSessionRepository,
+    readingStreakRepository,
+    tasksRepository
+} from '@/repository';
 
-export interface StreakInfo {
-    currentStreak: number;
-    longestStreak: number;
-    streakDates: string[];
-    lastReadingDate: string | null;
-}
+import {DatabaseMessageError} from '@/errors';
 
-export interface ReadingStats {
-    totalVersesRead: number;
-    totalChaptersRead: number;
-    booksStarted: number;
-    averageVersesPerDay: number;
-    totalReadingDays: number;
-}
-
-export interface PeriodStats {
-    today: number;
-    thisWeek: number;
-    thisMonth: number;
-    thisYear: number;
-}
+import type {
+    Achievement,
+    CreateReadingSessionDto,
+    CreateReadingStreakDto,
+    PeriodStats,
+    ProgressStats,
+    ReadingSessionModel,
+    ReadingStats,
+    ReadingStreak,
+    StreakInfo,
+    UpdateReadingStreakDto
+} from '@/models';
 
 /**
- * Service for calculating reading progress, streaks, and analytics
+ * Enhanced service for calculating and persisting reading progress, streaks, and analytics
  */
 export class ProgressService {
 
     /**
-     * Calculate detailed streak information
+     * Initialize user's reading progress tracking
+     * Call this when setting up a new user or resetting progress
      */
-    async calculateDetailedStreak(): Promise<StreakInfo> {
+    async initializeUserProgress(userId: number = 1): Promise<void> {
         try {
-            const verseProgress = await bibleVerseProgressRepository.findAll();
-            const tasks = await tasksRepository.findAll();
+            // Initialize reading streak record
+            const existingStreak = await readingStreakRepository.findByUserId(userId);
+            if (!existingStreak) {
+                const streakData: CreateReadingStreakDto = {
+                    userId,
+                    currentStreak: 0,
+                    longestStreak: 0,
+                    lastReadingDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    longestStreakStartDate: '',
+                    longestStreakEndDate: ''
+                };
+                await readingStreakRepository.create(streakData);
+            }
 
-            // Get all unique reading dates
-            const readingDates = new Set<string>();
+            // Initialize reading preferences if they don't exist
+            const existingPrefs = await readingPreferencesRepository.findByUserId(userId);
+            if (!existingPrefs) {
+                await readingPreferencesRepository.create({
+                    userId,
+                    preferredReadingTime: 'morning',
+                    dailyVerseGoal: 10,
+                    streakGraceHours: 2,
+                    notificationEnabled: true,
+                    notificationTime: '08:00',
+                    themePreference: 'auto',
+                    fontSize: 'medium'
+                });
+            }
 
-            // Add dates from verse progress
-            verseProgress
-                .filter(p => p.isRead)
-                .forEach(p => readingDates.add(p.dateRead));
+            // Initialize default achievements
+            await this.initializeAchievements(userId);
 
-            // Add dates from completed reading tasks
-            tasks
-                .filter(t => t.is_done && (
-                    t.task_name.includes('Daily Text') ||
-                    t.task_name.includes('Bible Reading') ||
-                    t.task_name.includes('Reading')
-                ))
-                .forEach(t => readingDates.add(t.date));
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to initialize user progress', error);
+        }
+    }
 
-            const sortedDates = Array.from(readingDates).sort();
+    /**
+     * Update reading progress after a reading session
+     * This is the main method to call when a user completes reading
+     */
+    async updateReadingProgress(
+        userId: number = 1,
+        versesRead: number,
+        chaptersRead: number = 0,
+        booksRead: string[] = [],
+        readingPlan?: string,
+        notes?: string
+    ): Promise<void> {
+        try {
+            const now = new Date();
+            const today = now.toISOString().split('T')[0];
+            const currentTime = now.toTimeString().split(' ')[0];
 
-            if (sortedDates.length === 0) {
+            // Create or update reading session
+            await this.recordReadingSession({
+                date: today,
+                startTime: currentTime,
+                endTime: currentTime,
+                versesRead,
+                chaptersRead,
+                booksRead,
+                readingPlan,
+                notes
+            });
+
+            // Update streak information
+            await this.updateReadingStreak(userId, today);
+
+            // Update achievement progress
+            await this.updateAchievementProgress(userId);
+
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to update reading progress', error);
+        }
+    }
+
+    /**
+     * Record a reading session
+     */
+    async recordReadingSession(sessionData: CreateReadingSessionDto): Promise<ReadingSessionModel> {
+        try {
+            // Check if session already exists for this date/time
+            const existingSession = await readingSessionRepository.findByDateAndTime(
+                sessionData.date,
+                sessionData.startTime
+            );
+
+            if (existingSession) {
+                // Update existing session
+                return await readingSessionRepository.update({
+                    id: existingSession.id,
+                    ...sessionData
+                });
+            } else {
+                // Create new session
+                return await readingSessionRepository.create(sessionData);
+            }
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to record reading session', error);
+        }
+    }
+
+    /**
+     * Update reading streak based on new reading activity
+     */
+    async updateReadingStreak(userId: number = 1, readingDate: string): Promise<ReadingStreak> {
+        try {
+            let streakRecord = await readingStreakRepository.findByUserId(userId);
+
+            if (!streakRecord) {
+                // Initialize streak record if it doesn't exist
+                await this.initializeUserProgress(userId);
+                streakRecord = await readingStreakRepository.findByUserId(userId);
+                if (!streakRecord) throw new Error('Failed to initialize streak record');
+            }
+
+            const lastReadingDate = new Date(streakRecord.lastReadingDate);
+            const currentReadingDate = new Date(readingDate);
+            const dayDifference = this.getDayDifference(lastReadingDate, currentReadingDate);
+
+            let updatedStreak: UpdateReadingStreakDto = {
+                id: streakRecord.id,
+                lastReadingDate: readingDate
+            };
+
+            if (dayDifference === 1) {
+                // Consecutive day - increment streak
+                updatedStreak.currentStreak = streakRecord.currentStreak + 1;
+
+                // Check if this beats the longest streak
+                if (updatedStreak.currentStreak > streakRecord.longestStreak) {
+                    updatedStreak.longestStreak = updatedStreak.currentStreak;
+                    updatedStreak.longestStreakEndDate = readingDate;
+
+                    // Set start date if this is the beginning of a new longest streak
+                    if (updatedStreak.currentStreak === 1) {
+                        updatedStreak.longestStreakStartDate = readingDate;
+                    }
+                }
+            } else if (dayDifference > 1) {
+                // Streak broken - reset to 1
+                updatedStreak.currentStreak = 1;
+            } else if (dayDifference === 0) {
+                // Same day - no change to streak, just update timestamp
+                // This handles multiple reading sessions in the same day
+            } else {
+                // Reading date is in the past - this shouldn't normally happen
+                // but we'll handle it gracefully
+                console.warn(`Reading date ${readingDate} is before last reading date ${streakRecord.lastReadingDate}`);
+            }
+
+            return await readingStreakRepository.update(updatedStreak);
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to update reading streak', error);
+        }
+    }
+
+    /**
+     * Calculate detailed streak information from database
+     */
+    async calculateDetailedStreak(userId: number = 1): Promise<StreakInfo> {
+        try {
+            const streakRecord = await readingStreakRepository.findByUserId(userId);
+
+            if (!streakRecord) {
+                await this.initializeUserProgress(userId);
                 return {
                     currentStreak: 0,
                     longestStreak: 0,
@@ -66,15 +209,14 @@ export class ProgressService {
                 };
             }
 
-            const lastReadingDate = sortedDates[sortedDates.length - 1];
-            const currentStreak = this.calculateCurrentStreak(sortedDates);
-            const longestStreak = this.calculateLongestStreak(sortedDates);
+            // Get all unique reading dates from various sources
+            const readingDates = await this.getAllReadingDates();
 
             return {
-                currentStreak,
-                longestStreak,
-                streakDates: sortedDates,
-                lastReadingDate,
+                currentStreak: streakRecord.currentStreak,
+                longestStreak: streakRecord.longestStreak,
+                streakDates: readingDates,
+                lastReadingDate: streakRecord.lastReadingDate,
             };
         } catch (error: any) {
             throw new DatabaseMessageError('Failed to calculate streak information', error);
@@ -82,91 +224,30 @@ export class ProgressService {
     }
 
     /**
-     * Calculate current reading streak
-     */
-    private calculateCurrentStreak(sortedDates: string[]): number {
-        if (sortedDates.length === 0) return 0;
-
-        const today = new Date();
-        const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
-
-        const todayStr = today.toISOString().split('T')[0];
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
-
-        // Check if user has read today or yesterday (to account for different time zones)
-        const lastReadingDate = sortedDates[sortedDates.length - 1];
-
-        if (lastReadingDate !== todayStr && lastReadingDate !== yesterdayStr) {
-            return 0; // Streak is broken
-        }
-
-        let streak = 0;
-        let currentDate = new Date();
-
-        // Start from today and work backwards
-        for (let i = 0; i < sortedDates.length; i++) {
-            const dateStr = currentDate.toISOString().split('T')[0];
-
-            if (sortedDates.includes(dateStr)) {
-                streak++;
-                currentDate.setDate(currentDate.getDate() - 1);
-            } else if (i === 0 && dateStr === todayStr) {
-                // If today is not included, check yesterday
-                currentDate.setDate(currentDate.getDate() - 1);
-            } else {
-                break;
-            }
-        }
-
-        return streak;
-    }
-
-    /**
-     * Calculate longest streak from sorted dates
-     */
-    private calculateLongestStreak(sortedDates: string[]): number {
-        if (sortedDates.length === 0) return 0;
-        if (sortedDates.length === 1) return 1;
-
-        let longestStreak = 1;
-        let currentStreak = 1;
-
-        for (let i = 1; i < sortedDates.length; i++) {
-            const prevDate = new Date(sortedDates[i - 1]);
-            const currDate = new Date(sortedDates[i]);
-            const diffTime = currDate.getTime() - prevDate.getTime();
-            const diffDays = diffTime / (1000 * 60 * 60 * 24);
-
-            if (diffDays === 1) {
-                currentStreak++;
-            } else {
-                longestStreak = Math.max(longestStreak, currentStreak);
-                currentStreak = 1;
-            }
-        }
-
-        return Math.max(longestStreak, currentStreak);
-    }
-
-    /**
      * Calculate comprehensive reading statistics
      */
-    async calculateReadingStats(): Promise<ReadingStats> {
+    async calculateReadingStats(userId: number = 1): Promise<ReadingStats> {
         try {
+            // Get verse progress
             const verseProgress = await bibleVerseProgressRepository.findAll();
             const readVerses = verseProgress.filter(p => p.isRead);
-
             const totalVersesRead = readVerses.length;
 
-            // Estimate chapters (average 25 verses per chapter)
-            const totalChaptersRead = Math.floor(totalVersesRead / 25);
+            // Get reading sessions for more accurate chapter/book counts
+            const sessions = await readingSessionRepository.findAll();
+            console.log("sessions are:", sessions);
+            const totalChaptersRead = sessions.reduce((sum, session) => sum + session.chaptersRead, 0);
 
-            // Estimate books started (average 800 verses per book)
-            const booksStarted = Math.floor(totalVersesRead / 800);
+            // Get unique books from sessions
+            const booksSet = new Set<string>();
+            sessions.forEach(session => {
+                session.booksRead.forEach(book => booksSet.add(book));
+            });
+            const booksStarted = booksSet.size;
 
             // Calculate reading days
-            const readingDates = new Set(readVerses.map(v => v.dateRead));
-            const totalReadingDays = readingDates.size;
+            const readingDates = await this.getAllReadingDates();
+            const totalReadingDays = readingDates.length;
 
             // Calculate average verses per day
             const averageVersesPerDay = totalReadingDays > 0
@@ -199,7 +280,6 @@ export class ProgressService {
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const startOfYear = new Date(now.getFullYear(), 0, 1);
 
-            // Set end of day for today to include all of today's readings
             const endOfToday = new Date(startOfToday);
             endOfToday.setHours(23, 59, 59, 999);
 
@@ -220,26 +300,172 @@ export class ProgressService {
     }
 
     /**
-     * Get start of week (Monday)
+     * Get comprehensive progress statistics
      */
-    private getStartOfWeek(date: Date): Date {
-        const d = new Date(date);
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
-        const startOfWeek = new Date(d.setDate(diff));
-        // Set to beginning of day
-        startOfWeek.setHours(0, 0, 0, 0);
-        return startOfWeek;
+    async getProgressStats(userId: number = 1): Promise<ProgressStats> {
+        try {
+            const [streakInfo, readingStats, periodStats, bibleProgress] = await Promise.all([
+                this.calculateDetailedStreak(userId),
+                this.calculateReadingStats(userId),
+                this.calculatePeriodStats(),
+                this.calculateBibleProgress()
+            ]);
+
+            return {
+                // Streak data
+                currentStreak: streakInfo.currentStreak,
+                longestStreak: streakInfo.longestStreak,
+                totalReadingDays: readingStats.totalReadingDays,
+
+                // Reading progress
+                totalVersesRead: readingStats.totalVersesRead,
+                chaptersCompleted: readingStats.totalChaptersRead,
+                bibleProgressPercentage: bibleProgress.percentage,
+
+                // Period stats
+                weeklyVersesRead: periodStats.thisWeek,
+                monthlyVersesRead: periodStats.thisMonth,
+
+                // Legacy compatibility
+                weeklyProgress: periodStats.thisWeek,
+                monthlyProgress: periodStats.thisMonth,
+                completedTasks: await this.getCompletedTasksCount(),
+                totalTasks: await this.getTotalTasksCount(),
+            };
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get progress statistics', error);
+        }
     }
 
     /**
-     * Count verses read in a specific period
+     * Update achievement progress based on current stats
      */
-    private countVersesInPeriod(readVerses: any[], startDate: Date, endDate: Date): number {
-        return readVerses.filter(verse => {
-            const verseDate = new Date(verse.dateRead + 'T00:00:00.000Z'); // Ensure consistent parsing
-            return verseDate >= startDate && verseDate <= endDate;
-        }).length;
+    async updateAchievementProgress(userId: number = 1): Promise<void> {
+        try {
+            const [streakInfo, readingStats] = await Promise.all([
+                this.calculateDetailedStreak(userId),
+                this.calculateReadingStats(userId)
+            ]);
+
+            const achievements = [
+                {id: 'first_read', target: 1, progress: Math.min(readingStats.totalVersesRead, 1)},
+                {
+                    id: 'week_warrior',
+                    target: 7,
+                    progress: Math.min(Math.max(streakInfo.currentStreak, streakInfo.longestStreak), 7)
+                },
+                {id: 'century_reader', target: 100, progress: Math.min(readingStats.totalVersesRead, 100)},
+                {
+                    id: 'month_master',
+                    target: 30,
+                    progress: Math.min(Math.max(streakInfo.currentStreak, streakInfo.longestStreak), 30)
+                },
+                {id: 'chapter_champion', target: 10, progress: Math.min(readingStats.totalChaptersRead, 10)},
+                {id: 'book_explorer', target: 5, progress: Math.min(readingStats.booksStarted, 5)},
+                {
+                    id: 'dedication',
+                    target: 100,
+                    progress: Math.min(Math.max(streakInfo.currentStreak, streakInfo.longestStreak), 100)
+                },
+                {id: 'bible_scholar', target: 1000, progress: Math.min(readingStats.totalVersesRead, 1000)},
+            ];
+
+            for (const achievement of achievements) {
+                const existingProgress = await achievementProgressRepository.findByUserIdAndAchievementId(userId, achievement.id);
+                const isUnlocked = achievement.progress >= achievement.target;
+
+                if (existingProgress) {
+                    // Update existing achievement progress
+                    if (existingProgress.progress !== achievement.progress || existingProgress.isUnlocked !== isUnlocked) {
+                        await achievementProgressRepository.update({
+                            id: existingProgress.id,
+                            achievementId: existingProgress.achievementId,
+                            userId: existingProgress.userId,
+                            progress: achievement.progress,
+                            isUnlocked,
+                            unlockedAt: isUnlocked && !existingProgress.isUnlocked ? new Date().toISOString() : existingProgress.unlockedAt
+                        });
+                    }
+                } else {
+                    // Create new achievement progress
+                    await achievementProgressRepository.create({
+                        achievementId: achievement.id,
+                        userId,
+                        progress: achievement.progress,
+                        isUnlocked,
+                        unlockedAt: isUnlocked ? new Date().toISOString() : undefined
+                    });
+                }
+            }
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to update achievement progress', error);
+        }
+    }
+
+    /**
+     * Get achievement status from database
+     */
+    async getAchievements(userId: number = 1): Promise<Achievement[]> {
+        try {
+            const achievementDefinitions = [
+                {id: 'first_read', name: 'First Steps', description: 'Read your first verse', icon: '📖', target: 1},
+                {
+                    id: 'week_warrior',
+                    name: 'Week Warrior',
+                    description: 'Read for 7 consecutive days',
+                    icon: '🔥',
+                    target: 7
+                },
+                {id: 'century_reader', name: 'Century Reader', description: 'Read 100 verses', icon: '💯', target: 100},
+                {
+                    id: 'month_master',
+                    name: 'Month Master',
+                    description: 'Read for 30 consecutive days',
+                    icon: '🏆',
+                    target: 30
+                },
+                {
+                    id: 'chapter_champion',
+                    name: 'Chapter Champion',
+                    description: 'Complete 10 chapters',
+                    icon: '⭐',
+                    target: 10
+                },
+                {
+                    id: 'book_explorer',
+                    name: 'Book Explorer',
+                    description: 'Start reading 5 different books',
+                    icon: '🗺️',
+                    target: 5
+                },
+                {
+                    id: 'dedication',
+                    name: 'Dedication',
+                    description: 'Read for 100 consecutive days',
+                    icon: '🎯',
+                    target: 100
+                },
+                {id: 'bible_scholar', name: 'Bible Scholar', description: 'Read 1000 verses', icon: '🎓', target: 1000},
+            ];
+
+            const achievementProgress = await achievementProgressRepository.findByUserId(userId);
+            const progressMap = new Map(achievementProgress.map(ap => [ap.achievementId, ap]));
+
+            return achievementDefinitions.map(def => {
+                const progress = progressMap.get(def.id);
+                return {
+                    id: def.id,
+                    name: def.name,
+                    description: def.description,
+                    icon: def.icon,
+                    unlocked: progress?.isUnlocked || false,
+                    progress: progress?.progress || 0,
+                    target: def.target,
+                };
+            });
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get achievements', error);
+        }
     }
 
     /**
@@ -249,15 +475,13 @@ export class ProgressService {
         try {
             const verseProgress = await bibleVerseProgressRepository.findAll();
             const readVerses = verseProgress.filter(p => p.isRead).length;
+            const totalVerses = await bibleVerseRepository.count();
 
-            // Total verses in the Bible (approximate)
-            const TOTAL_BIBLE_VERSES = await bibleVerseRepository.count();
-
-            const percentage = Math.min((readVerses / TOTAL_BIBLE_VERSES) * 100, 100);
-            const versesRemaining = Math.max(TOTAL_BIBLE_VERSES - readVerses, 0);
+            const percentage = Math.min((readVerses / totalVerses) * 100, 100);
+            const versesRemaining = Math.max(totalVerses - readVerses, 0);
 
             return {
-                percentage: Math.round(percentage * 100) / 100, // Round to 2 decimal places
+                percentage: Math.round(percentage * 100) / 100,
                 versesRemaining,
             };
         } catch (error: any) {
@@ -272,7 +496,6 @@ export class ProgressService {
         try {
             const verseProgress = await bibleVerseProgressRepository.findAll();
             const currentYear = year || new Date().getFullYear();
-
             const activity = new Map<string, number>();
 
             verseProgress
@@ -293,115 +516,102 @@ export class ProgressService {
     }
 
     /**
-     * Get achievement status
+     * Initialize default achievements for a user
      */
-    async getAchievements(): Promise<Array<{
-        id: string;
-        name: string;
-        description: string;
-        icon: string;
-        unlocked: boolean;
-        progress?: number;
-        target?: number;
-    }>> {
-        try {
-            const streakInfo = await this.calculateDetailedStreak();
-            const readingStats = await this.calculateReadingStats();
-            const bibleProgress = await this.calculateBibleProgress();
+    private async initializeAchievements(userId: number): Promise<void> {
+        const defaultAchievements = [
+            'first_read', 'week_warrior', 'century_reader', 'month_master',
+            'chapter_champion', 'book_explorer', 'dedication', 'bible_scholar'
+        ];
 
-            return [
-                {
-                    id: 'first_read',
-                    name: 'First Steps',
-                    description: 'Read your first verse',
-                    icon: '📖',
-                    unlocked: readingStats.totalVersesRead >= 1,
-                    progress: Math.min(readingStats.totalVersesRead, 1),
-                    target: 1,
-                },
-                {
-                    id: 'week_warrior',
-                    name: 'Week Warrior',
-                    description: 'Read for 7 consecutive days',
-                    icon: '🔥',
-                    unlocked: streakInfo.currentStreak >= 7 || streakInfo.longestStreak >= 7,
-                    progress: Math.min(streakInfo.currentStreak, 7),
-                    target: 7,
-                },
-                {
-                    id: 'century_reader',
-                    name: 'Century Reader',
-                    description: 'Read 100 verses',
-                    icon: '💯',
-                    unlocked: readingStats.totalVersesRead >= 100,
-                    progress: Math.min(readingStats.totalVersesRead, 100),
-                    target: 100,
-                },
-                {
-                    id: 'month_master',
-                    name: 'Month Master',
-                    description: 'Read for 30 consecutive days',
-                    icon: '🏆',
-                    unlocked: streakInfo.currentStreak >= 30 || streakInfo.longestStreak >= 30,
-                    progress: Math.min(streakInfo.currentStreak, 30),
-                    target: 30,
-                },
-                {
-                    id: 'chapter_champion',
-                    name: 'Chapter Champion',
-                    description: 'Complete 10 chapters',
-                    icon: '⭐',
-                    unlocked: readingStats.totalChaptersRead >= 10,
-                    progress: Math.min(readingStats.totalChaptersRead, 10),
-                    target: 10,
-                },
-                {
-                    id: 'book_explorer',
-                    name: 'Book Explorer',
-                    description: 'Start reading 5 different books',
-                    icon: '🗺️',
-                    unlocked: readingStats.booksStarted >= 5,
-                    progress: Math.min(readingStats.booksStarted, 5),
-                    target: 5,
-                },
-                {
-                    id: 'dedication',
-                    name: 'Dedication',
-                    description: 'Read for 100 consecutive days',
-                    icon: '🎯',
-                    unlocked: streakInfo.currentStreak >= 100 || streakInfo.longestStreak >= 100,
-                    progress: Math.min(streakInfo.currentStreak, 100),
-                    target: 100,
-                },
-                {
-                    id: 'bible_scholar',
-                    name: 'Bible Scholar',
-                    description: 'Read 1000 verses',
-                    icon: '🎓',
-                    unlocked: readingStats.totalVersesRead >= 1000,
-                    progress: Math.min(readingStats.totalVersesRead, 1000),
-                    target: 1000,
-                },
-            ];
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get achievements', error);
+        for (const achievementId of defaultAchievements) {
+            const existing = await achievementProgressRepository.findByUserIdAndAchievementId(userId, achievementId);
+            if (!existing) {
+                await achievementProgressRepository.create({
+                    achievementId,
+                    userId,
+                    progress: 0,
+                    isUnlocked: false
+                });
+            }
         }
     }
 
     /**
-     * Validate date input
+     * Get all unique reading dates from all sources
      */
-    private validateDate(date: any, fieldName: string): void {
-        if (!(date instanceof Date) || isNaN(date.getTime())) {
-            throw new ValidationError(`${fieldName} must be a valid Date`);
-        }
+    private async getAllReadingDates(): Promise<string[]> {
+        const verseProgress = await bibleVerseProgressRepository.findAll();
+        const tasks = await tasksRepository.findAll();
+        const sessions = await readingSessionRepository.findAll();
+        console.log("sessions are:", sessions);
+
+        const readingDates = new Set<string>();
+
+        // Add dates from verse progress
+        verseProgress
+            .filter(p => p.isRead)
+            .forEach(p => readingDates.add(p.dateRead));
+
+        // // Add dates from completed reading tasks
+        // tasks
+        //     .filter(t => t.is_done && (
+        //         t.task_name.includes('Daily Text') ||
+        //         t.task_name.includes('Bible Reading') ||
+        //         t.task_name.includes('Reading')
+        //     ))
+        //     .forEach(t => readingDates.add(t.date));
+
+        // Add dates from reading sessions
+        sessions.forEach(s => readingDates.add(s.date));
+
+        return Array.from(readingDates).sort();
     }
 
     /**
-     * Format date to ISO string
+     * Calculate the difference in days between two dates
      */
-    private formatDate(date: Date): string {
-        return date.toISOString().split('T')[0];
+    private getDayDifference(date1: Date, date2: Date): number {
+        const timeDiff = date2.getTime() - date1.getTime();
+        return Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    }
+
+    /**
+     * Get start of week (Monday)
+     */
+    private getStartOfWeek(date: Date): Date {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        const startOfWeek = new Date(d.setDate(diff));
+        startOfWeek.setHours(0, 0, 0, 0);
+        return startOfWeek;
+    }
+
+    /**
+     * Count verses read in a specific period
+     */
+    private countVersesInPeriod(readVerses: any[], startDate: Date, endDate: Date): number {
+        return readVerses.filter(verse => {
+            const verseDate = new Date(verse.dateRead + 'T00:00:00.000Z');
+            return verseDate >= startDate && verseDate <= endDate;
+        }).length;
+    }
+
+    /**
+     * Get count of completed tasks
+     */
+    private async getCompletedTasksCount(): Promise<number> {
+        const tasks = await tasksRepository.findAll();
+        return tasks.filter(t => t.is_done).length;
+    }
+
+    /**
+     * Get total count of tasks
+     */
+    private async getTotalTasksCount(): Promise<number> {
+        const tasks = await tasksRepository.findAll();
+        return tasks.length;
     }
 }
 

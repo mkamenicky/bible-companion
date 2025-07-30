@@ -34,9 +34,17 @@ export default function TabLayout() {
         />
         <Tabs.Screen
             name="FeedbackScreen"
+            redirect={true}
             options={{
                 title: 'Feedback',
                 tabBarIcon: ({color, size}) => (<MaterialIcons name="edit-note" color={color} size={size}/>),
+            }}
+        />
+        <Tabs.Screen
+            name="CalendarScreen"
+            options={{
+                title: 'Calendar',
+                tabBarIcon: ({color, size}) => (<MaterialIcons name="calendar-month" color={color} size={size}/>),
             }}
         />
         <Tabs.Screen

@@ -62,10 +62,55 @@ export type {
     UpdateDailyReadingAssignmentDto
 } from '@/models/(models)/entity/daily-reading-assignment.model';
 
+// Achievement progress tracking
+export type {
+    CreateAchievementProgressDto,
+    UpdateAchievementProgressDto,
+    AchievementProgress
+} from '@/models/(models)/entity/achievement-progress';
+
+// Reading session tracking for more granular analytics
+export type {
+    CreateReadingSessionDto,
+    UpdateReadingSessionDto,
+    ReadingSessionModel
+} from '@/models/(models)/entity/reading-session.model';
+
+// Database entities for persistent streak tracking
+export type {
+    CreateReadingStreakDto,
+    UpdateReadingStreakDto,
+    ReadingStreak
+} from '@/models/(models)/entity/reading-streak.model';
+
+// Database entities for persistent streak tracking
+export type {
+    ReadingGoal,
+    UpdateReadingGoalDto,
+    CreateReadingGoalDto
+} from '@/models/(models)/entity/reading-goal.model';
+
+// Database entities for persistent streak tracking
+export type {
+    ReadingPreferences,
+    UpdateReadingPreferencesDto,
+    CreateReadingPreferencesDto
+} from '@/models/(models)/entity/reading-preference.model';
+
 
 // Re-export types and interfaces
 export type {AppSettings} from '@/models/(models)/type/settings.types';
-export type {ProgressStats} from '@/models/(models)/type/progress.types';
+export type {
+    StreakInfo,
+    ReadingStats,
+    PeriodStats,
+    BibleProgress,
+    ProgressStats,
+    Achievement,
+    ReadingActivity,
+    DetailedReadingStats,
+    ProgressCalculationOptions
+} from '@/models/(models)/type/progress.types';
 export type {CustomColors} from '@/models/(models)/type/theme.types';
 export type {
     DatabaseConfig,

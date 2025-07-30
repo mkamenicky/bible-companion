@@ -1,10 +1,7 @@
 import {DailyReadingAssignment, MutableTaskStates, ReadingPlan, TaskStates} from "@/models";
 import {DatabaseMessageError, ValidationError} from '@/errors';
 import {getMondayOfWeek} from "@/utils";
-import {bibleBookRepository} from '@/repository/(repositories)/bible-book.repository'
-import {bibleChapterRepository} from '@/repository/(repositories)/bible-chapter.repository'
 import {bibleVerseProgressRepository} from '@/repository/(repositories)/bible-verse-progress.repository'
-import {bibleVerseRepository} from '@/repository/(repositories)/bible-verse.repository'
 import {dailyReadingAssignmentsRepository} from '@/repository/(repositories)/daily-reading-assignments.repository'
 import {readingPlanConfigRepository} from '@/repository/(repositories)/reading-plan-config.repository'
 import {tasksRepository} from '@/repository/(repositories)/tasks.repository'
@@ -14,28 +11,6 @@ import {tasksRepository} from '@/repository/(repositories)/tasks.repository'
  * Handles business logic for reading plans, task states, and verse progress
  */
 export class ReadingService {
-    /**
-     * Validates input parameters
-     */
-    private validateInput(value: any, type: 'string' | 'date' | 'number', fieldName: string): void {
-        if (type === 'string' && (!value || typeof value !== 'string')) {
-            throw new ValidationError(`${fieldName} must be a non-empty string`);
-        }
-        if (type === 'date' && (!(value instanceof Date) || isNaN(value.getTime()))) {
-            throw new ValidationError(`${fieldName} must be a valid Date`);
-        }
-        if (type === 'number' && (typeof value !== 'number' || value <= 0)) {
-            throw new ValidationError(`${fieldName} must be a positive number`);
-        }
-    }
-
-    /**
-     * Formats date to ISO string (YYYY-MM-DD)
-     */
-    private formatDate(date: Date): string {
-        return date.toISOString().split('T')[0];
-    }
-
     /**
      * Sets the completion state of a task for a specific date
      */
@@ -247,7 +222,7 @@ export class ReadingService {
 
             console.log("existingPlan:", existingPlan);
 
-            if(!existingPlan){
+            if (!existingPlan) {
                 existingPlan = await readingPlanConfigRepository.create({
                     plan_name: "Maximilians Test Plan",
                     plan_type: "cronological",
@@ -303,7 +278,7 @@ export class ReadingService {
 
             console.log("found assignments:", dailyReadingAssignments);
 
-            if(dailyReadingAssignments.length > 0){
+            if (dailyReadingAssignments.length > 0) {
                 return dailyReadingAssignments;
             }
 
@@ -321,6 +296,28 @@ export class ReadingService {
         } catch (error: any) {
             throw new DatabaseMessageError(`Failed to fetch readingAssignments`, error as Error);
         }
+    }
+
+    /**
+     * Validates input parameters
+     */
+    private validateInput(value: any, type: 'string' | 'date' | 'number', fieldName: string): void {
+        if (type === 'string' && (!value || typeof value !== 'string')) {
+            throw new ValidationError(`${fieldName} must be a non-empty string`);
+        }
+        if (type === 'date' && (!(value instanceof Date) || isNaN(value.getTime()))) {
+            throw new ValidationError(`${fieldName} must be a valid Date`);
+        }
+        if (type === 'number' && (typeof value !== 'number' || value <= 0)) {
+            throw new ValidationError(`${fieldName} must be a positive number`);
+        }
+    }
+
+    /**
+     * Formats date to ISO string (YYYY-MM-DD)
+     */
+    private formatDate(date: Date): string {
+        return date.toISOString().split('T')[0];
     }
 }
 
