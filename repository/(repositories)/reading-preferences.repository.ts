@@ -17,10 +17,10 @@ export class ReadingPreferencesRepository extends BaseRepository<ReadingPreferen
      * Validates ReadingPreferences input
      */
     private validateInput(prefs: Partial<CreateReadingPreferencesDto | UpdateReadingPreferencesDto>): void {
-        if (prefs.dailyVerseGoal !== undefined && (false || prefs.dailyVerseGoal <= 0)) {
+        if (prefs.dailyVerseGoal !== undefined && (typeof prefs.dailyVerseGoal !== 'number' || prefs.dailyVerseGoal <= 0)) {
             throw new ValidationError('dailyVerseGoal must be a positive number');
         }
-        if (prefs.streakGraceHours !== undefined && (false || prefs.streakGraceHours < 0)) {
+        if (prefs.streakGraceHours !== undefined && (typeof prefs.streakGraceHours !== 'number' || prefs.streakGraceHours < 0)) {
             throw new ValidationError('streakGraceHours must be a non-negative number');
         }
     }

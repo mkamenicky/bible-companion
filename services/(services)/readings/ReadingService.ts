@@ -67,7 +67,7 @@ export class ReadingService {
 
             const result: MutableTaskStates = {};
             for (const task of weeklyTasks) {
-                const match = weekTasks.find(t => t.task_name === task && t.is_done === true);
+                const match = weekTasks.find(t => t.task_name === task && t.is_done);
                 result[task] = !!match;
             }
 
@@ -104,7 +104,7 @@ export class ReadingService {
 
             const result: MutableTaskStates = {};
             for (const task of dailyTasks) {
-                const match = dayTasks.find(t => t.task_name === task && t.is_done === true);
+                const match = dayTasks.find(t => t.task_name === task && t.is_done);
                 result[task] = !!match;
             }
 
