@@ -3,16 +3,6 @@ import { useFocusEffect } from 'expo-router';
 import { TaskService } from '@/services';
 import {DailyReadingAssignment, ReadingPlan} from "@/models";
 
-// Constants
-const WEEKLY_CHECKLIST_ITEMS = [
-    'Weekly Bible Reading (Meeting)',
-    'Midweek Meeting Preparation',
-    'Weekend Meeting Preparation',
-    'Family Worship',
-] as string[];
-
-const DAILY_CHECKLIST_ITEMS = ['Daily Text'] as string[];
-
 export function useHomeData() {
     // State management
     const [loading, setLoading] = useState(true);
@@ -22,16 +12,17 @@ export function useHomeData() {
     const [taskStatus, setTaskStatus] = useState<Record<string, boolean>>({});
     const [confirmationTask, setConfirmationTask] = useState<string | null>(null);
 
+    // New state for dynamic task lists
+    const [weeklyChecklistItems, setWeeklyChecklistItems] = useState<string[]>([]);
+    const [dailyChecklistItems, setDailyChecklistItems] = useState<string[]>([]);
+
     // Memoized values
     const today = useMemo(() => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), now.getDate());
     }, [new Date().toDateString()]); // Updates when date string changes
 
-    const taskService = useMemo(
-        () => new TaskService([...WEEKLY_CHECKLIST_ITEMS], [...DAILY_CHECKLIST_ITEMS]),
-        [today]
-    );
+    const taskService = useMemo(() => new TaskService(), []);
 
     // Data fetching methods
     const fetchReadingPlan = useCallback(async (): Promise<void> => {
@@ -39,10 +30,16 @@ export function useHomeData() {
         setReadingPlan(plan);
     }, [taskService]);
 
+    const fetchTaskLists = useCallback(async (): Promise<void> => {
+        const { weeklyTasks, dailyTasks } = await taskService.getTaskLists(today);
+        setWeeklyChecklistItems(weeklyTasks);
+        setDailyChecklistItems(dailyTasks);
+    }, [taskService, today]);
+
     const fetchTaskStates = useCallback(async (): Promise<void> => {
-        const states = await taskService.fetchTaskStates();
+        const states = await taskService.fetchTaskStates(today);
         setTaskStatus(states);
-    }, [taskService]);
+    }, [taskService, today]);
 
     const fetchAssignments = useCallback(async (): Promise<void> => {
         const assignments = await taskService.fetchReadingAssignments();
@@ -52,20 +49,28 @@ export function useHomeData() {
     const loadInitialData = useCallback(async (): Promise<void> => {
         setLoading(true);
         try {
-            await Promise.all([fetchAssignments(), fetchTaskStates()]);
+            await Promise.all([
+                fetchTaskLists(),
+                fetchAssignments(),
+                fetchTaskStates()
+            ]);
         } finally {
             setLoading(false);
         }
-    }, [fetchAssignments, fetchTaskStates]);
+    }, [fetchTaskLists, fetchAssignments, fetchTaskStates]);
 
     const onRefresh = useCallback(async (): Promise<void> => {
         setRefreshing(true);
         try {
-            await Promise.all([fetchAssignments(), fetchTaskStates()]);
+            await Promise.all([
+                fetchTaskLists(),
+                fetchAssignments(),
+                fetchTaskStates()
+            ]);
         } finally {
             setRefreshing(false);
         }
-    }, [fetchAssignments, fetchTaskStates]);
+    }, [fetchTaskLists, fetchAssignments, fetchTaskStates]);
 
     // Event handlers
     const handleToggleVerses = useCallback(async (item: DailyReadingAssignment): Promise<void> => {
@@ -96,11 +101,11 @@ export function useHomeData() {
 
         console.log('Confirming task completion:', task);
 
-        await taskService.toggleTaskCompletion(task, status);
+        await taskService.toggleTaskCompletion(task, status, today);
         setTaskStatus(prev => ({ ...prev, [task]: status }));
         setConfirmationTask(null);
         onRefresh()
-    }, [confirmationTask, taskService, onRefresh]);
+    }, [confirmationTask, taskService, today, taskStatus, onRefresh]);
 
     // Lifecycle effects
     useFocusEffect(
@@ -119,9 +124,9 @@ export function useHomeData() {
         today,
         dailyReadingAssignments,
 
-        // Constants
-        weeklyChecklistItems: WEEKLY_CHECKLIST_ITEMS,
-        dailyChecklistItems: DAILY_CHECKLIST_ITEMS,
+        // Dynamic task lists from database
+        weeklyChecklistItems,
+        dailyChecklistItems,
 
         // Actions
         onRefresh,

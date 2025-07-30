@@ -54,12 +54,16 @@ CREATE TABLE IF NOT EXISTS feedback (
 );
 
 CREATE TABLE IF NOT EXISTS tasks (
-                                     id INTEGER PRIMARY KEY,
-                                     date TEXT NOT NULL,
-                                     task_name TEXT NOT NULL,
-                                     is_done BOOLEAN NOT NULL DEFAULT 0,
-                                     UNIQUE(task_name)
+                       id INTEGER PRIMARY KEY,
+                       date TEXT NOT NULL,
+                       task_name TEXT NOT NULL,
+                       is_done BOOLEAN NOT NULL DEFAULT 0,
+                       UNIQUE(date, task_name)
 );
+
+-- Add an index for better performance
+CREATE INDEX IF NOT EXISTS idx_tasks_date_task ON tasks(date, task_name);
+
 -- Add a new table for reading plan configurations
 CREATE TABLE IF NOT EXISTS reading_plan_config (
                                                    id INTEGER PRIMARY KEY,

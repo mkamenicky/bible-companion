@@ -1,118 +1,14 @@
-import {DailyReadingAssignment, MutableTaskStates, ReadingPlan, TaskStates} from "@/models";
+import {DailyReadingAssignment, ReadingPlan} from "@/models";
 import {DatabaseMessageError, ValidationError} from '@/errors';
-import {getMondayOfWeek} from "@/utils";
 import {bibleVerseProgressRepository} from '@/repository/(repositories)/bible-verse-progress.repository'
 import {dailyReadingAssignmentsRepository} from '@/repository/(repositories)/daily-reading-assignments.repository'
 import {readingPlanConfigRepository} from '@/repository/(repositories)/reading-plan-config.repository'
-import {tasksRepository} from '@/repository/(repositories)/tasks.repository'
 
 /**
- * Service class for managing Bible reading progress and tasks
- * Handles business logic for reading plans, task states, and verse progress
+ * Service class for managing Bible reading progress and plans
+ * Handles business logic for reading plans, verse progress, and reading assignments
  */
 export class ReadingService {
-    /**
-     * Sets the completion state of a task for a specific date
-     */
-    async setTaskState(taskName: string, date: Date, done: boolean): Promise<void> {
-        this.validateInput(taskName, 'string', 'taskName');
-        this.validateInput(date, 'date', 'date');
-
-        const dateStr = this.formatDate(date);
-
-        try {
-            // Try to find existing task
-            const allTasks = await tasksRepository.findAll();
-            const existingTask = allTasks.find(task =>
-                task.date === dateStr && task.task_name === taskName
-            );
-
-            if (existingTask) {
-                // Update existing task
-                await tasksRepository.update({
-                    id: existingTask.id,
-                    is_done: done
-                });
-            } else {
-                // Create new task
-                await tasksRepository.create({
-                    date: dateStr,
-                    task_name: taskName,
-                    is_done: done
-                });
-            }
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to set task state for: ${taskName}`, error as Error);
-        }
-    }
-
-    /**
-     * Gets the completion states of weekly tasks starting from Monday
-     */
-    async getWeeklyTaskStates(date: Date, weeklyTasks: readonly string[]): Promise<TaskStates> {
-        this.validateInput(date, 'date', 'date');
-
-        if (!Array.isArray(weeklyTasks)) {
-            throw new ValidationError('weeklyTasks must be an array');
-        }
-
-        const mondayStr = getMondayOfWeek(date);
-
-        try {
-            // Get all tasks from the repository
-            const allTasks = await tasksRepository.findAll();
-
-            // Filter tasks that are from Monday onwards
-            const weekTasks = allTasks.filter(task => task.date >= mondayStr);
-
-            const result: MutableTaskStates = {};
-            for (const task of weeklyTasks) {
-                const match = weekTasks.find(t => t.task_name === task && t.is_done);
-                result[task] = !!match;
-            }
-
-            return result as TaskStates;
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get weekly task states', error as Error);
-        }
-    }
-
-    /**
-     * Gets the completion states of daily tasks for a specific date
-     */
-    async getDailyTaskStates(date: Date, dailyTasks: readonly string[]): Promise<TaskStates> {
-        this.validateInput(date, 'date', 'date');
-
-        if (!Array.isArray(dailyTasks)) {
-            throw new ValidationError('dailyTasks must be an array');
-        }
-
-        if (dailyTasks.length === 0) {
-            return {} as TaskStates;
-        }
-
-        const dateStr = this.formatDate(date);
-
-        try {
-            // Get all tasks from the repository
-            const allTasks = await tasksRepository.findAll();
-
-            // Filter tasks for the specific date and task names
-            const dayTasks = allTasks.filter(task =>
-                task.date === dateStr && dailyTasks.includes(task.task_name)
-            );
-
-            const result: MutableTaskStates = {};
-            for (const task of dailyTasks) {
-                const match = dayTasks.find(t => t.task_name === task && t.is_done);
-                result[task] = !!match;
-            }
-
-            return result as TaskStates;
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get daily task states', error as Error);
-        }
-    }
 
     /**
      * Marks a Bible verse as read for a specific date
@@ -151,6 +47,9 @@ export class ReadingService {
         }
     }
 
+    /**
+     * Marks a daily reading assignment as read/unread
+     */
     async markDailyReadingAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment, date: Date = new Date(), isRead: boolean = true): Promise<void> {
         this.validateInput(date, 'date', 'date');
         try {
@@ -270,6 +169,9 @@ export class ReadingService {
         return Math.round((completedVerses / totalExpectedVerses) * 100);
     }
 
+    /**
+     * Fetches or creates daily reading assignments for today
+     */
     async fetchReadingAssignments(): Promise<DailyReadingAssignment[]> {
         try {
             console.log("fetching assignments:");
