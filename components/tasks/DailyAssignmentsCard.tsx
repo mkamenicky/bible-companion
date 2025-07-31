@@ -1,9 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import {DailyReadingAssignment} from '@/models';
+import { View, Text, TouchableOpacity } from 'react-native';
+import {DailyReadingAssignment, EnhancedDailyReadingAssignment} from '@/models';
 
 interface Props {
-    dailyReadingAssignments: DailyReadingAssignment[];
+    dailyReadingAssignments: EnhancedDailyReadingAssignment[];
     onToggle: (item: DailyReadingAssignment) => void;
     title: string;
     styles: any;
@@ -11,32 +11,15 @@ interface Props {
 }
 
 export default function DailyAssignmentsCard({
-                                            dailyReadingAssignments,
-                                            onToggle,
-                                            title,
-                                            styles,
-                                            customColors
-                                        }: Props) {
-    const isRead = (item: DailyReadingAssignment) =>
-        dailyReadingAssignments.some(dailyReadingAssignment => dailyReadingAssignment.is_completed);
-
-    const completedCount = dailyReadingAssignments.filter(isRead).length;
-    const allDone = dailyReadingAssignments.length === 0 || dailyReadingAssignments.every(isRead);
+                                                 dailyReadingAssignments,
+                                                 onToggle,
+                                                 title,
+                                                 styles,
+                                                 customColors
+                                             }: Props) {
+    const completedCount = dailyReadingAssignments.filter(item => item.is_completed).length;
     const progressPercentage = dailyReadingAssignments.length > 0 ? (completedCount / dailyReadingAssignments.length) * 100 : 100;
-
-    // Estimate reading time (roughly 1 minute per chapter)
-    const getReadingTime = (item: DailyReadingAssignment) => {
-        // @ts-ignore
-        const verseCount = item.end_verse_id - item.start_verse_id;
-        const minutes = Math.max(1, Math.round(verseCount / 6)); // Rough estimate: 6 verses per minute
-        return `${minutes} min`;
-    };
-
-    const getVerseCount = (item: DailyReadingAssignment) => {
-        // @ts-ignore
-        const count = item.end_verse_id - item.start_verse_id;
-        return `${count} verses`;
-    };
+    const allDone = dailyReadingAssignments.length > 0 && dailyReadingAssignments.every(item => item.is_completed);
 
     return (
         <View style={styles.card}>
@@ -56,7 +39,6 @@ export default function DailyAssignmentsCard({
                     </View>
                 ) : (
                     dailyReadingAssignments.map((item, index) => {
-                        const isCompleted = isRead(item);
                         const isLast = index === dailyReadingAssignments.length - 1;
 
                         return (
@@ -65,13 +47,13 @@ export default function DailyAssignmentsCard({
                                 style={[
                                     styles.listItem,
                                     isLast && styles.listItemLast,
-                                    isCompleted && { opacity: 0.6 }
+                                    item.is_completed && { opacity: 0.6 }
                                 ]}
                                 onPress={() => onToggle(item)}
                             >
                                 <View style={[
                                     styles.itemIcon,
-                                    { backgroundColor: '#e3f2fd' } // Bible book color
+                                    { backgroundColor: '#e3f2fd' }
                                 ]}>
                                     <Text style={{ fontSize: 18 }}>📖</Text>
                                 </View>
@@ -79,23 +61,20 @@ export default function DailyAssignmentsCard({
                                 <View style={styles.itemContent}>
                                     <Text style={[
                                         styles.itemTitle,
-                                        isCompleted && {
+                                        item.is_completed && {
                                             textDecorationLine: 'line-through',
                                             color: customColors?.subtleGray || '#8e8e8e'
                                         }
                                     ]}>
-                                        {item.display_title}
-                                    </Text>
-                                    <Text style={styles.itemSubtitle}>
-                                        {getReadingTime(item)} • {getVerseCount(item)}
+                                        {item.book_title} {item.chapter_title}:{item.start_verse_title} - {item.end_verse_title}
                                     </Text>
                                 </View>
 
                                 <View style={[
                                     styles.checkbox,
-                                    isCompleted && styles.checkboxChecked
+                                    item.is_completed && styles.checkboxChecked
                                 ]}>
-                                    {isCompleted && (
+                                    {item.is_completed && (
                                         <Text style={styles.checkboxIcon}>✓</Text>
                                     )}
                                 </View>
@@ -122,7 +101,7 @@ export default function DailyAssignmentsCard({
             )}
 
             {/* Completion message */}
-            {allDone && dailyReadingAssignments.length > 0 && (
+            {allDone && (
                 <View style={{
                     padding: 16,
                     alignItems: 'center',

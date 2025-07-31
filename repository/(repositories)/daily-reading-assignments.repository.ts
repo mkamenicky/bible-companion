@@ -22,6 +22,7 @@ export class DailyReadingAssignmentsRepository extends BaseRepository<DailyReadi
             plan_name: row.plan_name,
             start_verse_id: row.start_verse_id,
             end_verse_id: row.end_verse_id,
+            chapter_id: row.chapter_id,
             display_title: row.display_title,
             is_completed: Boolean(row.is_completed),
             completed_at: row.completed_at
@@ -32,13 +33,14 @@ export class DailyReadingAssignmentsRepository extends BaseRepository<DailyReadi
         this.validateInput(assignment);
         return {
             sql: `INSERT INTO daily_reading_assignments (date, plan_name, start_verse_id, end_verse_id,
-                                                         display_title, is_completed, completed_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                                                         chapter_id, display_title, is_completed, completed_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             params: [
                 assignment.date,
                 assignment.plan_name ?? 'chronological',
                 assignment.start_verse_id,
                 assignment.end_verse_id,
+                assignment.chapter_id,
                 assignment.display_title,
                 assignment.is_completed ? 1 : 0,
                 assignment.completed_at ?? null
@@ -54,6 +56,7 @@ export class DailyReadingAssignmentsRepository extends BaseRepository<DailyReadi
                       plan_name      = COALESCE(?, plan_name),
                       start_verse_id = COALESCE(?, start_verse_id),
                       end_verse_id   = COALESCE(?, end_verse_id),
+                      chapter_id     = COALESCE(?, chapter_id),
                       display_title  = COALESCE(?, display_title),
                       is_completed   = COALESCE(?, is_completed),
                       completed_at   = COALESCE(?, completed_at)
@@ -63,6 +66,7 @@ export class DailyReadingAssignmentsRepository extends BaseRepository<DailyReadi
                 assignment.plan_name,
                 assignment.start_verse_id,
                 assignment.end_verse_id,
+                assignment.chapter_id,
                 assignment.display_title,
                 assignment.is_completed !== undefined ? (assignment.is_completed ? 1 : 0) : undefined,
                 assignment.completed_at,
@@ -84,9 +88,29 @@ export class DailyReadingAssignmentsRepository extends BaseRepository<DailyReadi
         if (assignment.end_verse_id !== undefined) {
             this.validateId(assignment.end_verse_id, 'end_verse_id');
         }
+        if (assignment.chapter_id !== undefined) {
+            this.validateId(assignment.chapter_id, 'chapter_id');
+        }
         if (assignment.display_title !== undefined) {
             this.validateString(assignment.display_title, 'display_title');
         }
+
+        // // Additional validation for required fields during creation
+        // if ('date' in assignment && assignment.date === undefined) {
+        //     throw new Error('date is required');
+        // }
+        // if ('start_verse_id' in assignment && assignment.start_verse_id === undefined) {
+        //     throw new Error('start_verse_id is required');
+        // }
+        // if ('end_verse_id' in assignment && assignment.end_verse_id === undefined) {
+        //     throw new Error('end_verse_id is required');
+        // }
+        // if ('chapter_id' in assignment && assignment.chapter_id === undefined) {
+        //     throw new Error('chapter_id is required');
+        // }
+        // if ('display_title' in assignment && assignment.display_title === undefined) {
+        //     throw new Error('display_title is required');
+        // }
     }
 }
 

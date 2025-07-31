@@ -41,10 +41,10 @@ export class AndroidDatabaseService extends DatabaseService {
             // Check if database already exists
             const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
 
-            if (dbInfo.exists) {
-                console.log("Database already exists, skip copying asset...");
-                return;
-            }
+            // if (dbInfo.exists) {
+            //     console.log("Database already exists, skip copying asset...");
+            //     return;
+            // }
 
             // Load and download the asset
             this.log('info', 'Loading database asset...');

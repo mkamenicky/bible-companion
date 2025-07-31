@@ -18,6 +18,7 @@ import {
 // Service and utility imports
 import {useHomeData} from '@/hooks';
 import {DateFormattingService, ThemeService} from '@/services';
+import {DailyReadingAssignment} from "@/models";
 
 export default function Index() {
     // Custom hook for data management
@@ -73,14 +74,19 @@ export default function Index() {
                     styles={styles}
                     customColors={customColors}
                 />
+                {dailyReadingAssignments && Array.from(dailyReadingAssignments.entries()).map(
+                    ([assignmentTitle, assignments]) => (
+                        <DailyAssignmentsCard
+                            key={assignmentTitle}
+                            dailyReadingAssignments={assignments}
+                            onToggle={handleToggleVerses}
+                            title={`Reading Plan Today: ${assignmentTitle}`}
+                            styles={styles}
+                            customColors={customColors}
+                        />
+                    ))
+                }
 
-                <DailyAssignmentsCard
-                    dailyReadingAssignments={dailyReadingAssignments}
-                    onToggle={handleToggleVerses}
-                    title={`Reading Plan for ${weekday}`}
-                    styles={styles}
-                    customColors={customColors}
-                />
                 <WeeklyChecklistCard
                     items={weeklyChecklistItems}
                     title={`Week: ${weekRange}`}

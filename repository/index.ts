@@ -24,4 +24,7 @@ export { ReadingGoalsRepository, readingGoalsRepository } from '@/repository/(re
 export { ReadingPreferencesRepository, readingPreferencesRepository } from '@/repository/(repositories)/reading-preferences.repository';
 export { ReadingSessionRepository, readingSessionRepository } from '@/repository/(repositories)/reading-session.repository';
 export { ReadingStreakRepository, readingStreakRepository } from '@/repository/(repositories)/reading-streak.repository';
+export { BibleBookTopicsRepository, bibleBookTopicsRepository } from '@/repository/(repositories)/bible-topics.repository';
+export { ReadingPlanProgressRepository, readingPlanProgressRepository } from '@/repository/(repositories)/reading-plan-progress.repository';
+export { ReadingTopicsRepository, readingTopicsRepository } from '@/repository/(repositories)/reading-topics.repository';
 

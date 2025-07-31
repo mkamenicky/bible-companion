@@ -1,14 +1,14 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { TaskService } from '@/services';
-import {DailyReadingAssignment, ReadingPlan} from "@/models";
+import {DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
 
 export function useHomeData() {
     // State management
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [readingPlan, setReadingPlan] = useState<ReadingPlan[]>([]);
-    const [dailyReadingAssignments, setDailyReadingAssignments] = useState<DailyReadingAssignment[]>([]);
+    const [dailyReadingAssignments, setDailyReadingAssignments] = useState<Map<string, EnhancedDailyReadingAssignment[]>>();
     const [taskStatus, setTaskStatus] = useState<Record<string, boolean>>({});
     const [confirmationTask, setConfirmationTask] = useState<string | null>(null);
 
@@ -43,7 +43,13 @@ export function useHomeData() {
 
     const fetchAssignments = useCallback(async (): Promise<void> => {
         const assignments = await taskService.fetchReadingAssignments();
-        setDailyReadingAssignments(assignments);
+        const assignmentMap = new Map<string, EnhancedDailyReadingAssignment[]>();
+        assignments.map(item => {
+            assignmentMap.get(item.display_title) ?
+                assignmentMap.get(item.display_title)?.push(item) :
+                assignmentMap.set(item.display_title, [item]);
+        })
+        setDailyReadingAssignments(assignmentMap);
     }, [taskService]);
 
     const loadInitialData = useCallback(async (): Promise<void> => {

@@ -1,11 +1,7 @@
 import {BaseRepository} from '@/repository/base/base.repository';
-import type {
-    BibleVerse,
-    BibleVerseDb,
-    CreateBibleVerseDto,
-    UpdateBibleVerseDto
-} from '@/models';
+import {BibleVerse, BibleVerseDb, CreateBibleVerseDto, UpdateBibleVerseDto} from '@/models';
 import {ValidationError} from "@/errors";
+import {mapBibleVerseDbToVerse} from "@/models/(models)/entity/bible-verse.model";
 
 /**
  * Repository class for managing BibleVerse entities
@@ -24,8 +20,6 @@ export class BibleVerseRepository extends BaseRepository<BibleVerse, CreateBible
     }
 
     protected mapRowToEntity(row: any): BibleVerse {
-        // Import mapBibleVerseDbToVerse dynamically to avoid circular dependencies
-        const {mapBibleVerseDbToVerse} = require('@/models');
         return mapBibleVerseDbToVerse(row as BibleVerseDb);
     }
 

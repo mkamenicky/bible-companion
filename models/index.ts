@@ -8,7 +8,6 @@ export type {
     BibleVerseDb,
     CreateBibleVerseDto,
     UpdateBibleVerseDto,
-    mapBibleVerseDbToVerse
 } from '@/models/(models)/entity/bible-verse.model';
 
 // Reading plan and progress
@@ -59,7 +58,8 @@ export type {
 export type {
     DailyReadingAssignment,
     CreateDailyReadingAssignmentDto,
-    UpdateDailyReadingAssignmentDto
+    UpdateDailyReadingAssignmentDto,
+    EnhancedDailyReadingAssignment
 } from '@/models/(models)/entity/daily-reading-assignment.model';
 
 // Achievement progress tracking
@@ -97,6 +97,23 @@ export type {
     CreateReadingPreferencesDto
 } from '@/models/(models)/entity/reading-preference.model';
 
+export type {
+    BibleBookTopic,
+    UpdateBibleBookTopic,
+    CreateBibleBookTopic
+} from '@/models/(models)/entity/bible-book-topic.model.ts';
+
+export type {
+    ReadingPlanProgress,
+    UpdateReadingPlanProgress,
+    CreateReadingPlanProgress
+} from '@/models/(models)/entity/reading-plan-progress.model.ts';
+
+export type {
+    ReadingTopic,
+    UpdateReadingTopic,
+    CreateReadingTopic
+} from '@/models/(models)/entity/reading-topic.model.ts';
 
 // Re-export types and interfaces
 export type {AppSettings} from '@/models/(models)/type/settings.types';

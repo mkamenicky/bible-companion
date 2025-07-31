@@ -57,6 +57,8 @@ export abstract class BaseRepository<T, CreateDto, UpdateDto> {
 
         try {
             const { sql, params } = this.getCreateSql(dto);
+            console.log(sql);
+
             const result = await db.runAsync(sql, params);
 
             return await this.findById(result.lastInsertRowId!) as T;

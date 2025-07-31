@@ -1,4 +1,4 @@
-import {DailyReadingAssignment, ReadingPlan} from "@/models";
+import {DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
 import {readingService} from "@/services/(services)/readings/ReadingService";
 import {DatabaseMessageError, ValidationError} from '@/errors';
 import {getMondayOfWeek} from "@/utils";
@@ -243,7 +243,7 @@ export class TaskService {
         return await readingService.getReadingPlan();
     }
 
-    async fetchReadingAssignments(): Promise<DailyReadingAssignment[]> {
+    async fetchReadingAssignments(): Promise<EnhancedDailyReadingAssignment[]> {
         return await readingService.fetchReadingAssignments();
     }
 
