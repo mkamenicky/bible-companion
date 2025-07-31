@@ -45,6 +45,7 @@ export default function SettingsScreen() {
 
     const {
         scheduledNotifications,
+        updateNotificationSchedule,
         sendTestNotification,
         initialized: notificationsInitialized,
     } = notificationsHook;
@@ -53,8 +54,17 @@ export default function SettingsScreen() {
     const notificationStatus = React.useMemo(() => {
         if (!notificationsInitialized) return {status: 'initializing', color: '#f59e0b'};
         if (!settings?.notifications) return {status: 'disabled', color: '#ef4444'};
+
+        // Check if any specific notification type is enabled
+        const hasAnyEnabled = settings?.dailyReminder ||
+            settings?.streakReminder ||
+            settings?.goalReminder ||
+            settings?.achievementNotifications;
+
+        if (!hasAnyEnabled) return {status: 'disabled', color: '#ef4444'};
         return {status: 'active', color: '#10b981'};
-    }, [notificationsInitialized, settings?.notifications]);
+    }, [notificationsInitialized, settings?.notifications, settings?.dailyReminder,
+        settings?.streakReminder, settings?.goalReminder, settings?.achievementNotifications]);
 
     // Theme and styling
     const colorScheme = useColorScheme();
@@ -68,6 +78,52 @@ export default function SettingsScreen() {
             notificationsHook.loadScheduledNotifications(),
         ]);
     }, [onRefresh, notificationsHook.loadScheduledNotifications]);
+
+    const handleTimeChangeInternal = React.useCallback(async (event: any, selectedDate?: Date) => {
+        console.log("setting time to:", selectedDate);
+        await handleTimeChange(event, selectedDate).then(updatedSettings => {
+            if (updatedSettings) {
+                updateNotificationSchedule(updatedSettings, dailyVerseGoal);
+            }
+        });
+    }, [handleTimeChange, updateNotificationSchedule, dailyVerseGoal]);
+
+    // Individual notification toggle handlers
+    const handleDailyReminderToggle = React.useCallback(async (value: boolean) => {
+        await updateSetting('dailyReminder', value).then(result => {
+            if (result) {
+                console.log('Daily reminder toggle', result);
+                updateNotificationSchedule(result, dailyVerseGoal);
+            }
+        });
+    }, [updateSetting, updateNotificationSchedule, dailyVerseGoal]);
+
+    const handleStreakReminderToggle = React.useCallback(async (value: boolean) => {
+        await updateSetting('streakReminder', value).then(result => {
+            if (result) {
+                console.log('Streak reminder toggle', result);
+                updateNotificationSchedule(result, dailyVerseGoal);
+            }
+        });
+    }, [updateSetting, updateNotificationSchedule, dailyVerseGoal]);
+
+    const handleGoalReminderToggle = React.useCallback(async (value: boolean) => {
+        await updateSetting('goalReminder', value).then(result => {
+            if (result) {
+                console.log('Goal reminder toggle', result);
+                updateNotificationSchedule(result, dailyVerseGoal);
+            }
+        });
+    }, [updateSetting, updateNotificationSchedule, dailyVerseGoal]);
+
+    const handleAchievementNotificationToggle = React.useCallback(async (value: boolean) => {
+        await updateSetting('achievementNotifications', value).then(result => {
+            if (result) {
+                console.log('Achievement notification toggle', result);
+                updateNotificationSchedule(result, dailyVerseGoal);
+            }
+        });
+    }, [updateSetting, updateNotificationSchedule, dailyVerseGoal]);
 
     // Show loading screen if data is still loading
     if (loading) {
@@ -117,21 +173,6 @@ export default function SettingsScreen() {
                     customColors={customColors}
                 />
 
-                {/* Notifications Section */}
-                <NotificationSettingsCard
-                    settings={settings}
-                    scheduledNotifications={scheduledNotifications}
-                    sendTestNotification={sendTestNotification}
-                    notificationStatus={notificationStatus}
-                    onNotificationToggle={handleNotificationToggle}
-                    onDailyReminderToggle={(value: any) => updateSetting('dailyReminder', value)}
-                    onTestNotification={handleTestNotification}
-                    onShowTimePicker={showTimePicker}
-                    onCancelAllNotifications={notificationsHook.cancelAllNotifications}
-                    styles={styles}
-                    customColors={customColors}
-                />
-
                 {/* Reading Goals Section */}
                 <ReadingGoalsCard
                     dailyVerseGoal={dailyVerseGoal}
@@ -144,7 +185,27 @@ export default function SettingsScreen() {
                 <AppearanceCard
                     settings={settings}
                     onFontSizeChange={(size: any) => updateSetting('fontSize', size)}
-                    onThemeChange={() => { handleToggleDialog('changeTheme', true) }} // Will be implemented
+                    onThemeChange={() => {
+                        handleToggleDialog('changeTheme', true)
+                    }} // Will be implemented
+                    styles={styles}
+                    customColors={customColors}
+                />
+
+                {/* Notifications Section */}
+                <NotificationSettingsCard
+                    settings={settings}
+                    scheduledNotifications={scheduledNotifications}
+                    sendTestNotification={sendTestNotification}
+                    notificationStatus={notificationStatus}
+                    onNotificationToggle={handleNotificationToggle}
+                    onDailyReminderToggle={handleDailyReminderToggle}
+                    onStreakReminderToggle={handleStreakReminderToggle}
+                    onGoalReminderToggle={handleGoalReminderToggle}
+                    onAchievementNotificationToggle={handleAchievementNotificationToggle}
+                    onTestNotification={handleTestNotification}
+                    onShowTimePicker={showTimePicker}
+                    onCancelAllNotifications={notificationsHook.cancelAllNotifications}
                     styles={styles}
                     customColors={customColors}
                 />
@@ -164,7 +225,7 @@ export default function SettingsScreen() {
             <SettingsTimePicker
                 visible={formStates.timePickerVisible}
                 selectedTime={formStates.selectedTime}
-                onTimeChange={handleTimeChange}
+                onTimeChange={handleTimeChangeInternal}
             />
 
             {/* All Dialogs */}

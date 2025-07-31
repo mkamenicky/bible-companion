@@ -1,12 +1,8 @@
-// useNotifications.ts
-import { useCallback, useEffect, useState, useRef } from 'react';
-import { Alert, AppState, AppStateStatus, Platform } from 'react-native';
+// useNotifications.ts - Fixed Implementation
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, AppState, AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import {
-    notificationService,
-    NotificationSchedule,
-    NotificationPermissionStatus
-} from '@/services';
+import { NotificationPermissionStatus, notificationService } from '@/services';
 
 export interface NotificationState {
     initialized: boolean;
@@ -37,9 +33,7 @@ export function useNotifications() {
         lastRefresh: null,
     });
 
-    const [scheduledNotifications, setScheduledNotifications] = useState<
-        Notifications.NotificationRequest[]
-    >([]);
+    const [scheduledNotifications, setScheduledNotifications] = useState<Notifications.NotificationRequest[]>([]);
 
     const [analytics, setAnalytics] = useState<NotificationAnalytics>({
         totalSent: 0,
@@ -91,57 +85,44 @@ export function useNotifications() {
                 lastRefresh: new Date(),
             });
 
-            // Load analytics
-            const notificationAnalytics = await notificationService.getNotificationAnalytics();
-            // Update analytics state if you have additional data
-
+            console.log(`📊 Loaded ${notifications.length} scheduled notifications`);
         } catch (error) {
             console.error('Failed to load scheduled notifications:', error);
             updateState({ error: 'Failed to load notifications' });
         }
     }, [updateState]);
 
-    // Update notification schedule based on external settings
-    const updateNotificationSchedule = useCallback(async (
-        settings: any,
-        dailyVerseGoal: number
-    ) => {
+    // FIXED: Update notification schedule with proper parameters
+    const updateNotificationSchedule = useCallback(async (settings: any, dailyVerseGoal: number) => {
         if (!state.initialized || !settings) return;
 
         try {
             updateState({ loading: true });
 
-            if (settings.notifications && settings.dailyReminder) {
-                const dailyReminder = notificationService.getDailyReminderTemplate(dailyVerseGoal);
-                dailyReminder.time = settings.reminderTime;
-                dailyReminder.enabled = true;
+            // Construct proper settings object that matches the service interface
+            const notificationSettings = {
+                notifications: settings.notifications ?? false,
+                dailyReminder: settings.dailyReminder ?? false,
+                streakReminder: settings.streakReminder ?? false,
+                goalReminder: settings.goalReminder ?? false,
+                achievementNotifications: settings.achievementNotifications ?? false,
+                reminderTime: settings.reminderTime ?? '08:00',
+            };
 
-                const success = await notificationService.scheduleDailyReminder(dailyReminder);
-                if (!success) {
-                    throw new Error('Failed to schedule daily reminder');
-                }
-            } else {
-                // Cancel daily reminder if disabled
-                await notificationService.cancelNotification('daily_bible_reading');
-            }
+            // Mock user data - replace with real data from your app state
+            const userdata = {
+                currentStreak: 0, // Get from your app state
+                dailyGoal: dailyVerseGoal,
+                todayProgress: 0, // Get from your app state
+            };
 
-            // Schedule smart reminders based on user behavior
-            await notificationService.scheduleSmartReminders(
-                {
-                    dailyReminderEnabled: settings.notifications && settings.dailyReminder,
-                    reminderTime: settings.reminderTime,
-                    streakRemindersEnabled: settings.notifications,
-                    goalRemindersEnabled: settings.notifications,
-                },
-                {
-                    currentStreak: 0, // You would get this from your data
-                    dailyGoal: dailyVerseGoal,
-                    todayProgress: 0, // You would get this from your data
-                }
-            );
+            console.log('🔄 Updating notification schedule:', notificationSettings);
 
+            await notificationService.scheduleSmartReminders(notificationSettings, userdata);
             await loadScheduledNotifications();
+
             updateState({ loading: false, error: null });
+            console.log('✅ Notification schedule updated successfully');
         } catch (error) {
             console.error('Failed to update notification schedule:', error);
             updateState({
@@ -201,20 +182,10 @@ export function useNotifications() {
 
             // Handle notification based on app state
             if (appState.current === 'active') {
-                // App is in foreground - maybe show in-app notification
                 console.log('Received notification while app is active');
             }
         } catch (error) {
             console.error('Error handling received notification:', error);
-        }
-    }, []);
-
-    // Open notification settings helper
-    const openNotificationSettings = useCallback(async () => {
-        try {
-            await notificationService.openNotificationSettings();
-        } catch (error) {
-            console.error('Failed to open notification settings:', error);
         }
     }, []);
 
@@ -232,7 +203,10 @@ export function useNotifications() {
                     'Please enable notifications in your device settings',
                     [
                         { text: 'Cancel', style: 'cancel' },
-                        { text: 'Open Settings', onPress: openNotificationSettings }
+                        {
+                            text: 'Open Settings',
+                            onPress: () => notificationService.openNotificationSettings()
+                        }
                     ]
                 );
                 return;
@@ -254,7 +228,7 @@ export function useNotifications() {
             console.error('Failed to send test notification:', error);
             Alert.alert('Error', 'Failed to send test notification');
         }
-    }, [state.initialized, state.permissions, openNotificationSettings]);
+    }, [state.initialized, state.permissions]);
 
     // Send reading completion notification
     const sendReadingCompletionNotification = useCallback(async (
@@ -327,7 +301,7 @@ export function useNotifications() {
         );
     }, [updateState, loadScheduledNotifications]);
 
-    // Request permission with user-friendly flow
+    // Request permissions with user-friendly flow
     const requestPermissions = useCallback(async () => {
         try {
             const currentStatus = await notificationService.getPermissionStatus();
@@ -343,7 +317,10 @@ export function useNotifications() {
                     'Notifications are disabled for this app. You can enable them in your device settings.',
                     [
                         { text: 'Cancel', style: 'cancel' },
-                        { text: 'Open Settings', onPress: openNotificationSettings }
+                        {
+                            text: 'Open Settings',
+                            onPress: () => notificationService.openNotificationSettings()
+                        }
                     ]
                 );
                 return false;
@@ -359,13 +336,15 @@ export function useNotifications() {
                         onPress: async () => {
                             const initialized = await initializeNotifications();
                             if (!initialized) {
-                                // If initialization failed, offer to open settings
                                 Alert.alert(
                                     'Permission Denied',
                                     'You can enable notifications manually in your device settings.',
                                     [
                                         { text: 'Cancel', style: 'cancel' },
-                                        { text: 'Open Settings', onPress: openNotificationSettings }
+                                        {
+                                            text: 'Open Settings',
+                                            onPress: () => notificationService.openNotificationSettings()
+                                        }
                                     ]
                                 );
                             }
@@ -380,9 +359,9 @@ export function useNotifications() {
             console.error('Failed to request permissions:', error);
             return false;
         }
-    }, [updateState, initializeNotifications, openNotificationSettings]);
+    }, [updateState, initializeNotifications]);
 
-    // Clear all notification badge counts
+    // Clear badge count
     const clearBadgeCount = useCallback(async () => {
         try {
             await notificationService.clearBadgeCount();
@@ -417,13 +396,8 @@ export function useNotifications() {
     useEffect(() => {
         if (!state.initialized) return;
 
-        const responseSubscription = notificationService.addNotificationResponseListener(
-            handleNotificationResponse
-        );
-
-        const receivedSubscription = notificationService.addNotificationReceivedListener(
-            handleNotificationReceived
-        );
+        const responseSubscription = notificationService.addNotificationResponseListener(handleNotificationResponse);
+        const receivedSubscription = notificationService.addNotificationReceivedListener(handleNotificationReceived);
 
         return () => {
             responseSubscription?.remove();
@@ -435,6 +409,10 @@ export function useNotifications() {
     useEffect(() => {
         if (!state.initialized) return;
 
+        // Load initial notifications
+        loadScheduledNotifications();
+
+        // Set up periodic refresh
         const interval = setInterval(() => {
             loadScheduledNotifications();
         }, 60000); // Refresh every minute

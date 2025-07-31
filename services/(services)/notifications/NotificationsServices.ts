@@ -1,8 +1,7 @@
+// NotificationService.ts - Fixed Implementation
 import * as Notifications from 'expo-notifications';
-import { SchedulableTriggerInputTypes } from 'expo-notifications';
-import * as Device from 'expo-device';
-import { Platform, Linking } from 'react-native';
-import * as IntentLauncher from 'expo-intent-launcher';
+import {PermissionStatus} from 'expo-notifications';
+import {Platform} from 'react-native';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -59,100 +58,15 @@ export class NotificationService {
         }
     }
 
-    private async requestPermissions(): Promise<boolean> {
-        try {
-            if (!Device.isDevice) {
-                console.warn('Notifications require a physical device');
-                return false;
-            }
-
-            const { status: existingStatus, canAskAgain, granted } =
-                await Notifications.getPermissionsAsync();
-
-            this.permissionStatus = {
-                granted,
-                canAskAgain,
-                status: existingStatus,
-            };
-
-            if (existingStatus !== 'granted') {
-                if (!canAskAgain) {
-                    console.warn('Cannot request notification permissions - user previously denied');
-                    return false;
-                }
-
-                const { status, canAskAgain: newCanAskAgain, granted: newGranted } =
-                    await Notifications.requestPermissionsAsync({
-                        ios: {
-                            allowAlert: true,
-                            allowBadge: true,
-                            allowSound: true,
-                            allowProvisional: false,
-                        },
-                    });
-
-                this.permissionStatus = {
-                    granted: newGranted,
-                    canAskAgain: newCanAskAgain,
-                    status,
-                };
-
-                return status === 'granted';
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Permission request failed:', error);
-            return false;
-        }
-    }
-
-    private async setupNotificationChannels(): Promise<void> {
-        if (Platform.OS !== 'android') return;
-
-        try {
-            // Reminders channel
-            await Notifications.setNotificationChannelAsync(this.CHANNELS.REMINDERS, {
-                name: 'Daily Reading Reminders',
-                description: 'Notifications to remind you of your daily Bible reading',
-                importance: Notifications.AndroidImportance.HIGH,
-                vibrationPattern: [0, 250, 250, 250],
-                lightColor: '#4F46E5',
-                sound: 'default',
-                enableLights: true,
-                enableVibrate: true,
-            });
-
-            // Achievements channel
-            await Notifications.setNotificationChannelAsync(this.CHANNELS.ACHIEVEMENTS, {
-                name: 'Reading Achievements',
-                description: 'Celebrate your reading milestones and streaks',
-                importance: Notifications.AndroidImportance.DEFAULT,
-                vibrationPattern: [0, 150, 150, 150],
-                lightColor: '#10B981',
-                sound: 'default',
-                enableLights: true,
-                enableVibrate: true,
-            });
-
-            // General channel
-            await Notifications.setNotificationChannelAsync(this.CHANNELS.GENERAL, {
-                name: 'General Notifications',
-                description: 'App updates and general information',
-                importance: Notifications.AndroidImportance.DEFAULT,
-                sound: 'default',
-            });
-        } catch (error) {
-            console.error('Failed to setup notification channels:', error);
-        }
-    }
-
     async getPermissionStatus(): Promise<NotificationPermissionStatus> {
-        if (!this.permissionStatus) {
+        try {
             const { status, canAskAgain, granted } = await Notifications.getPermissionsAsync();
             this.permissionStatus = { granted, canAskAgain, status };
+            return this.permissionStatus;
+        } catch (error) {
+            console.error('Failed to get permission status:', error);
+            return { granted: false, canAskAgain: true, status: PermissionStatus.UNDETERMINED };
         }
-        return this.permissionStatus;
     }
 
     async scheduleDailyReminder(schedule: NotificationSchedule): Promise<boolean> {
@@ -176,6 +90,7 @@ export class NotificationService {
                 throw new Error('Invalid time format');
             }
 
+            // Use DAILY trigger type for repeating daily notifications
             const identifier = await Notifications.scheduleNotificationAsync({
                 identifier: schedule.id,
                 content: {
@@ -191,9 +106,10 @@ export class NotificationService {
                     },
                 },
                 trigger: {
-                    type: SchedulableTriggerInputTypes.DAILY,
+                    type: Notifications.SchedulableTriggerInputTypes.DAILY,
                     hour: hours,
                     minute: minutes,
+                    channelId: this.CHANNELS.REMINDERS,
                 },
             });
 
@@ -201,83 +117,6 @@ export class NotificationService {
             return true;
         } catch (error) {
             console.error('Failed to schedule notification:', error);
-            return false;
-        }
-    }
-
-    async scheduleWeeklyReminder(schedule: NotificationSchedule, weekday: number = 0): Promise<boolean> {
-        if (!this.initialized) {
-            const initialized = await this.initialize();
-            if (!initialized) return false;
-        }
-
-        if (!schedule.enabled) {
-            await this.cancelNotification(schedule.id);
-            return true;
-        }
-
-        try {
-            await this.cancelNotification(schedule.id);
-
-            const [hours, minutes] = schedule.time.split(':').map(Number);
-
-            const identifier = await Notifications.scheduleNotificationAsync({
-                identifier: schedule.id,
-                content: {
-                    title: schedule.title,
-                    body: schedule.message,
-                    sound: 'default',
-                    data: {
-                        type: schedule.type || 'weekly_reminder',
-                        id: schedule.id,
-                        ...schedule.metadata,
-                    },
-                },
-                trigger: {
-                    type: SchedulableTriggerInputTypes.WEEKLY,
-                    weekday,
-                    hour: hours,
-                    minute: minutes,
-                },
-            });
-
-            console.log(`✅ Scheduled weekly notification: ${identifier}`);
-            return true;
-        } catch (error) {
-            console.error('Failed to schedule weekly notification:', error);
-            return false;
-        }
-    }
-
-    async scheduleDelayedNotification(
-        title: string,
-        message: string,
-        delayInSeconds: number,
-        data?: any
-    ): Promise<boolean> {
-        if (!this.initialized) {
-            const initialized = await this.initialize();
-            if (!initialized) return false;
-        }
-
-        try {
-            const identifier = await Notifications.scheduleNotificationAsync({
-                content: {
-                    title,
-                    body: message,
-                    sound: 'default',
-                    data: { type: 'delayed', ...data },
-                },
-                trigger: {
-                    type: SchedulableTriggerInputTypes.TIME_INTERVAL,
-                    seconds: delayInSeconds,
-                },
-            });
-
-            console.log(`✅ Scheduled delayed notification: ${identifier} (${delayInSeconds}s)`);
-            return true;
-        } catch (error) {
-            console.error('Failed to schedule delayed notification:', error);
             return false;
         }
     }
@@ -313,27 +152,95 @@ export class NotificationService {
         }
     }
 
-    async getNotificationHistory(): Promise<Notifications.Notification[]> {
+    // Fixed scheduleSmartReminders method
+    async scheduleSmartReminders(
+        settings: {
+            notifications: boolean; // Master toggle
+            dailyReminder: boolean;
+            streakReminder: boolean;
+            goalReminder: boolean;
+            achievementNotifications: boolean;
+            reminderTime: string;
+        },
+        userdata: {
+            currentStreak: number;
+            dailyGoal: number;
+            todayProgress: number;
+        }
+    ): Promise<void> {
         try {
-            if (Platform.OS === 'android') {
-                // Note: This might not be available on all Android versions
-                return await Notifications.getPresentedNotificationsAsync();
+            // If master notifications are disabled, cancel all
+            if (!settings.notifications) {
+                await this.cancelAllNotifications();
+                console.log('🔕 All notifications disabled - cancelled all scheduled notifications');
+                return;
             }
-            return [];
+
+            // Cancel all existing reminders first to avoid duplicates
+            await this.cancelNotification('daily_bible_reading');
+            await this.cancelNotification('streak_reminder');
+            await this.cancelNotification('goal_reminder');
+
+            let scheduledCount = 0;
+
+            // Schedule daily reminder if enabled
+            if (settings.dailyReminder) {
+                const dailyReminder = this.getDailyReminderTemplate(userdata.dailyGoal);
+                dailyReminder.time = settings.reminderTime;
+                dailyReminder.enabled = true;
+
+                const success = await this.scheduleDailyReminder(dailyReminder);
+                if (success) {
+                    scheduledCount++;
+                    console.log('✅ Daily reminder scheduled for', settings.reminderTime);
+                }
+            }
+
+            // Schedule streak reminder if enabled (evening reminder)
+            if (settings.streakReminder) {
+                const streakReminder = this.getStreakReminderTemplate(userdata.currentStreak);
+                streakReminder.time = '20:00'; // 8 PM
+                streakReminder.enabled = true;
+
+                const success = await this.scheduleDailyReminder(streakReminder);
+                if (success) {
+                    scheduledCount++;
+                    console.log('✅ Streak reminder scheduled for 20:00');
+                }
+            }
+
+            // Schedule goal progress reminder if enabled and user hasn't completed today's goal
+            if (settings.goalReminder && userdata.todayProgress < userdata.dailyGoal) {
+                const goalReminder = this.getGoalReminderTemplate(userdata.todayProgress, userdata.dailyGoal);
+                goalReminder.time = '18:00'; // 6 PM
+                goalReminder.enabled = true;
+
+                const success = await this.scheduleDailyReminder(goalReminder);
+                if (success) {
+                    scheduledCount++;
+                    console.log('✅ Goal reminder scheduled for 18:00');
+                }
+            }
+
+            // Achievement notifications are sent immediately when earned
+            if (settings.achievementNotifications) {
+                console.log('✅ Achievement notifications enabled - will be sent when earned');
+            }
+
+            console.log(`📅 Smart reminders configured: ${scheduledCount} notifications scheduled`);
         } catch (error) {
-            console.error('Failed to get notification history:', error);
-            return [];
+            console.error('Failed to schedule smart reminders:', error);
         }
     }
 
-    // Predefined notification templates
+    // Template methods remain the same but with proper typing
     getDailyReminderTemplate(versesGoal: number = 10): NotificationSchedule {
         const messages = [
-            `📖 Time for your daily reading! Goal: ${versesGoal} verses`,
-            `🌅 Start your day with God's word. Target: ${versesGoal} verses`,
-            `✨ Your daily dose of wisdom awaits. Read ${versesGoal} verses today`,
-            `🙏 Let Scripture guide your day. Goal: ${versesGoal} verses`,
-            `📚 Daily Bible reading time! Aim for ${versesGoal} verses`,
+            `📖 Dive into your Bible reading! Goal: ${versesGoal} verses`,
+            `🌟 Your daily dose of Scripture is ready. Target: ${versesGoal} verses`,
+            `✨ Embrace today's wisdom. Read ${versesGoal} verses`,
+            `🙏 Let the Word guide you. Goal: ${versesGoal} verses`,
+            `📚 Your Bible reading awaits. Aim for ${versesGoal} verses`,
         ];
 
         return {
@@ -398,12 +305,7 @@ export class NotificationService {
     }
 
     // Send immediate notifications
-    async sendImmediateNotification(
-        title: string,
-        message: string,
-        data?: any,
-        channelId?: string
-    ): Promise<boolean> {
+    async sendImmediateNotification(title: string, message: string, data?: any): Promise<boolean> {
         if (!this.initialized) {
             const initialized = await this.initialize();
             if (!initialized) return false;
@@ -416,7 +318,6 @@ export class NotificationService {
                     body: message,
                     sound: 'default',
                     priority: Notifications.AndroidNotificationPriority.HIGH,
-                    categoryIdentifier: channelId || this.CHANNELS.GENERAL,
                     data: { type: 'immediate', timestamp: Date.now(), ...data },
                 },
                 trigger: null, // Send immediately
@@ -430,16 +331,11 @@ export class NotificationService {
         }
     }
 
-    async sendAchievementNotification(
-        achievement: string,
-        description: string,
-        data?: any
-    ): Promise<boolean> {
+    async sendAchievementNotification(achievement: string, description: string, data?: any): Promise<boolean> {
         return this.sendImmediateNotification(
             `🏆 Achievement Unlocked!`,
             `${achievement}: ${description}`,
-            { type: 'achievement', achievement, ...data },
-            this.CHANNELS.ACHIEVEMENTS
+            { type: 'achievement', achievement, ...data }
         );
     }
 
@@ -481,68 +377,24 @@ export class NotificationService {
             message += ` 🏆 Achievement: ${achievementUnlocked}!`;
         }
 
-        return this.sendImmediateNotification(
-            title,
-            message,
-            {
-                type: 'reading_complete',
-                versesRead,
-                goal,
-                goalMet: isGoalMet,
-                achievement: achievementUnlocked
-            },
-            this.CHANNELS.ACHIEVEMENTS
-        );
+        return this.sendImmediateNotification(title, message, {
+            type: 'reading_complete',
+            versesRead,
+            goal,
+            goalMet: isGoalMet,
+            achievement: achievementUnlocked
+        });
     }
 
     // Event listeners
-    addNotificationResponseListener(
-        listener: (response: Notifications.NotificationResponse) => void
-    ) {
+    addNotificationResponseListener(listener: (response: Notifications.NotificationResponse) => void) {
         return Notifications.addNotificationResponseReceivedListener(listener);
     }
 
-    addNotificationReceivedListener(
-        listener: (notification: Notifications.Notification) => void
-    ) {
+    addNotificationReceivedListener(listener: (notification: Notifications.Notification) => void) {
         return Notifications.addNotificationReceivedListener(listener);
     }
 
-    // Utility method to open notification settings
-    async openNotificationSettings(): Promise<void> {
-        try {
-            if (Platform.OS === 'ios') {
-                // On iOS, open the app's settings page
-                await Linking.openURL('app-settings:');
-            } else {
-                // On Android, try to open app-specific notification settings
-                try {
-                    await IntentLauncher.startActivityAsync(
-                        IntentLauncher.ActivityAction.APP_NOTIFICATION_SETTINGS,
-                        {
-                            data: 'package:' + 'your.app.package.name', // Replace with your actual package name
-                        }
-                    );
-                } catch (error) {
-                    // Fallback to general app settings
-                    await IntentLauncher.startActivityAsync(
-                        IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS,
-                        {
-                            data: 'package:' + 'your.app.package.name',
-                        }
-                    );
-                }
-            }
-        } catch (error) {
-            console.error('Failed to open notification settings:', error);
-            // Final fallback
-            try {
-                await Linking.openSettings();
-            } catch (fallbackError) {
-                console.error('Failed to open any settings:', fallbackError);
-            }
-        }
-    }
     async clearBadgeCount(): Promise<void> {
         try {
             await Notifications.setBadgeCountAsync(0);
@@ -551,77 +403,24 @@ export class NotificationService {
         }
     }
 
-    async setBadgeCount(count: number): Promise<void> {
+    async openNotificationSettings(): Promise<void> {
         try {
-            await Notifications.setBadgeCountAsync(count);
-        } catch (error) {
-            console.error('Failed to set badge count:', error);
-        }
-    }
-
-    async dismissAllNotifications(): Promise<void> {
-        try {
-            await Notifications.dismissAllNotificationsAsync();
-        } catch (error) {
-            console.error('Failed to dismiss notifications:', error);
-        }
-    }
-
-    async dismissNotification(notificationId: string): Promise<void> {
-        try {
-            await Notifications.dismissNotificationAsync(notificationId);
-        } catch (error) {
-            console.error('Failed to dismiss notification:', error);
-        }
-    }
-
-    // Smart scheduling methods
-    async scheduleSmartReminders(
-        settings: {
-            dailyReminderEnabled: boolean;
-            reminderTime: string;
-            streakRemindersEnabled: boolean;
-            goalRemindersEnabled: boolean;
-        },
-        userdata: {
-            currentStreak: number;
-            dailyGoal: number;
-            todayProgress: number;
-        }
-    ): Promise<void> {
-        try {
-            // Cancel all existing reminders
-            await this.cancelNotification('daily_bible_reading');
-            await this.cancelNotification('streak_reminder');
-            await this.cancelNotification('goal_reminder');
-
-            // Schedule daily reminder
-            if (settings.dailyReminderEnabled) {
-                const dailyReminder = this.getDailyReminderTemplate(userdata.dailyGoal);
-                dailyReminder.time = settings.reminderTime;
-                await this.scheduleDailyReminder(dailyReminder);
-            }
-
-            // Schedule streak reminder (evening)
-            if (settings.streakRemindersEnabled) {
-                const streakReminder = this.getStreakReminderTemplate(userdata.currentStreak);
-                await this.scheduleDailyReminder(streakReminder);
-            }
-
-            // Schedule goal progress reminder (afternoon)
-            if (settings.goalRemindersEnabled && userdata.todayProgress < userdata.dailyGoal) {
-                const goalReminder = this.getGoalReminderTemplate(
-                    userdata.todayProgress,
-                    userdata.dailyGoal
+            if (Platform.OS === 'ios') {
+                const { Linking } = require('react-native');
+                await Linking.openURL('app-settings:');
+            } else {
+                const IntentLauncher = require('expo-intent-launcher');
+                await IntentLauncher.startActivityAsync(
+                    IntentLauncher.ActivityAction.APP_NOTIFICATION_SETTINGS,
+                    { data: 'package:com.yourapp.package' }
                 );
-                await this.scheduleDailyReminder(goalReminder);
             }
         } catch (error) {
-            console.error('Failed to schedule smart reminders:', error);
+            console.error('Failed to open notification settings:', error);
         }
     }
 
-    // Analytics and debugging
+    // Get notification analytics
     async getNotificationAnalytics(): Promise<{
         scheduled: number;
         channels: string[];
@@ -635,10 +434,80 @@ export class NotificationService {
             scheduled: scheduled.length,
             channels: Object.values(this.CHANNELS),
             permissions,
-            lastNotificationTime: scheduled[0]?.trigger && 'dateComponents' in scheduled[0].trigger
-                ? new Date().toISOString()
-                : undefined,
         };
+    }
+
+    private async requestPermissions(): Promise<boolean> {
+        try {
+            const { status: existingStatus, canAskAgain, granted } = await Notifications.getPermissionsAsync();
+
+            this.permissionStatus = { granted, canAskAgain, status: existingStatus };
+
+            if (existingStatus !== 'granted') {
+                if (!canAskAgain) {
+                    console.warn('Cannot request notification permissions - user previously denied');
+                    return false;
+                }
+
+                const { status, canAskAgain: newCanAskAgain, granted: newGranted } =
+                    await Notifications.requestPermissionsAsync({
+                        ios: {
+                            allowAlert: true,
+                            allowBadge: true,
+                            allowSound: true,
+                            allowProvisional: false,
+                        },
+                    });
+
+                this.permissionStatus = { granted: newGranted, canAskAgain: newCanAskAgain, status };
+                return status === 'granted';
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Permission request failed:', error);
+            return false;
+        }
+    }
+
+    private async setupNotificationChannels(): Promise<void> {
+        if (Platform.OS !== 'android') return;
+
+        try {
+            // Reminders channel
+            await Notifications.setNotificationChannelAsync(this.CHANNELS.REMINDERS, {
+                name: 'Daily Reading Reminders',
+                description: 'Notifications to remind you of your daily Bible reading',
+                importance: Notifications.AndroidImportance.HIGH,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#4F46E5',
+                sound: 'default',
+                enableLights: true,
+                enableVibrate: true,
+            });
+
+            // Achievements channel
+            await Notifications.setNotificationChannelAsync(this.CHANNELS.ACHIEVEMENTS, {
+                name: 'Reading Achievements',
+                description: 'Celebrate your reading milestones and streaks',
+                importance: Notifications.AndroidImportance.DEFAULT,
+                vibrationPattern: [0, 150, 150, 150],
+                lightColor: '#10B981',
+                sound: 'default',
+                enableLights: true,
+                enableVibrate: true,
+            });
+
+            // General channel
+            await Notifications.setNotificationChannelAsync(this.CHANNELS.GENERAL, {
+                name: 'General Notifications',
+                description: 'App updates and general information',
+                importance: Notifications.AndroidImportance.DEFAULT,
+                sound: 'default',
+            });
+        } catch (error) {
+            console.error('Failed to setup notification channels:', error);
+        }
     }
 }
 

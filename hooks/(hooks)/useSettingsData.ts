@@ -1,10 +1,10 @@
 // useSettingsData.ts
-import { useCallback, useEffect, useState, useRef } from 'react';
-import { Alert, Platform, Linking } from 'react-native';
+import {useCallback, useEffect, useRef, useState} from 'react';
+import {Alert, Linking, Platform} from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { SettingsService } from '@/services';
-import { AppSettings } from "@/models";
+import {SettingsService} from '@/services';
+import {AppSettings} from "@/models";
 
 export interface DialogStates {
     changeTheme: boolean;
@@ -32,26 +32,18 @@ export function useSettingsData() {
 
     // Dialog states
     const [dialogs, setDialogs] = useState<DialogStates>({
-        changeTheme: false,
-        dailyGoal: false,
-        fontSize: false,
-        exportData: false,
-        resetConfirm: false,
+        changeTheme: false, dailyGoal: false, fontSize: false, exportData: false, resetConfirm: false,
     });
 
     // Form states
     const [formStates, setFormStates] = useState<FormStates>({
-        dailyGoalInput: '10',
-        timePickerVisible: false,
-        selectedTime: new Date(),
-        refreshing: false,
+        dailyGoalInput: '10', timePickerVisible: false, selectedTime: new Date(), refreshing: false,
     });
 
     // Update form input when dailyVerseGoal changes
     useEffect(() => {
         setFormStates(prev => ({
-            ...prev,
-            dailyGoalInput: dailyVerseGoal.toString()
+            ...prev, dailyGoalInput: dailyVerseGoal.toString()
         }));
     }, [dailyVerseGoal]);
 
@@ -74,22 +66,21 @@ export function useSettingsData() {
     }, []); // Remove settingsService from dependencies
 
     const onRefresh = useCallback(async () => {
-        setFormStates(prev => ({ ...prev, refreshing: true }));
+        setFormStates(prev => ({...prev, refreshing: true}));
         await loadSettings();
-        setFormStates(prev => ({ ...prev, refreshing: false }));
+        setFormStates(prev => ({...prev, refreshing: false}));
     }, [loadSettings]);
 
     // Fixed: Remove settingsService from dependency array
-    const updateSetting = useCallback(async <K extends keyof AppSettings>(
-        key: K,
-        value: AppSettings[K]
-    ): Promise<void> => {
+    const updateSetting = useCallback(async <K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<AppSettings | null> => {
         try {
             await settingsService.updateSetting(key, value);
-            setSettings(prev => prev ? { ...prev, [key]: value } : null);
+            setSettings(prev => prev ? {...prev, [key]: value} : null);
+            return settings;
         } catch (error) {
             console.error('Error updating setting:', error);
             Alert.alert('Error', 'Failed to update setting');
+            return null;
         }
     }, []); // Remove settingsService from dependencies
 
@@ -107,8 +98,7 @@ export function useSettingsData() {
     // Dialog management
     const handleToggleDialog = useCallback((dialogName: keyof DialogStates, visible?: boolean) => {
         setDialogs(prev => ({
-            ...prev,
-            [dialogName]: visible ?? !prev[dialogName]
+            ...prev, [dialogName]: visible ?? !prev[dialogName]
         }));
     }, []);
 
@@ -131,17 +121,20 @@ export function useSettingsData() {
     }, [formStates.dailyGoalInput, updateDailyVerseGoal, handleToggleDialog]);
 
     // Time picker handlers
-    const handleTimeChange = useCallback((event: any, selectedDate?: Date) => {
+    const handleTimeChange = useCallback(async (event: any, selectedDate?: Date) => {
+        console.log(event, selectedDate);
         if (Platform.OS === 'android') {
-            setFormStates(prev => ({ ...prev, timePickerVisible: false }));
+            setFormStates(prev => ({...prev, timePickerVisible: false}));
         }
 
         if (selectedDate) {
-            setFormStates(prev => ({ ...prev, selectedTime: selectedDate }));
+            setFormStates(prev => ({...prev, selectedTime: selectedDate}));
             const timeString = selectedDate.toTimeString().slice(0, 5);
-            updateSetting('reminderTime', timeString);
+            const newSettings = await updateSetting('reminderTime', timeString);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            return newSettings;
         }
+        return settings;
     }, [updateSetting]);
 
     const showTimePicker = useCallback(() => {
@@ -149,9 +142,9 @@ export function useSettingsData() {
             const [hours, minutes] = settings.reminderTime.split(':').map(Number);
             const date = new Date();
             date.setHours(hours, minutes, 0, 0);
-            setFormStates(prev => ({ ...prev, selectedTime: date }));
+            setFormStates(prev => ({...prev, selectedTime: date}));
         }
-        setFormStates(prev => ({ ...prev, timePickerVisible: true }));
+        setFormStates(prev => ({...prev, timePickerVisible: true}));
     }, [settings?.reminderTime]);
 
     // Notification settings helpers
@@ -160,12 +153,9 @@ export function useSettingsData() {
             if (Platform.OS === 'ios') {
                 await Linking.openURL('app-settings:');
             } else {
-                await IntentLauncher.startActivityAsync(
-                    IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS,
-                    {
-                        data: 'package:' + 'your.app.package.name', // Replace with actual package name
-                    }
-                );
+                await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS, {
+                    data: 'package:' + 'your.app.package.name', // Replace with actual package name
+                });
             }
         } catch (error) {
             console.error('Failed to open settings:', error);
@@ -182,14 +172,10 @@ export function useSettingsData() {
         if (value) {
             const hasPermission = await checkNotificationPermissions();
             if (!hasPermission) {
-                Alert.alert(
-                    'Permission Required',
-                    'Please enable notifications in your device settings to use this feature.',
-                    [
-                        { text: 'Cancel', style: 'cancel' },
-                        { text: 'Open Settings', onPress: openNotificationSettings }
-                    ]
-                );
+                Alert.alert('Permission Required', 'Please enable notifications in your device settings to use this feature.', [{
+                    text: 'Cancel',
+                    style: 'cancel'
+                }, {text: 'Open Settings', onPress: openNotificationSettings}]);
                 return;
             }
         }
@@ -224,26 +210,20 @@ export function useSettingsData() {
 
     // Fixed: Remove settingsService from dependency array
     const resetSettings = useCallback(async (): Promise<void> => {
-        Alert.alert(
-            'Reset All Settings',
-            'This will restore all settings to their default values. This action cannot be undone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Reset',
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await settingsService.resetSettings();
-                            await loadSettings();
-                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        } catch (error) {
-                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                        }
-                    },
-                },
-            ]
-        );
+        Alert.alert('Reset All Settings', 'This will restore all settings to their default values. This action cannot be undone.', [{
+            text: 'Cancel',
+            style: 'cancel'
+        }, {
+            text: 'Reset', style: 'destructive', onPress: async () => {
+                try {
+                    await settingsService.resetSettings();
+                    await loadSettings();
+                    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                } catch (error) {
+                    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                }
+            },
+        },]);
     }, [loadSettings]); // Only keep loadSettings dependency
 
     const handleResetSettings = useCallback(() => {
@@ -272,11 +252,8 @@ export function useSettingsData() {
     }, [loadSettings]); // Only keep loadSettings dependency
 
     // Form state updaters
-    const updateFormState = useCallback(<K extends keyof FormStates>(
-        key: K,
-        value: FormStates[K]
-    ) => {
-        setFormStates(prev => ({ ...prev, [key]: value }));
+    const updateFormState = useCallback(<K extends keyof FormStates>(key: K, value: FormStates[K]) => {
+        setFormStates(prev => ({...prev, [key]: value}));
     }, []);
 
     // Fixed: Add explicit dependency array to prevent infinite loop
