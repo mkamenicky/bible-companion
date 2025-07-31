@@ -1,124 +1,183 @@
-// React imports
+// SettingsScreen.tsx
 import React from 'react';
-import {ScrollView, useColorScheme, View} from 'react-native';
+import {useColorScheme, View} from 'react-native';
+import {Appbar} from 'react-native-paper';
 
-// Third-party library imports
-import {ActivityIndicator, Appbar, Card, Divider, List, Switch, Text} from 'react-native-paper';
-
+// Import individual components (now with default exports)
+import {
+    AppearanceCard,
+    DataStorageCard,
+    LoadingScreen,
+    NotificationSettingsCard,
+    ReadingGoalsCard,
+    ScreenContainer,
+    SettingsDialogs,
+    SettingsQuickStatusCard,
+    SettingsTimePicker
+} from '@/components';
 // Service and utility imports
-import {useSettingsData} from '@/hooks';
+import {useNotifications, useSettingsData} from '@/hooks';
 import {ThemeService} from '@/services';
-import {ThemeSelector} from '@/components/theme/ThemeSelector';
-import {ThemeVariant} from '@/services/(services)/theme/ThemeService';
 
 export default function SettingsScreen() {
+    // Separate the hooks to avoid circular dependency
+    const settingsHook = useSettingsData();
+    const notificationsHook = useNotifications();
+
     const {
         settings,
         loading,
-        updateSetting,
+        dailyVerseGoal,
+        dialogs,
+        formStates,
+        onRefresh,
+        handleToggleDialog,
+        handleDailyGoalSave,
+        handleTimeChange,
+        handleNotificationToggle,
+        handleTestNotification,
+        handleExportSettings,
         resetSettings,
-        exportSettings,
-    } = useSettingsData();
+        showTimePicker,
+        updateSetting,
+        updateFormState,
+    } = settingsHook;
 
+    const {
+        scheduledNotifications,
+        sendTestNotification,
+        initialized: notificationsInitialized,
+    } = notificationsHook;
+
+    // Compute notification status locally
+    const notificationStatus = React.useMemo(() => {
+        if (!notificationsInitialized) return {status: 'initializing', color: '#f59e0b'};
+        if (!settings?.notifications) return {status: 'disabled', color: '#ef4444'};
+        return {status: 'active', color: '#10b981'};
+    }, [notificationsInitialized, settings?.notifications]);
+
+    // Theme and styling
     const colorScheme = useColorScheme();
     const customColors = ThemeService.getCustomColors(colorScheme);
     const styles = ThemeService.getStyles(customColors);
 
+    // Combine refresh functions
+    const handleRefresh = React.useCallback(async () => {
+        await Promise.all([
+            onRefresh(),
+            notificationsHook.loadScheduledNotifications(),
+        ]);
+    }, [onRefresh, notificationsHook.loadScheduledNotifications]);
+
+    // Show loading screen if data is still loading
     if (loading) {
         return (
-            <View style={[styles.container, {justifyContent: 'center', alignItems: 'center'}]}>
-                <ActivityIndicator size="large" color={customColors.accent}/>
-                <Text style={{marginTop: 16, color: customColors.text}}>Loading settings...</Text>
-            </View>
+            <LoadingScreen
+                message="Loading settings..."
+                styles={styles}
+                customColors={customColors}
+            />
         );
     }
 
     if (!settings) {
-        return null;
+        return (
+            <LoadingScreen
+                message="Failed to load settings"
+                isError={true}
+                onRetry={handleRefresh}
+                styles={styles}
+                customColors={customColors}
+            />
+        );
     }
 
+    // Render
     return (
         <View style={styles.container}>
             <Appbar.Header style={styles.appbar}>
-                <Appbar.Content title="Settings"/>
+                <Appbar.Content
+                    title="Settings"
+                    titleStyle={{color: customColors.color, fontWeight: '600'}}
+                />
+                <Appbar.Action
+                    icon="refresh"
+                    onPress={handleRefresh}
+                    iconColor={customColors.color}
+                />
             </Appbar.Header>
 
-            <ScrollView style={{flex: 1}} contentContainerStyle={{padding: 16}}>
-                <Card style={styles.card}>
-                    <Card.Title title="Notifications" titleStyle={{color: customColors.text}}/>
-                    <Card.Content>
-                        <List.Item
-                            title="Enable Notifications"
-                            titleStyle={{color: customColors.text}}
-                            right={() => (
-                                <Switch
-                                    value={settings.notifications}
-                                    onValueChange={(value) => updateSetting('notifications', value)}
-                                    color={customColors.accent}
-                                />
-                            )}
-                        />
-                        <Divider/>
-                        <List.Item
-                            title="Daily Reminder"
-                            titleStyle={{color: customColors.text}}
-                            right={() => (
-                                <Switch
-                                    value={settings.dailyReminder}
-                                    onValueChange={(value) => updateSetting('dailyReminder', value)}
-                                    color={customColors.accent}
-                                />
-                            )}
-                        />
-                    </Card.Content>
-                </Card>
+            <ScreenContainer onRefresh={handleRefresh}>
+                {/* Quick Status Overview */}
+                <SettingsQuickStatusCard
+                    dailyVerseGoal={dailyVerseGoal}
+                    scheduledNotifications={scheduledNotifications}
+                    notificationStatus={notificationStatus}
+                    styles={styles}
+                    customColors={customColors}
+                />
 
-                <Card style={styles.card}>
-                    <Card.Title title="Appearance" titleStyle={{color: customColors.text}}/>
-                    <Card.Content>
-                        <ThemeSelector onThemeChange={() => {}}/>
-                        <Divider style={{marginVertical: 12}}/>
-                        <List.Item
-                            title="Font Size"
-                            description={`Current: ${settings.fontSize}`}
-                            titleStyle={{color: customColors.text}}
-                            descriptionStyle={{color: customColors.subtleGray}}
-                            onPress={() => {
-                                // TODO: Implement font size picker modal
-                            }}
-                        />
-                    </Card.Content>
-                </Card>
+                {/* Notifications Section */}
+                <NotificationSettingsCard
+                    settings={settings}
+                    scheduledNotifications={scheduledNotifications}
+                    sendTestNotification={sendTestNotification}
+                    notificationStatus={notificationStatus}
+                    onNotificationToggle={handleNotificationToggle}
+                    onDailyReminderToggle={(value: any) => updateSetting('dailyReminder', value)}
+                    onTestNotification={handleTestNotification}
+                    onShowTimePicker={showTimePicker}
+                    onCancelAllNotifications={notificationsHook.cancelAllNotifications}
+                    styles={styles}
+                    customColors={customColors}
+                />
 
-                <Card style={styles.card}>
-                    <Card.Title title="Data & Storage" titleStyle={{color: customColors.text}}/>
-                    <Card.Content>
-                        <List.Item
-                            title="Offline Mode"
-                            titleStyle={{color: customColors.text}}
-                            right={() => (
-                                <Switch
-                                    value={settings.offlineMode}
-                                    onValueChange={(value) => updateSetting('offlineMode', value)}
-                                    color={customColors.accent}
-                                />
-                            )}
-                        />
-                        <Divider/>
-                        <List.Item
-                            title="Export Settings"
-                            titleStyle={{color: customColors.text}}
-                            onPress={exportSettings}
-                        />
-                        <Divider/>
-                        <List.Item
-                            title="Reset Settings"
-                            titleStyle={{color: customColors.text}}
-                            onPress={resetSettings}
-                        />
-                    </Card.Content>
-                </Card>
-            </ScrollView>
+                {/* Reading Goals Section */}
+                <ReadingGoalsCard
+                    dailyVerseGoal={dailyVerseGoal}
+                    onEditGoal={() => handleToggleDialog('dailyGoal', true)}
+                    styles={styles}
+                    customColors={customColors}
+                />
+
+                {/* Appearance Section */}
+                <AppearanceCard
+                    settings={settings}
+                    onFontSizeChange={(size: any) => updateSetting('fontSize', size)}
+                    onThemeChange={() => { handleToggleDialog('changeTheme', true) }} // Will be implemented
+                    styles={styles}
+                    customColors={customColors}
+                />
+
+                {/* Data & Storage Section */}
+                <DataStorageCard
+                    settings={settings}
+                    onOfflineModeToggle={(value: any) => updateSetting('offlineMode', value)}
+                    onExportSettings={() => handleToggleDialog('exportData', true)}
+                    onResetSettings={resetSettings}
+                    styles={styles}
+                    customColors={customColors}
+                />
+            </ScreenContainer>
+
+            {/* Time Picker Component */}
+            <SettingsTimePicker
+                visible={formStates.timePickerVisible}
+                selectedTime={formStates.selectedTime}
+                onTimeChange={handleTimeChange}
+            />
+
+            {/* All Dialogs */}
+            <SettingsDialogs
+                dialogs={dialogs}
+                formStates={formStates}
+                onToggleDialog={handleToggleDialog}
+                onDailyGoalSave={handleDailyGoalSave}
+                onExportSettings={handleExportSettings}
+                onUpdateFormState={updateFormState}
+                styles={styles}
+                customColors={customColors}
+            />
         </View>
     );
 }

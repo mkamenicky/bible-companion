@@ -15,6 +15,11 @@ interface ThemeColors extends CustomColors {
     borderColor: string;
     completedGreen: string;
     shadowColor: string;
+    // Additional colors for settings
+    warning: string;
+    success: string;
+    error: string;
+    info: string;
 }
 
 export class ThemeService {
@@ -68,6 +73,11 @@ export class ThemeService {
                 borderColor: '#363636',
                 completedGreen: '#10b981',
                 shadowColor: 'rgba(0, 0, 0, 0.25)',
+                // Status colors
+                warning: '#f59e0b',
+                success: '#10b981',
+                error: '#ef4444',
+                info: '#0095f6',
             };
         }
 
@@ -92,6 +102,11 @@ export class ThemeService {
             borderColor: '#dbdbdb',
             completedGreen: '#10b981',
             shadowColor: 'rgba(0, 0, 0, 0.1)',
+            // Status colors
+            warning: '#f59e0b',
+            success: '#10b981',
+            error: '#ef4444',
+            info: '#0095f6',
         };
     }
 
@@ -117,6 +132,11 @@ export class ThemeService {
             borderColor: isDark ? '#333333' : '#e0e0e0',
             completedGreen: isDark ? '#ffffff' : '#000000',
             shadowColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+            // Status colors
+            warning: isDark ? '#fbbf24' : '#f59e0b',
+            success: isDark ? '#ffffff' : '#000000',
+            error: isDark ? '#ffffff' : '#000000',
+            info: isDark ? '#ffffff' : '#000000',
         };
     }
 
@@ -142,6 +162,11 @@ export class ThemeService {
             borderColor: isDark ? '#2e2e2e' : '#dbdbdb',
             completedGreen: '#008a34',
             shadowColor: isDark ? 'rgba(0, 0, 0, 0.7)' : 'rgba(0, 0, 0, 0.1)',
+            // Status colors
+            warning: '#f59e0b',
+            success: '#008a34',
+            error: '#dc2626',
+            info: '#144cfb',
         };
     }
 
@@ -167,6 +192,11 @@ export class ThemeService {
             borderColor: '#d1d5db',
             completedGreen: '#7d9e98',
             shadowColor: isDark ? 'rgba(0, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.05)',
+            // Status colors
+            warning: '#f59e0b',
+            success: '#7d9e98',
+            error: '#ef4444',
+            info: '#8aade6',
         };
     }
 
@@ -366,12 +396,6 @@ export class ThemeService {
                 width: '80%',
             },
 
-            modalCard: {
-                padding: 16,
-                backgroundColor: colors.foreground,
-                borderRadius: 8,
-            },
-
             // Daily banner styles
             dailyBanner: {
                 backgroundColor: colors.foreground,
@@ -397,6 +421,143 @@ export class ThemeService {
                 fontWeight: '600',
                 fontSize: 16,
                 color: colors.instagramBlue,
+            },
+
+            // Settings-specific styles
+            settingsSection: {
+                backgroundColor: colors.foreground,
+                marginBottom: 8,
+                borderTopWidth: 0.5,
+                borderBottomWidth: 0.5,
+                borderColor: colors.borderColor,
+            },
+
+            settingsSectionTitle: {
+                fontSize: 18,
+                fontWeight: '600',
+                color: colors.color,
+                paddingHorizontal: 16,
+                paddingTop: 16,
+                paddingBottom: 8,
+            },
+
+            settingsItem: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 16,
+                paddingHorizontal: 16,
+                borderBottomWidth: 0.5,
+                borderBottomColor: colors.borderColor,
+            },
+
+            settingsItemLast: {
+                borderBottomWidth: 0,
+            },
+
+            settingsItemIcon: {
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                backgroundColor: colors.lightGray,
+                marginRight: 12,
+                justifyContent: 'center',
+                alignItems: 'center',
+            },
+
+            settingsItemContent: {
+                flex: 1,
+            },
+
+            settingsItemTitle: {
+                fontSize: 16,
+                fontWeight: '500',
+                color: colors.color,
+                marginBottom: 2,
+            },
+
+            settingsItemDescription: {
+                fontSize: 13,
+                color: colors.subtleGray,
+                lineHeight: 16,
+            },
+
+            settingsItemRight: {
+                marginLeft: 12,
+            },
+
+            // Quick status card styles
+            quickStatusCard: {
+                backgroundColor: colors.foreground,
+                padding: 16,
+                borderTopWidth: 0.5,
+                borderBottomWidth: 0.5,
+                borderColor: colors.borderColor,
+                marginBottom: 8,
+            },
+
+            quickStatusRow: {
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+            },
+
+            quickStatusItem: {
+                alignItems: 'center',
+                flex: 1,
+            },
+
+            quickStatusValue: {
+                fontSize: 24,
+                fontWeight: '700',
+                color: colors.color,
+                marginBottom: 4,
+            },
+
+            quickStatusLabel: {
+                fontSize: 12,
+                color: colors.subtleGray,
+                textAlign: 'center',
+            },
+
+            quickStatusDivider: {
+                width: 1,
+                height: 40,
+                backgroundColor: colors.borderColor,
+                marginHorizontal: 16,
+            },
+
+            // Form styles
+            formInput: {
+                backgroundColor: colors.surface,
+                marginBottom: 16,
+            },
+
+            formButton: {
+                backgroundColor: colors.accent,
+                marginTop: 8,
+            },
+
+            formButtonText: {
+                color: '#ffffff',
+                fontWeight: '600',
+            },
+
+            // Dialog styles
+            dialogSurface: {
+                backgroundColor: colors.surface,
+                borderRadius: 8,
+            },
+
+            dialogTitle: {
+                color: colors.color,
+                fontSize: 18,
+                fontWeight: '600',
+            },
+
+            dialogContent: {
+                color: colors.color,
+                fontSize: 16,
+                lineHeight: 22,
             },
 
             // Icon styles
@@ -433,6 +594,266 @@ export class ThemeService {
                 fontSize: 13,
                 color: colors.subtleGray,
             },
+
+            // Switch styles (for better consistency)
+            switchTrack: {
+                backgroundColor: colors.lightGray,
+            },
+
+            switchThumb: {
+                backgroundColor: colors.accent,
+            },
+
+            // Button styles
+            primaryButton: {
+                backgroundColor: colors.accent,
+                borderRadius: 8,
+            },
+
+            primaryButtonText: {
+                color: '#ffffff',
+                fontWeight: '600',
+            },
+
+            secondaryButton: {
+                backgroundColor: 'transparent',
+                borderWidth: 1,
+                borderColor: colors.borderColor,
+                borderRadius: 8,
+            },
+
+            secondaryButtonText: {
+                color: colors.color,
+                fontWeight: '500',
+            },
+
+            // Chip styles
+            chip: {
+                backgroundColor: colors.lightGray,
+                borderRadius: 16,
+            },
+
+            chipText: {
+                color: colors.color,
+                fontSize: 12,
+                fontWeight: '500',
+            },
+
+            // Loading styles
+            loadingContainer: {
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: colors.background,
+            },
+
+            loadingText: {
+                marginTop: 16,
+                color: colors.text,
+                fontSize: 16,
+            },
+
+            // Error styles
+            errorContainer: {
+                flex: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: colors.background,
+                padding: 24,
+            },
+
+            errorText: {
+                color: colors.error,
+                fontSize: 16,
+                textAlign: 'center',
+                marginBottom: 16,
+            },
+
+            errorButton: {
+                backgroundColor: colors.accent,
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 8,
+            },
+
+            errorButtonText: {
+                color: '#ffffff',
+                fontWeight: '600',
+            },
+
+            // Action text for buttons in list items
+            actionText: {
+                fontSize: 16,
+                fontWeight: '500',
+            },
+
+            // Font size button
+            fontSizeButton: {
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+            },
+
+            fontSizeButtonText: {
+                fontSize: 16,
+                fontWeight: '600',
+            },
+
+            // Status indicators
+            statusIndicator: {
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 12,
+                alignItems: 'center',
+                justifyContent: 'center',
+            },
+
+            statusText: {
+                fontSize: 12,
+                fontWeight: '500',
+                color: 'white',
+            },
+
+            statusBadge: {
+                minWidth: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+            },
+
+            statusBadgeActive: {
+                backgroundColor: colors.success,
+            },
+
+            statusBadgeInactive: {
+                backgroundColor: colors.error,
+            },
+
+            statusBadgeWarning: {
+                backgroundColor: colors.warning,
+            },
+
+            statusBadgeText: {
+                fontSize: 11,
+                fontWeight: '600',
+                color: '#ffffff',
+            },
+
+            statusIndicatorDot: {
+                fontSize: 16,
+                color: 'white',
+            },
+
+            // Goal projections
+            goalProjections: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginTop: 8,
+            },
+
+            projectionItem: {
+                flex: 1,
+                alignItems: 'center',
+            },
+
+            projectionValue: {
+                fontSize: 18,
+                fontWeight: '600',
+                color: '#0095f6', // customColors.instagramBlue
+                marginBottom: 2,
+            },
+
+            projectionLabel: {
+                fontSize: 12,
+                color: '#8e8e8e', // customColors.subtleGray
+            },
+
+            projectionDivider: {
+                width: 1,
+                height: 24,
+                backgroundColor: '#dbdbdb', // customColors.borderColor
+                marginHorizontal: 16,
+            },
+
+            // Goal badge
+            goalBadge: {
+                minWidth: 40,
+                height: 32,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingHorizontal: 12,
+            },
+
+            goalBadgeText: {
+                fontSize: 16,
+                fontWeight: '600',
+            },
+
+            // Modal styles
+            modalOverlay: {
+                flex: 1,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 20,
+            },
+
+            modalCard: {
+                backgroundColor: 'white',
+                borderRadius: 12,
+                width: '100%',
+                maxWidth: 400,
+                shadowColor: '#000',
+                shadowOffset: {
+                    width: 0,
+                    height: 2,
+                },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+                elevation: 5,
+            },
+
+            // Text input styles
+            textInput: {
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 16,
+            },
+
+            // Info box
+            infoBox: {
+                padding: 16,
+                borderRadius: 8,
+                borderWidth: 1,
+            },
+
+            // Retry button
+            retryButton: {
+                paddingHorizontal: 24,
+                paddingVertical: 12,
+                borderRadius: 8,
+                alignItems: 'center',
+                justifyContent: 'center',
+            },
+
+            retryButtonText: {
+                fontSize: 16,
+                fontWeight: '600',
+            },
+
+            // Item action container
+            itemAction: {
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingLeft: 8,
+            },
         });
     }
 
@@ -443,6 +864,14 @@ export class ThemeService {
             // Override with minimal-specific styles
             card: {
                 ...baseStyles.card,
+                borderWidth: 1,
+                borderColor: colors.borderColor,
+                borderRadius: 4,
+                borderTopWidth: 1,
+                borderBottomWidth: 1,
+            },
+            settingsSection: {
+                ...baseStyles.settingsSection,
                 borderWidth: 1,
                 borderColor: colors.borderColor,
                 borderRadius: 4,
@@ -462,6 +891,10 @@ export class ThemeService {
                 ...baseStyles.dailyLinkText,
                 color: colors.color,
             },
+            primaryButton: {
+                ...baseStyles.primaryButton,
+                backgroundColor: colors.color,
+            },
         });
     }
 
@@ -471,6 +904,15 @@ export class ThemeService {
             // Override with dark modern-specific styles
             card: {
                 ...baseStyles.card,
+                borderRadius: 12,
+                elevation: 4,
+                shadowOpacity: 0.3,
+                borderTopWidth: 0,
+                borderBottomWidth: 0,
+                marginBottom: 16,
+            },
+            settingsSection: {
+                ...baseStyles.settingsSection,
                 borderRadius: 12,
                 elevation: 4,
                 shadowOpacity: 0.3,
@@ -496,6 +938,10 @@ export class ThemeService {
                 ...baseStyles.itemIcon,
                 borderRadius: 8,
             },
+            settingsItemIcon: {
+                ...baseStyles.settingsItemIcon,
+                borderRadius: 8,
+            },
         });
     }
 
@@ -517,6 +963,14 @@ export class ThemeService {
                 borderTopWidth: 0,
                 borderBottomWidth: 0,
             },
+            settingsSection: {
+                ...baseStyles.settingsSection,
+                marginBottom: 16,
+                borderRadius: 12,
+                elevation: 2,
+                borderTopWidth: 0,
+                borderBottomWidth: 0,
+            },
             cardTitle: {
                 ...baseStyles.cardTitle,
                 fontSize: 16,
@@ -526,6 +980,11 @@ export class ThemeService {
             },
             listItem: {
                 ...baseStyles.listItem,
+                borderRadius: 6,
+                borderBottomWidth: 0,
+            },
+            settingsItem: {
+                ...baseStyles.settingsItem,
                 borderRadius: 6,
                 borderBottomWidth: 0,
             },
@@ -540,6 +999,12 @@ export class ThemeService {
             },
             dailyBanner: {
                 ...baseStyles.dailyBanner,
+                marginBottom: 12,
+                elevation: 1,
+                borderBottomWidth: 0,
+            },
+            quickStatusCard: {
+                ...baseStyles.quickStatusCard,
                 marginBottom: 12,
                 elevation: 1,
                 borderBottomWidth: 0,
