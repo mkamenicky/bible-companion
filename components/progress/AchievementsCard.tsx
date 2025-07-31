@@ -1,14 +1,16 @@
+// AchievementsCard.tsx
 import React, {useCallback, useEffect, useState} from 'react';
 import {Alert, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {progressService} from '@/services';
 import type {Achievement, AchievementUnlockEvent} from '@/models';
+import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
 interface Props {
     currentStreak: number;
     totalVersesRead: number;
     chaptersCompleted: number;
     styles: any;
-    customColors: any;
+    customColors: ThemeColors;
     userId?: number;
     onAchievementUnlocked?: (events: AchievementUnlockEvent[]) => void;
 }
@@ -95,12 +97,12 @@ export default function AchievementsCard({
 
         // Define category metadata with enhanced styling
         const categoryMetadata = {
-            milestone: {name: 'Milestones', icon: '🎯', color: '#FF6B6B'},
-            streak: {name: 'Streak Master', icon: '🔥', color: '#4ECDC4'},
-            reading: {name: 'Reading Goals', icon: '📚', color: '#45B7D1'},
-            exploration: {name: 'Explorer', icon: '🗺️', color: '#96CEB4'},
-            seasonal: {name: 'Seasonal', icon: '🎄', color: '#F39C12'},
-            general: {name: 'General', icon: '🏆', color: '#FFEAA7'}
+            milestone: {name: 'Milestones', icon: '🎯', color: customColors.error},
+            streak: {name: 'Streak Master', icon: '🔥', color: customColors.warning},
+            reading: {name: 'Reading Goals', icon: '📚', color: customColors.info},
+            exploration: {name: 'Explorer', icon: '🗺️', color: customColors.success},
+            seasonal: {name: 'Seasonal', icon: '🎄', color: customColors.secondary},
+            general: {name: 'General', icon: '🏆', color: customColors.primary}
         };
 
         achievementList.forEach(achievement => {
@@ -152,10 +154,10 @@ export default function AchievementsCard({
                     flexDirection: 'row',
                     alignItems: 'center',
                     paddingVertical: 12,
-                    paddingHorizontal: isInModal ? 0 : 20,
+                    paddingHorizontal: isInModal ? 16 : 20,
                     borderBottomWidth: index < (getFilteredAchievements().length - 1) ? 0.5 : 0,
                     borderBottomColor: customColors.borderColor,
-                    backgroundColor: isCompleted ? `${customColors.primary}10` : 'transparent',
+                    backgroundColor: isCompleted ? customColors.lightGray : 'transparent',
                     borderRadius: isCompleted ? 8 : 0,
                     marginVertical: isCompleted ? 2 : 0,
                 }}
@@ -174,13 +176,13 @@ export default function AchievementsCard({
                     width: 48,
                     height: 48,
                     borderRadius: 24,
-                    backgroundColor: isCompleted ? customColors.primary : customColors.lightGray,
+                    backgroundColor: isCompleted ? customColors.success : customColors.lightGray,
                     justifyContent: 'center',
                     alignItems: 'center',
                     marginRight: 12,
                     borderWidth: 2,
-                    borderColor: isCompleted ? customColors.primary : customColors.borderColor,
-                    shadowColor: isCompleted ? customColors.primary : 'transparent',
+                    borderColor: isCompleted ? customColors.success : customColors.borderColor,
+                    shadowColor: isCompleted ? customColors.success : 'transparent',
                     shadowOffset: {width: 0, height: 2},
                     shadowOpacity: isCompleted ? 0.3 : 0,
                     shadowRadius: 4,
@@ -200,14 +202,14 @@ export default function AchievementsCard({
                         <Text style={{
                             fontSize: 16,
                             fontWeight: '600',
-                            color: isCompleted ? customColors.primary : customColors.color,
+                            color: isCompleted ? customColors.success : customColors.text,
                             flex: 1,
                         }}>
                             {achievement.name}
                         </Text>
                         {isCompleted && (
                             <View style={{
-                                backgroundColor: customColors.primary,
+                                backgroundColor: customColors.success,
                                 paddingHorizontal: 8,
                                 paddingVertical: 2,
                                 borderRadius: 12,
@@ -247,7 +249,7 @@ export default function AchievementsCard({
                                 width: `${progressPercentage}%`,
                                 height: '100%',
                                 backgroundColor: isCompleted
-                                    ? customColors.primary
+                                    ? customColors.success
                                     : customColors.completedGreen,
                                 borderRadius: 3,
                             }}/>
@@ -309,7 +311,7 @@ export default function AchievementsCard({
                                 fontSize: 12,
                                 color: selectedCategory === category.id
                                     ? 'white'
-                                    : customColors.color,
+                                    : customColors.text,
                                 fontWeight: '500',
                             }}>
                                 {category.name}
@@ -359,7 +361,9 @@ export default function AchievementsCard({
                                 alignItems: 'center',
                                 marginHorizontal: 20,
                                 borderRadius: 8,
-                                backgroundColor: `${customColors.primary}15`,
+                                backgroundColor: customColors.lightGray,
+                                borderWidth: 1,
+                                borderColor: customColors.borderColor,
                             }}
                             onPress={() => setShowAllModal(true)}
                         >
@@ -399,7 +403,7 @@ export default function AchievementsCard({
                             <Text style={{
                                 fontSize: 20,
                                 fontWeight: '600',
-                                color: customColors.color,
+                                color: customColors.text,
                             }}>
                                 All Achievements
                             </Text>
@@ -444,7 +448,7 @@ export default function AchievementsCard({
                             <Text style={{
                                 fontSize: 16,
                                 fontWeight: '500',
-                                color: customColors.color,
+                                color: customColors.text,
                                 marginBottom: 8,
                             }}>
                                 Progress Overview
@@ -472,7 +476,7 @@ export default function AchievementsCard({
                                     <Text style={{
                                         fontSize: 20,
                                         fontWeight: '600',
-                                        color: customColors.color,
+                                        color: customColors.text,
                                     }}>
                                         {achievementStats.available}
                                     </Text>

@@ -1,12 +1,14 @@
+// StreakCard.tsx
 import React from 'react';
 import { View, Text } from 'react-native';
+import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
 interface Props {
     currentStreak: number;
     longestStreak: number;
     totalReadingDays: number;
     styles: any;
-    customColors: any;
+    customColors: ThemeColors;
 }
 
 export default function StreakCard({
@@ -51,7 +53,7 @@ export default function StreakCard({
                 <Text style={{
                     fontSize: 28,
                     fontWeight: '700',
-                    color: customColors.color,
+                    color: customColors.text,
                     marginBottom: 4,
                 }}>
                     {currentStreak}
@@ -76,7 +78,7 @@ export default function StreakCard({
                     <Text style={{
                         fontSize: 20,
                         fontWeight: '600',
-                        color: customColors.color,
+                        color: customColors.text,
                         marginBottom: 4,
                     }}>
                         {longestStreak}
@@ -100,7 +102,7 @@ export default function StreakCard({
                     <Text style={{
                         fontSize: 20,
                         fontWeight: '600',
-                        color: customColors.color,
+                        color: customColors.text,
                         marginBottom: 4,
                     }}>
                         {totalReadingDays}

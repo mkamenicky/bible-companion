@@ -1,11 +1,13 @@
+// PeriodStatsCard.tsx
 import React from 'react';
 import { View, Text } from 'react-native';
+import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
 interface Props {
     weeklyVersesRead: number;
     monthlyVersesRead: number;
     styles: any;
-    customColors: any;
+    customColors: ThemeColors;
 }
 
 export default function PeriodStatsCard({
@@ -48,7 +50,7 @@ export default function PeriodStatsCard({
                         <Text style={{
                             fontSize: 24,
                             fontWeight: '700',
-                            color: customColors.color,
+                            color: customColors.text,
                             marginBottom: 4,
                         }}>
                             {weeklyVersesRead}
@@ -100,7 +102,7 @@ export default function PeriodStatsCard({
                         <Text style={{
                             fontSize: 24,
                             fontWeight: '700',
-                            color: customColors.color,
+                            color: customColors.text,
                             marginBottom: 4,
                         }}>
                             {monthlyVersesRead}

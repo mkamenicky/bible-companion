@@ -1,6 +1,6 @@
 import {useEffect, useState, useCallback} from 'react';
-import {progressService, AchievementUnlockEvent} from '@/services';
-import {ProgressStats, Achievement} from "@/models";
+import {progressService} from '@/services';
+import {ProgressStats, Achievement, AchievementUnlockEvent} from "@/models";
 
 export function useProgressData(userId: number = 1) {
     const [stats, setStats] = useState<ProgressStats | null>(null);

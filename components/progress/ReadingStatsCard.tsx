@@ -1,12 +1,14 @@
+// ReadingStatsCard.tsx
 import React from 'react';
 import { View, Text } from 'react-native';
+import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
 interface Props {
     totalVersesRead: number;
     chaptersCompleted: number;
     bibleProgressPercentage: number;
     styles: any;
-    customColors: any;
+    customColors: ThemeColors;
 }
 
 export default function ReadingStatsCard({
@@ -34,7 +36,7 @@ export default function ReadingStatsCard({
                     <Text style={{
                         fontSize: 15,
                         fontWeight: '500',
-                        color: customColors.color,
+                        color: customColors.text,
                     }}>
                         Total Verses Read
                     </Text>
@@ -56,7 +58,7 @@ export default function ReadingStatsCard({
                     <Text style={{
                         fontSize: 15,
                         fontWeight: '500',
-                        color: customColors.color,
+                        color: customColors.text,
                     }}>
                         Chapters Completed
                     </Text>
@@ -77,7 +79,7 @@ export default function ReadingStatsCard({
                     <Text style={{
                         fontSize: 15,
                         fontWeight: '500',
-                        color: customColors.color,
+                        color: customColors.text,
                     }}>
                         Bible Progress
                     </Text>
