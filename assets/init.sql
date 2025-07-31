@@ -402,3 +402,181 @@ FROM reading_plan_progress rpp
          LEFT JOIN BibleBook bb ON rpp.current_book_id = bb.BibleBookId
          LEFT JOIN reading_topics rt ON rpp.last_topic_id = rt.id
 WHERE rpc.is_active = 1;
+
+-- Add this to your init.sql file
+
+-- === Achievement System Tables ===
+
+-- Achievement definitions table
+CREATE TABLE IF NOT EXISTS achievements
+(
+    id           TEXT PRIMARY KEY,                    -- 'first_read', 'week_warrior', etc.
+    name         TEXT    NOT NULL,                   -- 'First Steps', 'Week Warrior', etc.
+    description  TEXT    NOT NULL,                   -- 'Read your first verse', etc.
+    icon         TEXT    NOT NULL DEFAULT '🏆',      -- Emoji or icon identifier
+    target_value INTEGER NOT NULL,                   -- Target value to unlock (1, 7, 100, etc.)
+    category     TEXT    NOT NULL DEFAULT 'general', -- 'streak', 'reading', 'milestone', 'exploration'
+    sort_order   INTEGER NOT NULL DEFAULT 0,         -- For display ordering
+    is_active    BOOLEAN NOT NULL DEFAULT 1,         -- Enable/disable achievements
+    created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Achievement calculation rules table (for complex achievements)
+CREATE TABLE IF NOT EXISTS achievement_rules
+(
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    achievement_id    TEXT    NOT NULL REFERENCES achievements (id) ON DELETE CASCADE,
+    rule_type         TEXT    NOT NULL, -- 'total_verses', 'consecutive_days', 'chapters_read', 'books_started', 'custom'
+    calculation_field TEXT,             -- Field to calculate from ('totalVersesRead', 'currentStreak', etc.)
+    calculation_query TEXT,             -- Custom SQL query for complex calculations
+    sort_order        INTEGER          DEFAULT 0,
+    is_active         BOOLEAN NOT NULL DEFAULT 1,
+    created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (achievement_id) REFERENCES achievements (id)
+);
+
+-- Achievement prerequisites (for chained achievements)
+CREATE TABLE IF NOT EXISTS achievement_prerequisites
+(
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    achievement_id          TEXT NOT NULL REFERENCES achievements (id) ON DELETE CASCADE,
+    prerequisite_achievement_id TEXT NOT NULL REFERENCES achievements (id) ON DELETE CASCADE,
+    created_at              TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (achievement_id, prerequisite_achievement_id),
+    FOREIGN KEY (achievement_id) REFERENCES achievements (id),
+    FOREIGN KEY (prerequisite_achievement_id) REFERENCES achievements (id)
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_achievements_category ON achievements (category);
+CREATE INDEX IF NOT EXISTS idx_achievements_active ON achievements (is_active);
+CREATE INDEX IF NOT EXISTS idx_achievement_rules_achievement ON achievement_rules (achievement_id);
+CREATE INDEX IF NOT EXISTS idx_achievement_prerequisites_achievement ON achievement_prerequisites (achievement_id);
+
+-- === Initial Achievement Data ===
+
+-- Insert default achievements
+INSERT OR IGNORE INTO achievements (id, name, description, icon, target_value, category, sort_order)
+VALUES
+    ('first_read', 'First Steps', 'Read your first verse', '📖', 1, 'milestone', 1),
+    ('week_warrior', 'Week Warrior', 'Read for 7 consecutive days', '🔥', 7, 'streak', 2),
+    ('century_reader', 'Century Reader', 'Read 100 verses', '💯', 100, 'reading', 3),
+    ('month_master', 'Month Master', 'Read for 30 consecutive days', '🏆', 30, 'streak', 4),
+    ('chapter_champion', 'Chapter Champion', 'Complete 10 chapters', '⭐', 10, 'reading', 5),
+    ('book_explorer', 'Book Explorer', 'Start reading 5 different books', '🗺️', 5, 'exploration', 6),
+    ('dedication', 'Dedication', 'Read for 100 consecutive days', '🎯', 100, 'streak', 7),
+    ('bible_scholar', 'Bible Scholar', 'Read 1000 verses', '🎓', 1000, 'reading', 8),
+
+    -- Additional achievements for better progression
+    ('daily_habit', 'Daily Habit', 'Read for 3 consecutive days', '📅', 3, 'streak', 1.5),
+    ('verse_collector', 'Verse Collector', 'Read 50 verses', '📚', 50, 'reading', 2.5),
+    ('chapter_starter', 'Chapter Starter', 'Complete your first chapter', '🌟', 1, 'reading', 1.2),
+    ('book_beginner', 'Book Beginner', 'Start reading your first book', '📑', 1, 'exploration', 1.1),
+    ('consistent_reader', 'Consistent Reader', 'Read for 14 consecutive days', '⚡', 14, 'streak', 3.5),
+    ('verse_master', 'Verse Master', 'Read 500 verses', '👑', 500, 'reading', 6.5),
+    ('testament_explorer', 'Testament Explorer', 'Read from 10 different books', '🌍', 10, 'exploration', 7.5);
+
+-- Insert achievement calculation rules
+INSERT OR IGNORE INTO achievement_rules (achievement_id, rule_type, calculation_field)
+VALUES
+    ('first_read', 'total_verses', 'totalVersesRead'),
+    ('week_warrior', 'consecutive_days', 'bestStreak'),
+    ('century_reader', 'total_verses', 'totalVersesRead'),
+    ('month_master', 'consecutive_days', 'bestStreak'),
+    ('chapter_champion', 'chapters_read', 'totalChaptersRead'),
+    ('book_explorer', 'books_started', 'booksStarted'),
+    ('dedication', 'consecutive_days', 'bestStreak'),
+    ('bible_scholar', 'total_verses', 'totalVersesRead'),
+    ('daily_habit', 'consecutive_days', 'bestStreak'),
+    ('verse_collector', 'total_verses', 'totalVersesRead'),
+    ('chapter_starter', 'chapters_read', 'totalChaptersRead'),
+    ('book_beginner', 'books_started', 'booksStarted'),
+    ('consistent_reader', 'consecutive_days', 'bestStreak'),
+    ('verse_master', 'total_verses', 'totalVersesRead'),
+    ('testament_explorer', 'books_started', 'booksStarted');
+
+-- Insert achievement prerequisites (example: need first_read before verse_collector)
+INSERT OR IGNORE INTO achievement_prerequisites (achievement_id, prerequisite_achievement_id)
+VALUES
+    ('verse_collector', 'first_read'),
+    ('century_reader', 'verse_collector'),
+    ('verse_master', 'century_reader'),
+    ('bible_scholar', 'verse_master'),
+    ('daily_habit', 'first_read'),
+    ('week_warrior', 'daily_habit'),
+    ('consistent_reader', 'week_warrior'),
+    ('month_master', 'consistent_reader'),
+    ('dedication', 'month_master'),
+    ('chapter_starter', 'first_read'),
+    ('chapter_champion', 'chapter_starter'),
+    ('book_beginner', 'first_read'),
+    ('book_explorer', 'book_beginner'),
+    ('testament_explorer', 'book_explorer');
+
+-- === Views for Easy Querying ===
+
+-- View to get achievements with their rules
+CREATE VIEW IF NOT EXISTS achievements_with_rules AS
+SELECT
+    a.id,
+    a.name,
+    a.description,
+    a.icon,
+    a.target_value,
+    a.category,
+    a.sort_order,
+    a.is_active,
+    ar.rule_type,
+    ar.calculation_field,
+    ar.calculation_query
+FROM achievements a
+         LEFT JOIN achievement_rules ar ON a.id = ar.achievement_id
+WHERE a.is_active = 1
+ORDER BY a.sort_order, a.created_at;
+
+-- View to get available achievements (prerequisites met)
+CREATE VIEW IF NOT EXISTS available_achievements AS
+SELECT DISTINCT
+    a.id,
+    a.name,
+    a.description,
+    a.icon,
+    a.target_value,
+    a.category,
+    a.sort_order,
+    COALESCE(ap.progress, 0) as current_progress,
+    ap.is_unlocked,
+    ap.unlocked_at,
+    CASE
+        WHEN ap.is_unlocked = 1 THEN 'unlocked'
+        WHEN COALESCE(ap.progress, 0) >= a.target_value THEN 'ready_to_unlock'
+        WHEN prereq_check.has_unmet_prerequisites = 0 THEN 'available'
+        ELSE 'locked'
+        END as status
+FROM achievements a
+         LEFT JOIN achievement_progress ap ON a.id = ap.achievement_id AND ap.user_id = 1
+         LEFT JOIN (
+    SELECT
+        aprereq.achievement_id,
+        CASE
+            WHEN COUNT(aprereq.prerequisite_achievement_id) = 0 THEN 0
+            WHEN COUNT(aprereq.prerequisite_achievement_id) = COUNT(ap_prereq.is_unlocked)
+                AND COUNT(CASE WHEN ap_prereq.is_unlocked = 1 THEN 1 END) = COUNT(aprereq.prerequisite_achievement_id)
+                THEN 0
+            ELSE 1
+            END as has_unmet_prerequisites
+    FROM achievement_prerequisites aprereq
+             LEFT JOIN achievement_progress ap_prereq ON aprereq.prerequisite_achievement_id = ap_prereq.achievement_id AND ap_prereq.user_id = 1
+    GROUP BY aprereq.achievement_id
+
+    UNION ALL
+
+    SELECT
+        a.id as achievement_id,
+        0 as has_unmet_prerequisites
+    FROM achievements a
+    WHERE a.id NOT IN (SELECT DISTINCT achievement_id FROM achievement_prerequisites)
+) prereq_check ON a.id = prereq_check.achievement_id
+WHERE a.is_active = 1
+ORDER BY a.sort_order, a.created_at;

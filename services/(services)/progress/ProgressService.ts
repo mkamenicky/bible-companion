@@ -23,8 +23,33 @@ import type {
     UpdateReadingStreakDto
 } from '@/models';
 
+// Define achievement unlock event interface
+export interface AchievementUnlockEvent {
+    userId: number;
+    achievementId: string;
+    achievementName: string;
+    unlockedAt: string;
+    previousProgress: number;
+    newProgress: number;
+    isFirstTime: boolean;
+}
+
+// Achievement calculation context
+export interface AchievementCalculationContext {
+    userId: number;
+    totalVersesRead: number;
+    totalChaptersRead: number;
+    booksStarted: number;
+    currentStreak: number;
+    bestStreak: number;
+    totalReadingDays: number;
+    weeklyVersesRead: number;
+    monthlyVersesRead: number;
+}
+
 /**
  * Enhanced service for calculating and persisting reading progress, streaks, and analytics
+ * Now fully integrated with database-driven achievement system using repository pattern
  */
 export class ProgressService {
 
@@ -63,8 +88,8 @@ export class ProgressService {
                 });
             }
 
-            // Initialize default achievements
-            await this.initializeAchievements(userId);
+            // Initialize achievement progress for all existing achievements in database
+            await this.initializeAchievementProgressForUser(userId);
 
         } catch (error: any) {
             throw new DatabaseMessageError('Failed to initialize user progress', error);
@@ -74,6 +99,7 @@ export class ProgressService {
     /**
      * Update reading progress after a reading session
      * This is the main method to call when a user completes reading
+     * Now returns any newly unlocked achievements
      */
     async updateReadingProgress(
         userId: number = 1,
@@ -82,7 +108,7 @@ export class ProgressService {
         booksRead: string[] = [],
         readingPlan?: string,
         notes?: string
-    ): Promise<void> {
+    ): Promise<AchievementUnlockEvent[]> {
         try {
             const now = new Date();
             const today = now.toISOString().split('T')[0];
@@ -103,8 +129,8 @@ export class ProgressService {
             // Update streak information
             await this.updateReadingStreak(userId, today);
 
-            // Update achievement progress
-            await this.updateAchievementProgress(userId);
+            // Update achievement progress and get any newly unlocked achievements
+            return await this.updateAchievementProgressFromDatabase(userId);
 
         } catch (error: any) {
             throw new DatabaseMessageError('Failed to update reading progress', error);
@@ -235,7 +261,6 @@ export class ProgressService {
 
             // Get reading sessions for more accurate chapter/book counts
             const sessions = await readingSessionRepository.findAll();
-            console.log("sessions are:", sessions);
             const totalChaptersRead = sessions.reduce((sum, session) => sum + session.chaptersRead, 0);
 
             // Get unique books from sessions
@@ -338,133 +363,129 @@ export class ProgressService {
     }
 
     /**
-     * Update achievement progress based on current stats
+     * Update achievement progress using database-driven rules and calculations
+     * This replaces the old hardcoded approach - now uses repository methods
      */
-    async updateAchievementProgress(userId: number = 1): Promise<void> {
+    async updateAchievementProgressFromDatabase(userId: number = 1): Promise<AchievementUnlockEvent[]> {
         try {
-            const [streakInfo, readingStats] = await Promise.all([
-                this.calculateDetailedStreak(userId),
-                this.calculateReadingStats(userId)
-            ]);
+            const unlockedAchievements: AchievementUnlockEvent[] = [];
 
-            const achievements = [
-                {id: 'first_read', target: 1, progress: Math.min(readingStats.totalVersesRead, 1)},
-                {
-                    id: 'week_warrior',
-                    target: 7,
-                    progress: Math.min(Math.max(streakInfo.currentStreak, streakInfo.longestStreak), 7)
-                },
-                {id: 'century_reader', target: 100, progress: Math.min(readingStats.totalVersesRead, 100)},
-                {
-                    id: 'month_master',
-                    target: 30,
-                    progress: Math.min(Math.max(streakInfo.currentStreak, streakInfo.longestStreak), 30)
-                },
-                {id: 'chapter_champion', target: 10, progress: Math.min(readingStats.totalChaptersRead, 10)},
-                {id: 'book_explorer', target: 5, progress: Math.min(readingStats.booksStarted, 5)},
-                {
-                    id: 'dedication',
-                    target: 100,
-                    progress: Math.min(Math.max(streakInfo.currentStreak, streakInfo.longestStreak), 100)
-                },
-                {id: 'bible_scholar', target: 1000, progress: Math.min(readingStats.totalVersesRead, 1000)},
-            ];
+            // Get current calculation context
+            const context = await this.getAchievementCalculationContext(userId);
+
+            // Get all achievements from database with their current progress using repository
+            const achievements = await achievementProgressRepository.getAchievementsWithProgress(userId);
 
             for (const achievement of achievements) {
-                const existingProgress = await achievementProgressRepository.findByUserIdAndAchievementId(userId, achievement.id);
-                const isUnlocked = achievement.progress >= achievement.target;
+                // Calculate new progress based on achievement rules from database
+                let newProgress = await this.calculateProgressForAchievement(achievement.id, context);
 
-                if (existingProgress) {
-                    // Update existing achievement progress
-                    if (existingProgress.progress !== achievement.progress || existingProgress.isUnlocked !== isUnlocked) {
+                // Cap progress at target value
+                newProgress = Math.min(newProgress, achievement.targetValue);
+
+                const wasUnlocked = achievement.unlocked;
+                const isNowUnlocked = newProgress >= achievement.targetValue;
+                const progressChanged = newProgress !== achievement.progress;
+
+                // Update progress if changed
+                if (progressChanged || (isNowUnlocked && !wasUnlocked)) {
+                    const existingProgress = await achievementProgressRepository.findByUserIdAndAchievementId(userId, achievement.id);
+
+                    if (existingProgress) {
                         await achievementProgressRepository.update({
                             id: existingProgress.id,
-                            achievementId: existingProgress.achievementId,
-                            userId: existingProgress.userId,
-                            progress: achievement.progress,
-                            isUnlocked,
-                            unlockedAt: isUnlocked && !existingProgress.isUnlocked ? new Date().toISOString() : existingProgress.unlockedAt
+                            achievementId: achievement.id,
+                            userId,
+                            progress: newProgress,
+                            isUnlocked: isNowUnlocked,
+                            unlockedAt: isNowUnlocked && !wasUnlocked ? new Date().toISOString() : existingProgress.unlockedAt
+                        });
+                    } else {
+                        await achievementProgressRepository.create({
+                            achievementId: achievement.id,
+                            userId,
+                            progress: newProgress,
+                            isUnlocked: isNowUnlocked,
+                            unlockedAt: isNowUnlocked ? new Date().toISOString() : undefined
                         });
                     }
-                } else {
-                    // Create new achievement progress
-                    await achievementProgressRepository.create({
-                        achievementId: achievement.id,
-                        userId,
-                        progress: achievement.progress,
-                        isUnlocked,
-                        unlockedAt: isUnlocked ? new Date().toISOString() : undefined
-                    });
+
+                    // Track newly unlocked achievements
+                    if (isNowUnlocked && !wasUnlocked) {
+                        unlockedAchievements.push({
+                            userId,
+                            achievementId: achievement.id,
+                            achievementName: achievement.name,
+                            unlockedAt: new Date().toISOString(),
+                            previousProgress: achievement.progress,
+                            newProgress,
+                            isFirstTime: true
+                        });
+                    }
                 }
             }
+
+            return unlockedAchievements;
+
         } catch (error: any) {
-            throw new DatabaseMessageError('Failed to update achievement progress', error);
+            throw new DatabaseMessageError('Failed to update achievement progress from database', error);
         }
     }
 
     /**
-     * Get achievement status from database
+     * Legacy method for backward compatibility - now calls the database version
+     */
+    async updateAchievementProgress(userId: number = 1): Promise<void> {
+        await this.updateAchievementProgressFromDatabase(userId);
+    }
+
+    /**
+     * Get achievement status from database using repository
      */
     async getAchievements(userId: number = 1): Promise<Achievement[]> {
         try {
-            const achievementDefinitions = [
-                {id: 'first_read', name: 'First Steps', description: 'Read your first verse', icon: '📖', target: 1},
-                {
-                    id: 'week_warrior',
-                    name: 'Week Warrior',
-                    description: 'Read for 7 consecutive days',
-                    icon: '🔥',
-                    target: 7
-                },
-                {id: 'century_reader', name: 'Century Reader', description: 'Read 100 verses', icon: '💯', target: 100},
-                {
-                    id: 'month_master',
-                    name: 'Month Master',
-                    description: 'Read for 30 consecutive days',
-                    icon: '🏆',
-                    target: 30
-                },
-                {
-                    id: 'chapter_champion',
-                    name: 'Chapter Champion',
-                    description: 'Complete 10 chapters',
-                    icon: '⭐',
-                    target: 10
-                },
-                {
-                    id: 'book_explorer',
-                    name: 'Book Explorer',
-                    description: 'Start reading 5 different books',
-                    icon: '🗺️',
-                    target: 5
-                },
-                {
-                    id: 'dedication',
-                    name: 'Dedication',
-                    description: 'Read for 100 consecutive days',
-                    icon: '🎯',
-                    target: 100
-                },
-                {id: 'bible_scholar', name: 'Bible Scholar', description: 'Read 1000 verses', icon: '🎓', target: 1000},
-            ];
-
-            const achievementProgress = await achievementProgressRepository.findByUserId(userId);
-            const progressMap = new Map(achievementProgress.map(ap => [ap.achievementId, ap]));
-
-            return achievementDefinitions.map(def => {
-                const progress = progressMap.get(def.id);
-                return {
-                    id: def.id,
-                    name: def.name,
-                    description: def.description,
-                    icon: def.icon,
-                    unlocked: progress?.isUnlocked || false,
-                    progress: progress?.progress || 0,
-                    target: def.target,
-                };
-            });
+            return await achievementProgressRepository.getAchievementsWithProgress(userId);
         } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get achievements', error);
+            throw new DatabaseMessageError('Failed to get achievements from database', error);
+        }
+    }
+
+    /**
+     * Get available achievements (prerequisites met) using repository
+     */
+    async getAvailableAchievements(userId: number = 1): Promise<Achievement[]> {
+        try {
+            return await achievementProgressRepository.getAvailableAchievements(userId);
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get available achievements', error);
+        }
+    }
+
+    /**
+     * Get achievements by category using repository
+     */
+    async getAchievementsByCategory(category: string, userId: number = 1): Promise<Achievement[]> {
+        try {
+            return await achievementProgressRepository.getAchievementsByCategory(category, userId);
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get achievements by category', error);
+        }
+    }
+
+    /**
+     * Get achievement statistics using repository
+     */
+    async getAchievementStats(userId: number = 1): Promise<{
+        total: number;
+        unlocked: number;
+        available: number;
+        locked: number;
+        completionPercentage: number;
+    }> {
+        try {
+            return await achievementProgressRepository.getAchievementStats(userId);
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get achievement statistics', error);
         }
     }
 
@@ -516,12 +537,162 @@ export class ProgressService {
     }
 
     /**
-     * Initialize default achievements for a user
+     * Get calculation context for achievement progress
+     */
+    private async getAchievementCalculationContext(userId: number): Promise<AchievementCalculationContext> {
+        const [streakInfo, readingStats, periodStats] = await Promise.all([
+            this.calculateDetailedStreak(userId),
+            this.calculateReadingStats(userId),
+            this.calculatePeriodStats()
+        ]);
+
+        return {
+            userId,
+            totalVersesRead: readingStats.totalVersesRead,
+            totalChaptersRead: readingStats.totalChaptersRead,
+            booksStarted: readingStats.booksStarted,
+            currentStreak: streakInfo.currentStreak,
+            bestStreak: streakInfo.longestStreak,
+            totalReadingDays: readingStats.totalReadingDays,
+            weeklyVersesRead: periodStats.thisWeek,
+            monthlyVersesRead: periodStats.thisMonth
+        };
+    }
+
+    /**
+     * Calculate progress for a specific achievement using database rules via repository
+     */
+    private async calculateProgressForAchievement(achievementId: string, context: AchievementCalculationContext): Promise<number> {
+        try {
+            // Get rules from database for this achievement using repository
+            const rules = await achievementProgressRepository.getAchievementRules(achievementId);
+
+            let maxProgress = 0;
+
+            for (const rule of rules) {
+                let progress = 0;
+
+                switch (rule.rule_type) {
+                    case 'total_verses':
+                        progress = context.totalVersesRead;
+                        break;
+                    case 'consecutive_days':
+                        progress = Math.max(context.currentStreak, context.bestStreak);
+                        break;
+                    case 'chapters_read':
+                        progress = context.totalChaptersRead;
+                        break;
+                    case 'books_started':
+                        progress = context.booksStarted;
+                        break;
+                    case 'custom':
+                        if (rule.calculation_query) {
+                            // Execute custom SQL query for complex calculations using repository
+                            try {
+                                const customResult = await achievementProgressRepository.executeQuery(rule.calculation_query, []);
+                                progress = customResult[0] ? Object.values(customResult[0])[0] as number : 0;
+                            } catch (error) {
+                                console.warn(`Failed to execute custom calculation for achievement ${achievementId}:`, error);
+                                progress = 0;
+                            }
+                        }
+                        break;
+                    default:
+                        progress = 0;
+                }
+
+                maxProgress = Math.max(maxProgress, progress);
+            }
+
+            // If no rules found, fall back to legacy calculation
+            if (rules.length === 0) {
+                maxProgress = this.calculateLegacyProgress(achievementId, context);
+            }
+
+            return maxProgress;
+
+        } catch (error: any) {
+            console.warn(`Failed to calculate progress for achievement ${achievementId}, using legacy method:`, error);
+            return this.calculateLegacyProgress(achievementId, context);
+        }
+    }
+
+    /**
+     * Legacy progress calculation for backward compatibility
+     */
+    private calculateLegacyProgress(achievementId: string, context: AchievementCalculationContext): number {
+        switch (achievementId) {
+            case 'first_read':
+                return Math.min(context.totalVersesRead, 1);
+            case 'week_warrior':
+                return Math.min(Math.max(context.currentStreak, context.bestStreak), 7);
+            case 'century_reader':
+                return Math.min(context.totalVersesRead, 100);
+            case 'month_master':
+                return Math.min(Math.max(context.currentStreak, context.bestStreak), 30);
+            case 'chapter_champion':
+                return Math.min(context.totalChaptersRead, 10);
+            case 'book_explorer':
+                return Math.min(context.booksStarted, 5);
+            case 'dedication':
+                return Math.min(Math.max(context.currentStreak, context.bestStreak), 100);
+            case 'bible_scholar':
+                return Math.min(context.totalVersesRead, 1000);
+            case 'daily_habit':
+                return Math.min(Math.max(context.currentStreak, context.bestStreak), 3);
+            case 'verse_collector':
+                return Math.min(context.totalVersesRead, 50);
+            case 'chapter_starter':
+                return Math.min(context.totalChaptersRead, 1);
+            case 'book_beginner':
+                return Math.min(context.booksStarted, 1);
+            case 'consistent_reader':
+                return Math.min(Math.max(context.currentStreak, context.bestStreak), 14);
+            case 'verse_master':
+                return Math.min(context.totalVersesRead, 500);
+            case 'testament_explorer':
+                return Math.min(context.booksStarted, 10);
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * Initialize achievement progress for a specific user using database achievements via repository
+     */
+    private async initializeAchievementProgressForUser(userId: number): Promise<void> {
+        try {
+            // Get all active achievement IDs from database using repository
+            const achievementIds = await achievementProgressRepository.getActiveAchievementIds();
+
+            for (const achievementId of achievementIds) {
+                const existingProgress = await achievementProgressRepository.findByUserIdAndAchievementId(userId, achievementId);
+
+                if (!existingProgress) {
+                    await achievementProgressRepository.create({
+                        achievementId,
+                        userId,
+                        progress: 0,
+                        isUnlocked: false
+                    });
+                }
+            }
+        } catch (error: any) {
+            console.warn('Failed to initialize achievements from database, using legacy method:', error);
+            // Fallback to legacy initialization
+            await this.initializeAchievements(userId);
+        }
+    }
+
+    /**
+     * Legacy achievement initialization for backward compatibility
      */
     private async initializeAchievements(userId: number): Promise<void> {
         const defaultAchievements = [
             'first_read', 'week_warrior', 'century_reader', 'month_master',
-            'chapter_champion', 'book_explorer', 'dedication', 'bible_scholar'
+            'chapter_champion', 'book_explorer', 'dedication', 'bible_scholar',
+            'daily_habit', 'verse_collector', 'chapter_starter', 'book_beginner',
+            'consistent_reader', 'verse_master', 'testament_explorer'
         ];
 
         for (const achievementId of defaultAchievements) {
@@ -544,7 +715,6 @@ export class ProgressService {
         const verseProgress = await bibleVerseProgressRepository.findAll();
         const tasks = await tasksRepository.findAll();
         const sessions = await readingSessionRepository.findAll();
-        console.log("sessions are:", sessions);
 
         const readingDates = new Set<string>();
 
@@ -552,15 +722,6 @@ export class ProgressService {
         verseProgress
             .filter(p => p.isRead)
             .forEach(p => readingDates.add(p.dateRead));
-
-        // // Add dates from completed reading tasks
-        // tasks
-        //     .filter(t => t.is_done && (
-        //         t.task_name.includes('Daily Text') ||
-        //         t.task_name.includes('Bible Reading') ||
-        //         t.task_name.includes('Reading')
-        //     ))
-        //     .forEach(t => readingDates.add(t.date));
 
         // Add dates from reading sessions
         sessions.forEach(s => readingDates.add(s.date));

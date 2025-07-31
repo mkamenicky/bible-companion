@@ -19,7 +19,9 @@ export { ReadingPlanConfigRepository, readingPlanConfigRepository } from '@/repo
 export { DailyReadingAssignmentsRepository, dailyReadingAssignmentsRepository } from '@/repository/(repositories)/daily-reading-assignments.repository';
 
 // Progress repositories
+export { AchievementRepository, achievementRepository } from '@/repository/(repositories)/achievement.repository';
 export { AchievementProgressRepository, achievementProgressRepository } from '@/repository/(repositories)/achievement-progress.repository';
+export { AchievementRuleRepository, achievementRuleRepository } from '@/repository/(repositories)/achievement-rule.repository';
 export { ReadingGoalsRepository, readingGoalsRepository } from '@/repository/(repositories)/reading-goals.repository';
 export { ReadingPreferencesRepository, readingPreferencesRepository } from '@/repository/(repositories)/reading-preferences.repository';
 export { ReadingSessionRepository, readingSessionRepository } from '@/repository/(repositories)/reading-session.repository';

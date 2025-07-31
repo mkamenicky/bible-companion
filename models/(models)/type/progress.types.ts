@@ -1,3 +1,5 @@
+import {Achievement} from "@/models/(models)/entity/achievement.model";
+
 export interface ProgressStats {
     // Streak data
     currentStreak: number;
@@ -19,7 +21,6 @@ export interface ProgressStats {
     completedTasks: number;
     totalTasks: number;
 }
-
 
 /**
  * Core interfaces for progress tracking
@@ -49,16 +50,6 @@ export interface PeriodStats {
 export interface BibleProgress {
     percentage: number;
     versesRemaining: number;
-}
-
-export interface Achievement {
-    id: string;
-    name: string;
-    description: string;
-    icon: string;
-    unlocked: boolean;
-    progress?: number;
-    target?: number;
 }
 
 /**
@@ -92,4 +83,91 @@ export interface ProgressCalculationOptions {
     graceMinutes?: number; // Allow readings within X minutes of day boundary
     timezoneOffset?: number;
     minimumVersesForStreak?: number;
+}
+
+/**
+ * Enhanced progress hook return type
+ */
+export interface UseProgressDataReturn {
+    // Core data
+    stats: ProgressStats | null;
+    achievements: Achievement[];
+    achievementStats: AchievementStats | null;
+    loading: boolean;
+
+    // Achievement unlock events
+    recentUnlocks: AchievementUnlockEvent[];
+    clearRecentUnlocks: () => void;
+    dismissUnlock: (achievementId: string) => void;
+
+    // Actions
+    onRefresh: () => Promise<void>;
+    markReadingProgress: (
+        versesRead: number,
+        chaptersRead?: number,
+        booksRead?: string[],
+        readingPlan?: string,
+        notes?: string
+    ) => Promise<AchievementUnlockEvent[]>;
+
+    // Achievement queries
+    getAchievementsByCategory: (category: string) => Promise<Achievement[]>;
+    getAvailableAchievements: () => Promise<Achievement[]>;
+
+    // Computed values
+    hasRecentUnlocks: boolean;
+    unlockedAchievements: Achievement[];
+    inProgressAchievements: Achievement[];
+    availableAchievements: Achievement[];
+}
+
+/**
+ * Achievement Statistics
+ */
+export interface AchievementStats {
+    total: number;
+    unlocked: number;
+    available: number;
+    locked: number;
+    completionPercentage: number;
+}
+
+/**
+ * Achievement Category for UI organization
+ */
+export interface AchievementCategory {
+    id: string;
+    name: string;
+    description: string;
+    icon: string;
+    color: string;
+    achievements: Achievement[];
+}
+
+/**
+ * Achievement unlock event interface
+ */
+export interface AchievementUnlockEvent {
+    userId: number;
+    achievementId: string;
+    achievementName: string;
+    unlockedAt: string;
+    previousProgress: number;
+    newProgress: number;
+    isFirstTime: boolean;
+}
+
+/**
+ * Achievement calculation context
+ */
+export interface AchievementCalculationContext {
+    userId: number;
+    totalVersesRead: number;
+    totalChaptersRead: number;
+    booksStarted: number;
+    currentStreak: number;
+    bestStreak: number;
+    totalReadingDays: number;
+    weeklyVersesRead: number;
+    monthlyVersesRead: number;
 }

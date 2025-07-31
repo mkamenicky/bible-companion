@@ -66,8 +66,25 @@ export type {
 export type {
     CreateAchievementProgressDto,
     UpdateAchievementProgressDto,
-    AchievementProgress
-} from '@/models/(models)/entity/achievement-progress';
+    AchievementProgressModel,
+} from '@/models/(models)/entity/achievement-progress.model';
+
+export type {
+    AchievementRule,
+    CreateAchievementRuleDto,
+    UpdateAchievementRuleDto,
+} from '@/models/(models)/entity/achievement-rule.model';
+
+export type {
+    Achievement,
+    CreateAchievementDto,
+    UpdateAchievementDto,
+} from '@/models/(models)/entity/achievement.model';
+
+export type {
+    CreateAchievementPrerequisiteDto,
+    AchievementPrerequisite,
+} from '@/models/(models)/entity/achievement-prerequisite.model';
 
 // Reading session tracking for more granular analytics
 export type {
@@ -123,11 +140,16 @@ export type {
     PeriodStats,
     BibleProgress,
     ProgressStats,
-    Achievement,
     ReadingActivity,
     DetailedReadingStats,
-    ProgressCalculationOptions
+    ProgressCalculationOptions,
+    AchievementStats,
+    AchievementUnlockEvent,
+    UseProgressDataReturn,
+    AchievementCalculationContext,
+    AchievementCategory
 } from '@/models/(models)/type/progress.types';
+
 export type {CustomColors} from '@/models/(models)/type/theme.types';
 export type {
     DatabaseConfig,

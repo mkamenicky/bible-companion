@@ -50,6 +50,30 @@ export abstract class BaseRepository<T, CreateDto, UpdateDto> {
     protected abstract getUpdateSql(dto: UpdateDto): { sql: string; params: any[] };
 
     /**
+     * Execute custom SQL query - exposed for complex queries in derived repositories
+     */
+    protected async executeQuery(sql: string, params: any[] = []): Promise<any[]> {
+        const db = getDatabase();
+        try {
+            return await db.getAllAsync(sql, params);
+        } catch (error: any) {
+            throw new DatabaseMessageError(`Failed to execute query: ${sql}`, error as Error);
+        }
+    }
+
+    /**
+     * Execute custom SQL query that returns a single row
+     */
+    protected async executeQueryFirst(sql: string, params: any[] = []): Promise<any | null> {
+        const db = getDatabase();
+        try {
+            return await db.getFirstAsync(sql, params);
+        } catch (error: any) {
+            throw new DatabaseMessageError(`Failed to execute query: ${sql}`, error as Error);
+        }
+    }
+
+    /**
      * Creates a new entity
      */
     async create(dto: CreateDto): Promise<T> {
