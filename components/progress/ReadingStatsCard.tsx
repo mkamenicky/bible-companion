@@ -1,6 +1,7 @@
 // ReadingStatsCard.tsx
 import React from 'react';
 import { View, Text } from 'react-native';
+import { useTranslation } from '@/hooks';
 import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
 interface Props {
@@ -18,11 +19,13 @@ export default function ReadingStatsCard({
                                              styles,
                                              customColors
                                          }: Props) {
+    const t = useTranslation();
+
     return (
         <View style={styles.card}>
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Reading Progress</Text>
-                <Text style={styles.sectionSubtitle}>Your Bible journey statistics</Text>
+                <Text style={styles.sectionTitle}>{t('progress.readingProgress')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('progress.readingProgressSubtitle')}</Text>
             </View>
 
             {/* Main Progress */}
@@ -38,7 +41,7 @@ export default function ReadingStatsCard({
                         fontWeight: '500',
                         color: customColors.text,
                     }}>
-                        Total Verses Read
+                        {t('progress.totalVersesRead')}
                     </Text>
                     <Text style={{
                         fontSize: 18,
@@ -60,7 +63,7 @@ export default function ReadingStatsCard({
                         fontWeight: '500',
                         color: customColors.text,
                     }}>
-                        Chapters Completed
+                        {t('progress.chaptersCompleted')}
                     </Text>
                     <Text style={{
                         fontSize: 18,
@@ -81,7 +84,7 @@ export default function ReadingStatsCard({
                         fontWeight: '500',
                         color: customColors.text,
                     }}>
-                        Bible Progress
+                        {t('progress.bibleProgress')}
                     </Text>
                     <Text style={{
                         fontSize: 18,

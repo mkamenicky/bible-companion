@@ -1,6 +1,7 @@
+// WeeklyChecklistCard.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {Text, TouchableOpacity, View} from 'react-native';
+import {useTranslation} from '@/hooks';
 
 interface Props {
     items: string[];
@@ -8,10 +9,9 @@ interface Props {
     taskStatus: Record<string, boolean>;
     onConfirm: (task: string, status: boolean) => void;
     styles: any;
-    customColors?: any; // Add this for color access
+    customColors?: any;
 }
 
-// Icon mapping for different task types
 const getTaskIcon = (task: string) => {
     if (task.includes('Midweek')) return '⛪';
     if (task.includes('Weekend')) return '📚';
@@ -20,28 +20,27 @@ const getTaskIcon = (task: string) => {
     return '📋';
 };
 
-const getTaskSubtitle = (task: string) => {
-    if (task.includes('Midweek')) return 'Study materials';
-    if (task.includes('Weekend')) return 'Watchtower study';
-    if (task.includes('Family')) return 'Weekly family study';
-    if (task.includes('Bible Reading')) return 'Weekly reading';
-    return 'Complete this task';
-};
-
-export default function WeeklyChecklistCard({ items, title, taskStatus, onConfirm, styles, customColors }: Props) {
+export default function WeeklyChecklistCard({items, title, taskStatus, onConfirm, styles, customColors}: Props) {
+    const t = useTranslation();
     const completedCount = items.filter(task => taskStatus[task]).length;
     const allDone = items.every(task => taskStatus[task]);
     const progressPercentage = (completedCount / items.length) * 100;
 
+    const getTaskSubtitle = (task: string) => {
+        if (task.includes('Midweek')) return t('weeklyChecklist.midweekSubtitle');
+        if (task.includes('Weekend')) return t('weeklyChecklist.weekendSubtitle');
+        if (task.includes('Family')) return t('weeklyChecklist.familySubtitle');
+        if (task.includes('Bible Reading')) return t('weeklyChecklist.readingSubtitle');
+        return t('weeklyChecklist.defaultSubtitle');
+    };
+
     return (
         <View style={styles.card}>
-            {/* Section header */}
             <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>{title}</Text>
-                <Text style={styles.sectionSubtitle}>Weekly activities</Text>
+                <Text style={styles.sectionSubtitle}>{t('weeklyChecklist.subtitle')}</Text>
             </View>
 
-            {/* Task list */}
             <View>
                 {items.map((task, index) => {
                     const isCompleted = taskStatus[task];
@@ -53,19 +52,18 @@ export default function WeeklyChecklistCard({ items, title, taskStatus, onConfir
                             style={[
                                 styles.listItem,
                                 isLast && styles.listItemLast,
-                                isCompleted && { opacity: 0.6 }
+                                isCompleted && {opacity: 0.6}
                             ]}
                             onPress={() => onConfirm(task, !isCompleted)}
                         >
                             <View style={[
                                 styles.itemIcon,
-                                // Color-code different task types
-                                task.includes('Midweek') && { backgroundColor: '#f3e5f5' },
-                                task.includes('Weekend') && { backgroundColor: '#e8f5e8' },
-                                task.includes('Family') && { backgroundColor: '#fff3e0' },
-                                task.includes('Bible Reading') && { backgroundColor: '#e3f2fd' },
+                                task.includes('Midweek') && {backgroundColor: '#f3e5f5'},
+                                task.includes('Weekend') && {backgroundColor: '#e8f5e8'},
+                                task.includes('Family') && {backgroundColor: '#fff3e0'},
+                                task.includes('Bible Reading') && {backgroundColor: '#e3f2fd'},
                             ]}>
-                                <Text style={{ fontSize: 18 }}>{getTaskIcon(task)}</Text>
+                                <Text style={{fontSize: 18}}>{getTaskIcon(task)}</Text>
                             </View>
 
                             <View style={styles.itemContent}>
@@ -96,21 +94,19 @@ export default function WeeklyChecklistCard({ items, title, taskStatus, onConfir
                 })}
             </View>
 
-            {/* Progress section */}
             <View style={styles.progressContainer}>
                 <View style={styles.progressHeader}>
-                    <Text style={styles.progressLabel}>Weekly Progress</Text>
+                    <Text style={styles.progressLabel}>{t('weeklyChecklist.weeklyProgress')}</Text>
                     <Text style={styles.progressValue}>{completedCount}/{items.length}</Text>
                 </View>
                 <View style={styles.progressBar}>
                     <View style={[
                         styles.progressFill,
-                        { width: `${progressPercentage}%` }
-                    ]} />
+                        {width: `${progressPercentage}%`}
+                    ]}/>
                 </View>
             </View>
 
-            {/* Completion message */}
             {allDone && (
                 <View style={{
                     padding: 16,
@@ -124,7 +120,7 @@ export default function WeeklyChecklistCard({ items, title, taskStatus, onConfir
                         color: customColors?.completedGreen || '#34d399',
                         textAlign: 'center'
                     }}>
-                        🎉 All tasks completed! Great work this week!
+                        {t('weeklyChecklist.allCompleted')}
                     </Text>
                 </View>
             )}

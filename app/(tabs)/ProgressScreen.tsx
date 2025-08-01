@@ -1,11 +1,7 @@
-// React imports
+// ProgressScreen.tsx
 import React from 'react';
 import {useColorScheme, View} from 'react-native';
-
-// Third-party library imports
 import {Appbar} from 'react-native-paper';
-
-// Local component imports
 import {
     AchievementsCard,
     LoadingScreen,
@@ -14,12 +10,11 @@ import {
     ScreenContainer,
     StreakCard
 } from '@/components';
-
-// Service and utility imports
-import {useProgressData} from '@/hooks';
+import {useProgressData, useTranslation} from '@/hooks';
 import {ThemeService} from '@/services';
 
 export default function ProgressScreen() {
+    const t = useTranslation();
     const {stats, loading, onRefresh} = useProgressData();
 
     const colorScheme = useColorScheme();
@@ -29,7 +24,7 @@ export default function ProgressScreen() {
     if (loading || !stats) {
         return (
             <LoadingScreen
-                message="Loading progress..."
+                message={t('progress.loadingMessage')}
                 styles={styles}
                 customColors={customColors}
             />
@@ -40,7 +35,7 @@ export default function ProgressScreen() {
         <View style={styles.container}>
             <Appbar.Header style={styles.appbar}>
                 <Appbar.Content
-                    title="Progress"
+                    title={t('progress.title')}
                     titleStyle={{color: customColors.color, fontWeight: '600'}}
                 />
             </Appbar.Header>

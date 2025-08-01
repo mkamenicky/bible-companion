@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useTranslation } from '@/hooks';
 
 interface Props {
     currentMonth: number;
@@ -16,9 +17,22 @@ export default function MonthNavigator({
                                            styles,
                                            customColors
                                        }: Props) {
+    const t = useTranslation();
+
+    // Get localized month names
     const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
+        t('dateFormat.months.january'),
+        t('dateFormat.months.february'),
+        t('dateFormat.months.march'),
+        t('dateFormat.months.april'),
+        t('dateFormat.months.may'),
+        t('dateFormat.months.june'),
+        t('dateFormat.months.july'),
+        t('dateFormat.months.august'),
+        t('dateFormat.months.september'),
+        t('dateFormat.months.october'),
+        t('dateFormat.months.november'),
+        t('dateFormat.months.december')
     ];
 
     const goToPreviousMonth = () => {
@@ -47,34 +61,45 @@ export default function MonthNavigator({
                 <TouchableOpacity
                     onPress={goToPreviousMonth}
                     style={{
-                        padding: 8,
-                        borderRadius: 8,
+                        paddingHorizontal: 16,    // Increased from 8
+                        paddingVertical: 12,      // Increased from 8
+                        minWidth: 50,             // Added minimum width
+                        borderRadius: 12,         // Increased border radius
                         backgroundColor: customColors.lightGray,
+                        alignItems: 'center',     // Center the arrow
+                        justifyContent: 'center',
+                        elevation: 1,             // Added subtle elevation
+                        shadowColor: customColors.color,
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 1,
                     }}
                 >
                     <Text style={{
-                        fontSize: 18,
+                        fontSize: 20,             // Increased from 18
+                        fontWeight: '600',        // Added font weight
                         color: customColors.color,
                     }}>
                         ‹
                     </Text>
                 </TouchableOpacity>
 
-                <View style={{ alignItems: 'center' }}>
+                <View style={{ alignItems: 'center', flex: 1 }}>
                     <Text style={{
-                        fontSize: 18,
-                        fontWeight: '600',
+                        fontSize: 20,             // Increased from 18
+                        fontWeight: '700',        // Increased font weight
                         color: customColors.color,
+                        textAlign: 'center',
                     }}>
                         {monthNames[currentMonth]}
                     </Text>
                     {isCurrentMonth && (
                         <View style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: 3,
+                            width: 8,             // Increased from 6
+                            height: 8,            // Increased from 6
+                            borderRadius: 4,      // Adjusted for new size
                             backgroundColor: customColors.accent,
-                            marginTop: 4,
+                            marginTop: 6,         // Increased from 4
                         }} />
                     )}
                 </View>
@@ -82,13 +107,23 @@ export default function MonthNavigator({
                 <TouchableOpacity
                     onPress={goToNextMonth}
                     style={{
-                        padding: 8,
-                        borderRadius: 8,
+                        paddingHorizontal: 16,    // Increased from 8
+                        paddingVertical: 12,      // Increased from 8
+                        minWidth: 50,             // Added minimum width
+                        borderRadius: 12,         // Increased border radius
                         backgroundColor: customColors.lightGray,
+                        alignItems: 'center',     // Center the arrow
+                        justifyContent: 'center',
+                        elevation: 1,             // Added subtle elevation
+                        shadowColor: customColors.color,
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 1,
                     }}
                 >
                     <Text style={{
-                        fontSize: 18,
+                        fontSize: 20,             // Increased from 18
+                        fontWeight: '600',        // Added font weight
                         color: customColors.color,
                     }}>
                         ›

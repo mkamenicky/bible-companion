@@ -11,6 +11,7 @@ import {
 } from 'react-native-paper';
 import { View } from "react-native";
 import { Text } from './TextProps';
+import { useTranslation } from '@/hooks';
 
 interface NotificationSettingsCardProps {
     settings: any;
@@ -45,6 +46,7 @@ export default function NotificationSettingsCard({
                                                      styles,
                                                      customColors,
                                                  }: NotificationSettingsCardProps) {
+    const t = useTranslation();
 
     useEffect(() => {
         if (scheduledNotifications.length > 0) {
@@ -57,6 +59,7 @@ export default function NotificationSettingsCard({
             console.log('❌ No notifications scheduled');
         }
     }, [scheduledNotifications]);
+
     // Calculate notification counts by type
     const notificationCounts = React.useMemo(() => {
         const counts = {
@@ -99,9 +102,9 @@ export default function NotificationSettingsCard({
     return (
         <View style={styles.settingsSection}>
             <Card.Title
-                title="Notifications"
+                title={t('settings.notifications.title')}
                 titleStyle={styles.settingsSectionTitle}
-                subtitle={`${notificationCounts.total} active reminders`}
+                subtitle={t('settings.notifications.activeReminders', { count: notificationCounts.total })}
                 subtitleStyle={{ color: customColors.subtleGray, paddingHorizontal: 16 }}
                 left={(props) => (
                     <Surface {...props} style={[styles.settingsItemIcon, { marginLeft: 16 }]} elevation={1}>
@@ -128,9 +131,9 @@ export default function NotificationSettingsCard({
                     <List.Icon icon="toggle-switch-outline" />
                 </View>
                 <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>Enable Notifications</Text>
+                    <Text style={styles.settingsItemTitle}>{t('settings.notifications.enable')}</Text>
                     <Text style={styles.settingsItemDescription}>
-                        Allow the app to send you reminders and updates
+                        {t('settings.notifications.enableDescription')}
                     </Text>
                 </View>
                 <Switch
@@ -151,10 +154,10 @@ export default function NotificationSettingsCard({
                     />
                 </View>
                 <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>Daily Reading Reminder</Text>
+                    <Text style={styles.settingsItemTitle}>{t('settings.dailyReminder')}</Text>
                     <Text style={styles.settingsItemDescription}>
-                        Get reminded to read your daily verses
-                        {notificationCounts.daily > 0 && ` • ${notificationCounts.daily} scheduled`}
+                        {t('settings.notifications.dailyDescription')}
+                        {notificationCounts.daily > 0 && ` • ${t('settings.notifications.scheduled', { count: notificationCounts.daily })}`}
                     </Text>
                 </View>
                 <Switch
@@ -176,10 +179,10 @@ export default function NotificationSettingsCard({
                     />
                 </View>
                 <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>Reading Streak Reminders</Text>
+                    <Text style={styles.settingsItemTitle}>{t('settings.streakReminder')}</Text>
                     <Text style={styles.settingsItemDescription}>
-                        Get motivated to maintain your reading streak
-                        {notificationCounts.streak > 0 && ` • ${notificationCounts.streak} scheduled`}
+                        {t('settings.notifications.streakDescription')}
+                        {notificationCounts.streak > 0 && ` • ${t('settings.notifications.scheduled', { count: notificationCounts.streak })}`}
                     </Text>
                 </View>
                 <Switch
@@ -201,10 +204,10 @@ export default function NotificationSettingsCard({
                     />
                 </View>
                 <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>Goal Progress Reminders</Text>
+                    <Text style={styles.settingsItemTitle}>{t('settings.goalReminder')}</Text>
                     <Text style={styles.settingsItemDescription}>
-                        Get notified about your daily reading progress
-                        {notificationCounts.goal > 0 && ` • ${notificationCounts.goal} scheduled`}
+                        {t('settings.notifications.goalDescription')}
+                        {notificationCounts.goal > 0 && ` • ${t('settings.notifications.scheduled', { count: notificationCounts.goal })}`}
                     </Text>
                 </View>
                 <Switch
@@ -226,10 +229,10 @@ export default function NotificationSettingsCard({
                     />
                 </View>
                 <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>Achievement Notifications</Text>
+                    <Text style={styles.settingsItemTitle}>{t('settings.achievementNotifications')}</Text>
                     <Text style={styles.settingsItemDescription}>
-                        Celebrate milestones and accomplishments
-                        {notificationCounts.achievement > 0 && ` • ${notificationCounts.achievement} scheduled`}
+                        {t('settings.notifications.achievementDescription')}
+                        {notificationCounts.achievement > 0 && ` • ${t('settings.notifications.scheduled', { count: notificationCounts.achievement })}`}
                     </Text>
                 </View>
                 <Switch
@@ -259,11 +262,11 @@ export default function NotificationSettingsCard({
                     />
                 </View>
                 <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>Daily Reminder Time</Text>
+                    <Text style={styles.settingsItemTitle}>{t('settings.notifications.reminderTime')}</Text>
                     <Text style={styles.settingsItemDescription}>
                         {settings.notifications && settings.dailyReminder
-                            ? `Daily reminder scheduled for ${settings.reminderTime}`
-                            : 'Enable daily reminders to set a time'
+                            ? t('settings.notifications.reminderTimeSet', { time: settings.reminderTime })
+                            : t('settings.notifications.reminderTimeDisabled')
                         }
                     </Text>
                 </View>
@@ -276,7 +279,7 @@ export default function NotificationSettingsCard({
                     textColor={customColors.accent}
                     style={{ marginLeft: 8 }}
                 >
-                    Change
+                    {t('settings.change')}
                 </Button>
             </View>
 
@@ -293,10 +296,10 @@ export default function NotificationSettingsCard({
                         </View>
                         <View style={styles.settingsItemContent}>
                             <Text style={[styles.settingsItemTitle, { color: customColors.subtleGray }]}>
-                                Cancel All Scheduled Notifications
+                                {t('settings.notifications.cancelAll')}
                             </Text>
                             <Text style={styles.settingsItemDescription}>
-                                Remove all {notificationCounts.total} scheduled notifications
+                                {t('settings.notifications.cancelAllDescription', { count: notificationCounts.total })}
                             </Text>
                         </View>
                         <Button
@@ -307,7 +310,7 @@ export default function NotificationSettingsCard({
                             textColor={customColors.error || '#ef4444'}
                             style={{ marginLeft: 8 }}
                         >
-                            Cancel All
+                            {t('settings.notifications.cancelAllButton')}
                         </Button>
                     </View>
                 </>

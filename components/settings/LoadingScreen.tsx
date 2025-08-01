@@ -1,6 +1,7 @@
 // LoadingScreen.tsx
 import React from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useTranslation } from '@/hooks';
 
 interface LoadingScreenProps {
     message: string;
@@ -17,14 +18,16 @@ export default function LoadingScreen({
                                           styles,
                                           customColors,
                                       }: LoadingScreenProps) {
+    const t = useTranslation();
+
     if (isError) {
         return (
             <View style={styles.container}>
                 <View style={styles.card}>
                     {/* Section header */}
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Something went wrong</Text>
-                        <Text style={styles.sectionSubtitle}>Unable to load settings</Text>
+                        <Text style={styles.sectionTitle}>{t('settings.errorTitle')}</Text>
+                        <Text style={styles.sectionSubtitle}>{t('settings.failedToLoad')}</Text>
                     </View>
 
                     {/* Error message */}
@@ -37,7 +40,7 @@ export default function LoadingScreen({
                         </View>
 
                         <View style={styles.itemContent}>
-                            <Text style={styles.itemTitle}>Error</Text>
+                            <Text style={styles.itemTitle}>{t('common.error')}</Text>
                             <Text style={styles.itemSubtitle}>
                                 {message}
                             </Text>
@@ -60,7 +63,7 @@ export default function LoadingScreen({
                                 onPress={onRetry}
                             >
                                 <Text style={[styles.retryButtonText, { color: 'white' }]}>
-                                    Try Again
+                                    {t('common.retry')}
                                 </Text>
                             </TouchableOpacity>
                         </View>
@@ -75,8 +78,8 @@ export default function LoadingScreen({
             <View style={styles.card}>
                 {/* Section header */}
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Loading</Text>
-                    <Text style={styles.sectionSubtitle}>Please wait while we load your settings</Text>
+                    <Text style={styles.sectionTitle}>{t('common.loading')}</Text>
+                    <Text style={styles.sectionSubtitle}>{t('settings.loadingSubtitle')}</Text>
                 </View>
 
                 {/* Loading indicator */}
@@ -89,7 +92,7 @@ export default function LoadingScreen({
                     </View>
 
                     <View style={styles.itemContent}>
-                        <Text style={styles.itemTitle}>Loading Settings</Text>
+                        <Text style={styles.itemTitle}>{t('settings.loadingSettingsTitle')}</Text>
                         <Text style={styles.itemSubtitle}>
                             {message}
                         </Text>

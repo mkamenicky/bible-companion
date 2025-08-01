@@ -1,6 +1,6 @@
 import {Asset} from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
-import {openDatabaseAsync, openDatabaseSync, SQLiteDatabase} from 'expo-sqlite';
+import {openDatabaseAsync, SQLiteDatabase} from 'expo-sqlite';
 import {DatabaseError} from '@/errors';
 import {DatabaseService} from '@/services/(services)/database/DatabaseService';
 import type {DatabaseConfig} from '@/models';
@@ -32,6 +32,7 @@ export class IOSDatabaseService extends DatabaseService {
             await this.setupDatabase();
             await this.openDatabase();
             await this.verifyDatabase();
+            await this.runMigrations();
 
             this.initialized = true;
             this.log('info', `Database initialized successfully at: ${this.dbPath}`);

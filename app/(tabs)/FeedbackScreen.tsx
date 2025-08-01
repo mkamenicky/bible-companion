@@ -1,18 +1,13 @@
-// React imports
+// FeedbackScreen.tsx
 import React from 'react';
 import {useColorScheme, View} from 'react-native';
-
-// Third-party library imports
 import {Appbar, Button, Card, TextInput} from 'react-native-paper';
-
-// Local component imports
 import ScreenContainer from '@/components/ScreenContainer';
-
-// Service and utility imports
-import {useFeedbackData} from '@/hooks';
+import {useFeedbackData, useTranslation} from '@/hooks';
 import {ThemeService} from '@/services';
 
 export default function FeedbackScreen() {
+    const t = useTranslation();
     const {
         formData,
         isSubmitting,
@@ -35,14 +30,14 @@ export default function FeedbackScreen() {
     return (
         <View style={styles.container}>
             <Appbar.Header style={styles.appbar}>
-                <Appbar.Content title="Feedback"/>
+                <Appbar.Content title={t('feedback.title')}/>
             </Appbar.Header>
 
             <ScreenContainer>
                 <Card style={styles.card}>
                     <Card.Content>
                         <TextInput
-                            label="Subject"
+                            label={t('feedback.subjectLabel')}
                             value={formData.subject}
                             onChangeText={(text) => updateField('subject', text)}
                             mode="outlined"
@@ -52,7 +47,7 @@ export default function FeedbackScreen() {
                         />
 
                         <TextInput
-                            label="Email (optional)"
+                            label={t('feedback.emailLabel')}
                             value={formData.email}
                             onChangeText={(text) => updateField('email', text)}
                             mode="outlined"
@@ -63,7 +58,7 @@ export default function FeedbackScreen() {
                         />
 
                         <TextInput
-                            label="Message"
+                            label={t('feedback.messageLabel')}
                             value={formData.message}
                             onChangeText={(text) => updateField('message', text)}
                             mode="outlined"
@@ -83,7 +78,7 @@ export default function FeedbackScreen() {
                                 style={{flex: 1, backgroundColor: customColors.accent}}
                                 labelStyle={{color: '#fff'}}
                             >
-                                Submit Feedback
+                                {t('feedback.submitButton')}
                             </Button>
 
                             <Button
@@ -93,7 +88,7 @@ export default function FeedbackScreen() {
                                 style={{flex: 1, borderColor: customColors.accent}}
                                 labelStyle={{color: customColors.accent}}
                             >
-                                Clear
+                                {t('feedback.clearButton')}
                             </Button>
                         </View>
                     </Card.Content>

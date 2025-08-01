@@ -1,6 +1,7 @@
 // PeriodStatsCard.tsx
 import React from 'react';
 import { View, Text } from 'react-native';
+import { useTranslation } from '@/hooks';
 import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
 interface Props {
@@ -16,11 +17,13 @@ export default function PeriodStatsCard({
                                             styles,
                                             customColors
                                         }: Props) {
+    const t = useTranslation();
+
     return (
         <View style={styles.card}>
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Reading Activity</Text>
-                <Text style={styles.sectionSubtitle}>Weekly and monthly progress</Text>
+                <Text style={styles.sectionTitle}>{t('progress.readingActivity')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('progress.readingActivitySubtitle')}</Text>
             </View>
 
             {/* Period Stats Grid */}
@@ -44,7 +47,7 @@ export default function PeriodStatsCard({
                             marginBottom: 8,
                             textAlign: 'center',
                         }}>
-                            This Week
+                            {t('progress.thisWeek')}
                         </Text>
 
                         <Text style={{
@@ -61,7 +64,7 @@ export default function PeriodStatsCard({
                             color: customColors.subtleGray,
                             textAlign: 'center',
                         }}>
-                            verses read
+                            {t('progress.versesRead')}
                         </Text>
 
                         {/* Weekly Progress Bar */}
@@ -96,7 +99,7 @@ export default function PeriodStatsCard({
                             marginBottom: 8,
                             textAlign: 'center',
                         }}>
-                            This Month
+                            {t('progress.thisMonth')}
                         </Text>
 
                         <Text style={{
@@ -113,7 +116,7 @@ export default function PeriodStatsCard({
                             color: customColors.subtleGray,
                             textAlign: 'center',
                         }}>
-                            verses read
+                            {t('progress.versesRead')}
                         </Text>
 
                         {/* Monthly Progress Bar */}

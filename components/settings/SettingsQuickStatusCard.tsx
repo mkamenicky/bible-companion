@@ -1,8 +1,9 @@
 // SettingsQuickStatusCard.tsx
 import React from 'react';
 import { View } from 'react-native';
-import { Surface, Badge, Chip } from 'react-native-paper';
+import { Badge, Chip } from 'react-native-paper';
 import { Text } from './TextProps';
+import { useTranslation } from '@/hooks';
 
 interface SettingsQuickStatusCardProps {
     dailyVerseGoal: number;
@@ -19,12 +20,14 @@ export default function SettingsQuickStatusCard({
                                                     styles,
                                                     customColors,
                                                 }: SettingsQuickStatusCardProps) {
+    const t = useTranslation();
+
     return (
         <View style={styles.quickStatusCard}>
             <View style={styles.quickStatusRow}>
                 <View style={styles.quickStatusItem}>
                     <Text style={styles.quickStatusValue}>{dailyVerseGoal}</Text>
-                    <Text style={styles.quickStatusLabel}>Daily Goal</Text>
+                    <Text style={styles.quickStatusLabel}>{t('settings.quickStatus.dailyGoal')}</Text>
                 </View>
 
                 <View style={styles.quickStatusDivider} />
@@ -37,7 +40,7 @@ export default function SettingsQuickStatusCard({
                         {scheduledNotifications.length}
                     </Badge>
                     <Text style={[styles.quickStatusLabel, { marginTop: 4 }]}>
-                        Notifications
+                        {t('settings.quickStatus.notifications')}
                     </Text>
                 </View>
 
@@ -50,7 +53,7 @@ export default function SettingsQuickStatusCard({
                         textStyle={{ fontSize: 10 }}
                         style={styles.chip}
                     >
-                        Theme
+                        {t('settings.quickStatus.theme')}
                     </Chip>
                 </View>
             </View>

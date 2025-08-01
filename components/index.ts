@@ -16,6 +16,9 @@ export {default as CalendarGrid} from './calendar/calendar.grid'
 export {default as YearSelector} from './calendar/year-selector'
 export {default as MonthNavigator} from './calendar/month-navigator'
 
+export {ThemeSelector, useThemeInitializer} from './theme/ThemeSelector'
+export {default as LanguageSelector} from './language/language-selector.component'
+
 export { default as  AppearanceCard} from './settings/AppearanceCard';
 export { default as DataStorageCard } from './settings/DataStorageCard';
 export { default as LoadingScreen } from './settings/LoadingScreen';

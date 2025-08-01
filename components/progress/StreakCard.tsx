@@ -1,6 +1,7 @@
 // StreakCard.tsx
 import React from 'react';
 import { View, Text } from 'react-native';
+import { useTranslation } from '@/hooks';
 import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
 interface Props {
@@ -18,11 +19,13 @@ export default function StreakCard({
                                        styles,
                                        customColors
                                    }: Props) {
+    const t = useTranslation();
+
     return (
         <View style={styles.card}>
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Reading Streak</Text>
-                <Text style={styles.sectionSubtitle}>Keep the momentum going!</Text>
+                <Text style={styles.sectionTitle}>{t('progress.readingStreak')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('progress.readingStreakSubtitle')}</Text>
             </View>
 
             {/* Current Streak Display */}
@@ -64,7 +67,10 @@ export default function StreakCard({
                     color: customColors.subtleGray,
                     textAlign: 'center',
                 }}>
-                    day{currentStreak !== 1 ? 's' : ''} streak
+                    {t('progress.dayStreak', {
+                        count: currentStreak,
+                        days: currentStreak === 1 ? t('common.day') : t('common.days')
+                    })}
                 </Text>
             </View>
 
@@ -88,7 +94,7 @@ export default function StreakCard({
                         color: customColors.subtleGray,
                         textAlign: 'center',
                     }}>
-                        Longest Streak
+                        {t('progress.longestStreak')}
                     </Text>
                 </View>
 
@@ -112,7 +118,7 @@ export default function StreakCard({
                         color: customColors.subtleGray,
                         textAlign: 'center',
                     }}>
-                        Total Days
+                        {t('progress.totalReadingDays')}
                     </Text>
                 </View>
             </View>

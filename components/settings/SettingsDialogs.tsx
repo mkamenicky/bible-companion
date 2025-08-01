@@ -2,6 +2,7 @@
 import React from 'react';
 import {Button, Dialog, Portal, Text, TextInput,} from 'react-native-paper';
 import {ThemeSelector} from "@/components/theme/ThemeSelector";
+import { useTranslation } from '@/hooks';
 
 interface DialogStates {
     changeTheme: boolean;
@@ -39,6 +40,8 @@ export default function SettingsDialogs({
                                             styles,
                                             customColors,
                                         }: SettingsDialogsProps) {
+    const t = useTranslation();
+
     return (
         <Portal>
             {/* Daily Goal Dialog */}
@@ -48,18 +51,18 @@ export default function SettingsDialogs({
                 style={styles.dialogSurface}
             >
                 <Dialog.Title style={styles.dialogTitle}>
-                    Set Daily Reading Goal
+                    {t('settings.dialogs.setDailyGoal')}
                 </Dialog.Title>
                 <Dialog.Content>
                     <Text style={[styles.dialogContent, {marginBottom: 16}]}>
-                        How many verses would you like to read each day?
+                        {t('settings.dialogs.dailyGoalQuestion')}
                     </Text>
                     <TextInput
                         mode="outlined"
                         value={formStates.dailyGoalInput}
                         onChangeText={(text) => onUpdateFormState('dailyGoalInput', text)}
                         keyboardType="numeric"
-                        placeholder="Enter verses (1-100)"
+                        placeholder={t('settings.dialogs.versesPlaceholder')}
                         style={styles.formInput}
                         theme={{
                             colors: {
@@ -69,7 +72,7 @@ export default function SettingsDialogs({
                                 surface: customColors.surface,
                             }
                         }}
-                        right={<TextInput.Affix text="verses"/>}
+                        right={<TextInput.Affix text={t('common.verses')}/>}
                     />
                 </Dialog.Content>
                 <Dialog.Actions>
@@ -77,7 +80,7 @@ export default function SettingsDialogs({
                         onPress={() => onToggleDialog('dailyGoal', false)}
                         textColor={customColors.subtleGray}
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </Button>
                     <Button
                         onPress={onDailyGoalSave}
@@ -85,17 +88,17 @@ export default function SettingsDialogs({
                         buttonColor={customColors.accent}
                         style={styles.formButton}
                     >
-                        Save Goal
+                        {t('settings.dialogs.saveGoal')}
                     </Button>
                 </Dialog.Actions>
             </Dialog>
-            {/* Theme Dialog */
-            }
+
+            {/* Theme Dialog */}
             <Dialog visible={dialogs.changeTheme}
                     onDismiss={() => onToggleDialog('changeTheme', false)}
                     style={styles.dialogSurface}>
                 <Dialog.Title style={styles.dialogTitle}>
-                    Change Theme
+                    {t('settings.dialogs.changeTheme')}
                 </Dialog.Title>
                 <Dialog.Content>
                     <ThemeSelector onThemeChange={() => {}}/>
@@ -105,24 +108,23 @@ export default function SettingsDialogs({
                         onPress={() => onToggleDialog('changeTheme', false)}
                         textColor={customColors.subtleGray}
                     >
-                        Ok
+                        {t('common.ok')}
                     </Button>
                 </Dialog.Actions>
             </Dialog>
 
-            {/* Export Dialog */
-            }
+            {/* Export Dialog */}
             <Dialog
                 visible={dialogs.exportData}
                 onDismiss={() => onToggleDialog('exportData', false)}
                 style={styles.dialogSurface}
             >
                 <Dialog.Title style={styles.dialogTitle}>
-                    Export Settings
+                    {t('settings.dialogs.exportSettings')}
                 </Dialog.Title>
                 <Dialog.Content>
                     <Text style={[styles.dialogContent, {marginBottom: 16}]}>
-                        This will create a backup file containing all your settings and preferences.
+                        {t('settings.dialogs.exportDescription')}
                     </Text>
                 </Dialog.Content>
                 <Dialog.Actions>
@@ -130,7 +132,7 @@ export default function SettingsDialogs({
                         onPress={() => onToggleDialog('exportData', false)}
                         textColor={customColors.subtleGray}
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </Button>
                     <Button
                         onPress={onExportSettings}
@@ -138,11 +140,10 @@ export default function SettingsDialogs({
                         buttonColor={customColors.accent}
                         style={styles.formButton}
                     >
-                        Export
+                        {t('settings.export')}
                     </Button>
                 </Dialog.Actions>
             </Dialog>
         </Portal>
-    )
-        ;
+    );
 }

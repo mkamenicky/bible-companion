@@ -22,7 +22,9 @@ import {
     readingPreferencesRepository,
     readingTopicsRepository
 } from '@/repository'
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
+export type Languages = "english" | "german" | "japanese";
 
 /**
  * Current reading position state
@@ -80,6 +82,179 @@ export class ReadingService {
     }
 
     /**
+     * Marks a Bible verse as read for a specific date
+     */
+    async markVerseAsRead(bibleVerseId: number, date: Date = new Date()): Promise<void> {
+        this.validateInput(bibleVerseId, 'number', 'bibleVerseId');
+        this.validateInput(date, 'date', 'date');
+
+        const dateStr = this.formatDate(date);
+
+        try {
+            const allProgress = await bibleVerseProgressRepository.findAll();
+            const existingProgress = allProgress.find(progress => progress.bibleVerseId === bibleVerseId && progress.dateRead === dateStr);
+
+            if (existingProgress) {
+                if (!existingProgress.isRead) {
+                    await bibleVerseProgressRepository.update({
+                        id: existingProgress.id, isRead: true
+                    });
+                }
+            } else {
+                await bibleVerseProgressRepository.create({
+                    bibleVerseId, dateRead: dateStr, isRead: true
+                });
+            }
+        } catch (error: any) {
+            throw new DatabaseMessageError(`Failed to mark verse as read: ${bibleVerseId}`, error as Error);
+        }
+    }
+
+    /**
+     * Marks a daily reading assignment as read/unread
+     */
+    async markDailyReadingAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment, date: Date = new Date(), isRead: boolean = true): Promise<void> {
+        this.validateInput(date, 'date', 'date');
+
+        try {
+            console.log("marking assignment as read:", dailyReadingAssignment);
+            const readAssignments = await dailyReadingAssignmentsRepository.findAll();
+            const existingAssignment = readAssignments.find(assignment => assignment.start_verse_id == dailyReadingAssignment.start_verse_id && assignment.end_verse_id == dailyReadingAssignment.end_verse_id && assignment.date === this.formatDate(date));
+
+            console.log("existing assignment:", existingAssignment);
+            if (existingAssignment) {
+                await dailyReadingAssignmentsRepository.update({
+                    id: existingAssignment.id,
+                    chapter_id: existingAssignment.chapter_id,
+                    is_completed: isRead,
+                    completed_at: isRead ? date.toISOString().split('T')[0] : undefined
+                });
+                return;
+            }
+
+            console.log("creating assignment:", dailyReadingAssignment);
+            await dailyReadingAssignmentsRepository.create({
+                date: date.toISOString().split('T')[0],
+                plan_name: dailyReadingAssignment.plan_name || "chronological",
+                chapter_id: dailyReadingAssignment.chapter_id,
+                start_verse_id: dailyReadingAssignment.start_verse_id,
+                end_verse_id: dailyReadingAssignment.end_verse_id,
+                display_title: dailyReadingAssignment.display_title || "Reading Assignment",
+                is_completed: isRead,
+                completed_at: isRead ? date.toISOString().split('T')[0] : undefined
+            });
+
+        } catch (error: any) {
+            throw new DatabaseMessageError(`Failed to mark dailyReadingAssignment as read: ${dailyReadingAssignment}`, error as Error);
+        }
+    }
+
+    /**
+     * Unmarks a Bible verse as read by removing its progress record
+     */
+    async unmarkVerseAsRead(bibleVerseId: number): Promise<void> {
+        this.validateInput(bibleVerseId, 'number', 'bibleVerseId');
+
+        try {
+            const allProgress = await bibleVerseProgressRepository.findAll();
+            const progressToRemove = allProgress.filter(progress => progress.bibleVerseId === bibleVerseId);
+
+            for (const progress of progressToRemove) {
+                await bibleVerseProgressRepository.deleteById(progress.id);
+            }
+        } catch (error: any) {
+            throw new DatabaseMessageError(`Failed to unmark verse as read: ${bibleVerseId}`, error as Error);
+        }
+    }
+
+    /**
+     * Gets the current reading plan with books, chapters, and verses
+     */
+    async getReadingPlan(): Promise<ReadingPlan[]> {
+        console.log("fetching plans:");
+        try {
+            const readingPlanConfigs = await readingPlanConfigRepository.findAll();
+            console.log("existingPlan:", readingPlanConfigs);
+            let existingPlan = readingPlanConfigs.find(config => config.is_active);
+
+            console.log("existingPlan:", existingPlan);
+
+            if (!existingPlan) {
+                existingPlan = await readingPlanConfigRepository.create({
+                    plan_name: "Sequential Reading", plan_type: "sequential", is_active: true
+                });
+            }
+
+            return [{
+                readingPlanConfig: existingPlan
+            }];
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get reading plan', error as Error);
+        }
+    }
+
+    /**
+     * Gets reading progress for a specific date range
+     */
+    async getReadingProgress(startDate: Date, endDate: Date): Promise<any[]> {
+        this.validateInput(startDate, 'date', 'startDate');
+        this.validateInput(endDate, 'date', 'endDate');
+
+        const startDateStr = this.formatDate(startDate);
+        const endDateStr = this.formatDate(endDate);
+
+        try {
+            const allProgress = await bibleVerseProgressRepository.findAll();
+            return allProgress.filter(progress => progress.dateRead >= startDateStr && progress.dateRead <= endDateStr);
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get reading progress', error as Error);
+        }
+    }
+
+    /**
+     * Gets completion percentage for a date range
+     */
+    async getCompletionPercentage(startDate: Date, endDate: Date, totalExpectedVerses: number): Promise<number> {
+        const progress = await this.getReadingProgress(startDate, endDate);
+        const completedVerses = progress.filter(p => p.isRead).length;
+
+        if (totalExpectedVerses === 0) return 0;
+        return Math.round((completedVerses / totalExpectedVerses) * 100);
+    }
+
+    /**
+     * Changes the active reading plan
+     */
+    async switchReadingPlan(planType: 'sequential' | 'topical' | 'chronological'): Promise<void> {
+        try {
+            // Deactivate all plans
+            const allPlans = await readingPlanConfigRepository.findAll();
+            for (const plan of allPlans) {
+                if (plan.is_active) {
+                    await readingPlanConfigRepository.update({
+                        id: plan.id, is_active: false
+                    });
+                }
+            }
+
+// Activate the selected plan
+            let targetPlan = allPlans.find(p => p.plan_type === planType);
+            if (!targetPlan) {
+                targetPlan = await readingPlanConfigRepository.create({
+                    plan_name: this.getPlanDisplayName(planType), plan_type: planType, is_active: true
+                });
+            } else {
+                await readingPlanConfigRepository.update({
+                    id: targetPlan.id, is_active: true
+                });
+            }
+
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to switch reading plan', error as Error);
+        }
+    }
+
+    /**
      * Get existing assignments for a date
      */
     private async getExistingAssignments(dateStr: string): Promise<EnhancedDailyReadingAssignment[]> {
@@ -103,24 +278,37 @@ export class ReadingService {
                 .replace(/&#39;/g, "'");
         };
 
-        const enhancedAssignments = await Promise.all(
-            dailyReadingAssignments.map(async assignment => {
-                const startVerse = await bibleVerseRepository.findById(assignment.start_verse_id);
-                const endVerse = await bibleVerseRepository.findById(assignment.end_verse_id);
-                const bibleChapter = await bibleChapterRepository.findById(assignment.chapter_id);
-                const bibleBook = await bibleBookRepository.findById(<number>bibleChapter?.BookNumber);
+        const enhancedAssignments = await Promise.all(dailyReadingAssignments.map(async assignment => {
+            const startVerse = await bibleVerseRepository.findById(assignment.start_verse_id);
+            const endVerse = await bibleVerseRepository.findById(assignment.end_verse_id);
+            const bibleChapter = await bibleChapterRepository.findById(assignment.chapter_id);
+            const bibleBook = await bibleBookRepository.findById(<number>bibleChapter?.BookNumber);
 
-                const enhancedAssignment: EnhancedDailyReadingAssignment = {
-                    ...assignment,
-                    book_title: bibleBook?.BookDisplayTitle,
-                    chapter_title: bibleChapter?.ChapterNumber,
-                    start_verse_title: stripHtml(startVerse?.Label),
-                    end_verse_title: stripHtml(endVerse?.Label)
-                };
+            const language = await AsyncStorage.getItem("language") ? AsyncStorage.getItem("language") : "english" as Languages;
 
-                return enhancedAssignment;
-            })
-        );
+            console.log(bibleBook);
+            let bibleBookTitle;
+            switch (language) {
+                case "english":
+                    bibleBookTitle = bibleBook?.ChapterDisplayTitle;
+                    break;
+                case "german":
+                    bibleBookTitle = bibleBook?.ChapterDisplayTitleGerman;
+                    break;
+                case "japanese":
+                    bibleBookTitle = bibleBook?.ChapterDisplayTitleJapanese;
+            }
+
+            const enhancedAssignment: EnhancedDailyReadingAssignment = {
+                ...assignment,
+                book_title: bibleBookTitle,
+                chapter_title: bibleChapter?.ChapterNumber,
+                start_verse_title: stripHtml(startVerse?.Label),
+                end_verse_title: stripHtml(endVerse?.Label)
+            };
+
+            return enhancedAssignment;
+        }));
 
         // Sort by chapter_id
         return enhancedAssignments.sort((a, b) => a.chapter_id - b.chapter_id);
@@ -147,11 +335,7 @@ export class ReadingService {
     /**
      * Save multiple assignments
      */
-    private async saveAssignments(
-        assignments: DailyReadingAssignment[],
-        dateStr: string,
-        planName: string
-    ): Promise<DailyReadingAssignment[]> {
+    private async saveAssignments(assignments: DailyReadingAssignment[], dateStr: string, planName: string): Promise<DailyReadingAssignment[]> {
         const savedAssignments: DailyReadingAssignment[] = [];
 
         for (const assignment of assignments) {
@@ -193,10 +377,7 @@ export class ReadingService {
         const endVerseId = startVerseId + versesToRead - 1;
 
         // Get verse labels for display
-        const [startVerse, endVerse] = await Promise.all([
-            bibleVerseRepository.findById(startVerseId),
-            bibleVerseRepository.findById(endVerseId)
-        ]);
+        const [startVerse, endVerse] = await Promise.all([bibleVerseRepository.findById(startVerseId), bibleVerseRepository.findById(endVerseId)]);
 
         if (!startVerse || !endVerse) {
             throw new Error('Could not find verse range for sequential reading');
@@ -204,9 +385,7 @@ export class ReadingService {
 
         // Find chapter for the start verse
         const allChapters = await bibleChapterRepository.findAll();
-        const startChapter = allChapters.find(ch =>
-            startVerseId >= <number>ch.FirstVerseId && startVerseId <= <number>ch.LastVerseId
-        );
+        const startChapter = allChapters.find(ch => startVerseId >= <number>ch.FirstVerseId && startVerseId <= <number>ch.LastVerseId);
 
         // Update progress
         await readingPlanProgressRepository.update({
@@ -222,7 +401,7 @@ export class ReadingService {
             plan_name: plan.plan_name,
             chapter_id: startChapter?.BibleChapterId || 1,
             start_verse_id: startVerse.BibleVerseId,
-            end_verse_id:  endVerse.BibleVerseId,
+            end_verse_id: endVerse.BibleVerseId,
             display_title: `Sequential Reading`,
             is_completed: false,
             completed_at: null
@@ -245,27 +424,13 @@ export class ReadingService {
         const booksForTopic = await this.getBooksForTopic(todaysTopic.id);
 
         // Get or create progress and user preferences
-        const [progress, preferences] = await Promise.all([
-            this.getOrCreateProgress(plan.id),
-            this.getUserPreferences()
-        ]);
+        const [progress, preferences] = await Promise.all([this.getOrCreateProgress(plan.id), this.getUserPreferences()]);
 
         // Get current reading position
-        const currentPosition = await this.getCurrentReadingPosition(
-            progress,
-            todaysTopic,
-            booksForTopic
-        );
+        const currentPosition = await this.getCurrentReadingPosition(progress, todaysTopic, booksForTopic);
 
         // Generate assignments to meet daily verse goal
-        const assignments = await this.generateAssignmentsForGoal(
-            currentPosition,
-            preferences.dailyVerseGoal,
-            plan.plan_name,
-            date,
-            todaysTopic,
-            booksForTopic
-        );
+        const assignments = await this.generateAssignmentsForGoal(currentPosition, preferences.dailyVerseGoal, plan.plan_name, date, todaysTopic, booksForTopic);
 
         // Update progress
         await this.updateReadingProgress(progress, currentPosition, todaysTopic.id, preferences.dailyVerseGoal);
@@ -278,9 +443,7 @@ export class ReadingService {
      */
     private async getTodaysTopic(dayOfWeek: number): Promise<ReadingTopic> {
         const allTopics = await readingTopicsRepository.findAll();
-        const todaysTopic = allTopics.find(topic =>
-            topic.day_of_week === dayOfWeek && topic.is_active
-        );
+        const todaysTopic = allTopics.find(topic => topic.day_of_week === dayOfWeek && topic.is_active);
 
         if (!todaysTopic) {
             throw new Error(`No topic configured for day ${dayOfWeek}`);
@@ -305,19 +468,11 @@ export class ReadingService {
         return booksForTopic;
     }
 
-
     /**
      * Get current reading position
      */
-    private async getCurrentReadingPosition(
-        progress: ReadingPlanProgress,
-        todaysTopic: ReadingTopic,
-        booksForTopic: BibleBookTopic[]
-    ): Promise<ReadingPosition> {
-        const [allBooks, allChapters] = await Promise.all([
-            bibleBookRepository.findAll(),
-            bibleChapterRepository.findAll()
-        ]);
+    private async getCurrentReadingPosition(progress: ReadingPlanProgress, todaysTopic: ReadingTopic, booksForTopic: BibleBookTopic[]): Promise<ReadingPosition> {
+        const [allBooks, allChapters] = await Promise.all([bibleBookRepository.findAll(), bibleChapterRepository.findAll()]);
 
         let bookIndex = 0;
         let chapterId: number | undefined = undefined;
@@ -335,45 +490,25 @@ export class ReadingService {
                 .filter(ch => ch.BookNumber === booksForTopic[bookIndex].bible_book_id)
                 .sort((a, b) => <number>a.ChapterNumber - <number>b.ChapterNumber);
 
-            const currentChapter = chaptersInCurrentBook.find(ch =>
-                verseId! >= <number>ch.FirstVerseId && verseId! <= <number>ch.LastVerseId
-            );
+            const currentChapter = chaptersInCurrentBook.find(ch => verseId! >= <number>ch.FirstVerseId && verseId! <= <number>ch.LastVerseId);
 
             chapterId = currentChapter?.BibleChapterId || chaptersInCurrentBook[0]?.BibleChapterId || undefined;
         }
 
         return {
-            bookIndex,
-            chapterId,
-            verseId,
-            allBooks,
-            allChapters
+            bookIndex, chapterId, verseId, allBooks, allChapters
         };
     }
 
     /**
      * Generate assignments to meet daily verse goal
      */
-    private async generateAssignmentsForGoal(
-        position: ReadingPosition,
-        dailyVerseGoal: number,
-        planName: string,
-        date: Date,
-        topic: ReadingTopic,
-        booksForTopic: BibleBookTopic[]
-    ): Promise<DailyReadingAssignment[]> {
+    private async generateAssignmentsForGoal(position: ReadingPosition, dailyVerseGoal: number, planName: string, date: Date, topic: ReadingTopic, booksForTopic: BibleBookTopic[]): Promise<DailyReadingAssignment[]> {
         const assignments: DailyReadingAssignment[] = [];
         let versesRemaining = dailyVerseGoal;
 
         while (versesRemaining > 0 && position.bookIndex < booksForTopic.length) {
-            const assignment = await this.createSingleAssignment(
-                position,
-                versesRemaining,
-                planName,
-                date,
-                topic,
-                booksForTopic
-            );
+            const assignment = await this.createSingleAssignment(position, versesRemaining, planName, date, topic, booksForTopic);
 
             if (!assignment) {
                 position.bookIndex++;
@@ -397,14 +532,7 @@ export class ReadingService {
     /**
      * Create a single reading assignment
      */
-    private async createSingleAssignment(
-        position: ReadingPosition,
-        versesNeeded: number,
-        planName: string,
-        date: Date,
-        topic: ReadingTopic,
-        booksForTopic: BibleBookTopic[]
-    ): Promise<DailyReadingAssignment | null> {
+    private async createSingleAssignment(position: ReadingPosition, versesNeeded: number, planName: string, date: Date, topic: ReadingTopic, booksForTopic: BibleBookTopic[]): Promise<DailyReadingAssignment | null> {
         const currentBookTopic = booksForTopic[position.bookIndex];
         const currentBook = position.allBooks.find(b => b.BibleBookId === currentBookTopic.bible_book_id);
 
@@ -421,24 +549,18 @@ export class ReadingService {
         }
 
         // Determine starting position
-        const startPosition: { chapterId: number; verseId: number } | null = this.getStartPosition(position, chaptersInBook);
+        const startPosition: {
+            chapterId: number; verseId: number
+        } | null = this.getStartPosition(position, chaptersInBook);
         if (!startPosition) {
             return null;
         }
 
         // Calculate reading range
-        const readingRange = this.calculateReadingRange(
-            startPosition,
-            versesNeeded,
-            chaptersInBook,
-            position
-        );
+        const readingRange = this.calculateReadingRange(startPosition, versesNeeded, chaptersInBook, position);
 
         // Get verse labels for display
-        const [startVerse, endVerse] = await Promise.all([
-            bibleVerseRepository.findById(readingRange.startVerseId),
-            bibleVerseRepository.findById(readingRange.endVerseId)
-        ]);
+        const [startVerse, endVerse] = await Promise.all([bibleVerseRepository.findById(readingRange.startVerseId), bibleVerseRepository.findById(readingRange.endVerseId)]);
 
         if (!startVerse || !endVerse) {
             throw new Error(`Could not find verses ${readingRange.startVerseId} or ${readingRange.endVerseId}`);
@@ -460,15 +582,14 @@ export class ReadingService {
     /**
      * Get starting position for reading
      */
-    private getStartPosition(
-        position: ReadingPosition,
-        chaptersInBook: BibleChapter[]
-    ): { chapterId: number; verseId: number } | null {
+    private getStartPosition(position: ReadingPosition, chaptersInBook: BibleChapter[]): {
+        chapterId: number;
+        verseId: number
+    } | null {
         if (position.chapterId && position.verseId) {
             // Continue from current position
             return {
-                chapterId: position.chapterId,
-                verseId: position.verseId
+                chapterId: position.chapterId, verseId: position.verseId
             };
         } else {
             // Start from first chapter
@@ -476,8 +597,7 @@ export class ReadingService {
             if (!firstChapter) return null;
 
             return {
-                chapterId: <number>firstChapter.BibleChapterId,
-                verseId: <number>firstChapter.FirstVerseId
+                chapterId: <number>firstChapter.BibleChapterId, verseId: <number>firstChapter.FirstVerseId
             };
         }
     }
@@ -485,21 +605,19 @@ export class ReadingService {
     /**
      * Calculate the range of verses to read
      */
-    private calculateReadingRange(
-        startPosition: { chapterId: number; verseId: number },
-        versesNeeded: number,
-        chaptersInBook: BibleChapter[],
-        position: ReadingPosition
-    ): { startVerseId: number; endVerseId: number } {
+    private calculateReadingRange(startPosition: {
+        chapterId: number;
+        verseId: number
+    }, versesNeeded: number, chaptersInBook: BibleChapter[], position: ReadingPosition): {
+        startVerseId: number;
+        endVerseId: number
+    } {
         const startChapter = chaptersInBook.find(ch => ch.BibleChapterId === startPosition.chapterId);
         if (!startChapter) {
             throw new Error(`Could not find chapter ${startPosition.chapterId}`);
         }
 
-        let endVerseId = Math.min(
-            startPosition.verseId + versesNeeded - 1,
-            <number>startChapter.LastVerseId
-        );
+        let endVerseId = Math.min(startPosition.verseId + versesNeeded - 1, <number>startChapter.LastVerseId);
 
         // Update position for next time
         if (endVerseId < <number>startChapter.LastVerseId) {
@@ -521,23 +639,15 @@ export class ReadingService {
         }
 
         return {
-            startVerseId: startPosition.verseId,
-            endVerseId
+            startVerseId: startPosition.verseId, endVerseId
         };
     }
 
     /**
      * Update reading progress
      */
-    private async updateReadingProgress(
-        progress: ReadingPlanProgress,
-        position: ReadingPosition,
-        topicId: number,
-        dailyVerseGoal: number
-    ): Promise<void> {
-        const finalBookId = position.bookIndex < position.allBooks.length
-            ? position.allBooks[position.bookIndex].BibleBookId
-            : position.allBooks[position.allBooks.length - 1].BibleBookId;
+    private async updateReadingProgress(progress: ReadingPlanProgress, position: ReadingPosition, topicId: number, dailyVerseGoal: number): Promise<void> {
+        const finalBookId = position.bookIndex < position.allBooks.length ? position.allBooks[position.bookIndex].BibleBookId : position.allBooks[position.allBooks.length - 1].BibleBookId;
 
         await readingPlanProgressRepository.update({
             id: progress.id,
@@ -572,19 +682,14 @@ export class ReadingService {
         const startVerseId = progress.current_verse_id || 1;
         const endVerseId = startVerseId + versesToRead - 1;
 
-        const [startVerse, endVerse] = await Promise.all([
-            bibleVerseRepository.findById(startVerseId),
-            bibleVerseRepository.findById(endVerseId)
-        ]);
+        const [startVerse, endVerse] = await Promise.all([bibleVerseRepository.findById(startVerseId), bibleVerseRepository.findById(endVerseId)]);
 
         if (!startVerse || !endVerse) {
             throw new Error('Could not find verse range for chronological reading');
         }
 
         const allChapters = await bibleChapterRepository.findAll();
-        const startChapter = allChapters.find(ch =>
-            startVerseId >= <number>ch.FirstVerseId && startVerseId <= <number>ch.LastVerseId
-        );
+        const startChapter = allChapters.find(ch => startVerseId >= <number>ch.FirstVerseId && startVerseId <= <number>ch.LastVerseId);
 
         await readingPlanProgressRepository.update({
             id: progress.id,
@@ -635,9 +740,7 @@ export class ReadingService {
 
         if (!preferences) {
             preferences = await readingPreferencesRepository.create({
-                userId: 1,
-                dailyVerseGoal: 10,
-                preferredReadingTime: 'morning'
+                userId: 1, dailyVerseGoal: 10, preferredReadingTime: 'morning'
             });
         }
 
@@ -645,209 +748,11 @@ export class ReadingService {
     }
 
     /**
-     * Marks a Bible verse as read for a specific date
-     */
-    async markVerseAsRead(bibleVerseId: number, date: Date = new Date()): Promise<void> {
-        this.validateInput(bibleVerseId, 'number', 'bibleVerseId');
-        this.validateInput(date, 'date', 'date');
-
-        const dateStr = this.formatDate(date);
-
-        try {
-            const allProgress = await bibleVerseProgressRepository.findAll();
-            const existingProgress = allProgress.find(progress =>
-                progress.bibleVerseId === bibleVerseId && progress.dateRead === dateStr
-            );
-
-            if (existingProgress) {
-                if (!existingProgress.isRead) {
-                    await bibleVerseProgressRepository.update({
-                        id: existingProgress.id,
-                        isRead: true
-                    });
-                }
-            } else {
-                await bibleVerseProgressRepository.create({
-                    bibleVerseId,
-                    dateRead: dateStr,
-                    isRead: true
-                });
-            }
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to mark verse as read: ${bibleVerseId}`, error as Error);
-        }
-    }
-
-    /**
-     * Marks a daily reading assignment as read/unread
-     */
-    async markDailyReadingAssignmentAsRead(
-        dailyReadingAssignment: DailyReadingAssignment,
-        date: Date = new Date(),
-        isRead: boolean = true
-    ): Promise<void> {
-        this.validateInput(date, 'date', 'date');
-
-        try {
-            console.log("marking assignment as read:", dailyReadingAssignment);
-            const readAssignments = await dailyReadingAssignmentsRepository.findAll();
-            const existingAssignment = readAssignments.find(assignment =>
-                assignment.start_verse_id == dailyReadingAssignment.start_verse_id &&
-                assignment.end_verse_id == dailyReadingAssignment.end_verse_id &&
-                assignment.date === this.formatDate(date)
-            );
-
-            console.log("existing assignment:", existingAssignment);
-            if (existingAssignment) {
-                await dailyReadingAssignmentsRepository.update({
-                    id: existingAssignment.id,
-                    chapter_id: existingAssignment.chapter_id,
-                    is_completed: isRead,
-                    completed_at: isRead ? date.toISOString().split('T')[0] : undefined
-                });
-                return;
-            }
-
-            console.log("creating assignment:", dailyReadingAssignment);
-            await dailyReadingAssignmentsRepository.create({
-                date: date.toISOString().split('T')[0],
-                plan_name: dailyReadingAssignment.plan_name || "chronological",
-                chapter_id: dailyReadingAssignment.chapter_id,
-                start_verse_id: dailyReadingAssignment.start_verse_id,
-                end_verse_id: dailyReadingAssignment.end_verse_id,
-                display_title: dailyReadingAssignment.display_title || "Reading Assignment",
-                is_completed: isRead,
-                completed_at: isRead ? date.toISOString().split('T')[0] : undefined
-            });
-
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to mark dailyReadingAssignment as read: ${dailyReadingAssignment}`, error as Error);
-        }
-    }
-
-    /**
-     * Unmarks a Bible verse as read by removing its progress record
-     */
-    async unmarkVerseAsRead(bibleVerseId: number): Promise<void> {
-        this.validateInput(bibleVerseId, 'number', 'bibleVerseId');
-
-        try {
-            const allProgress = await bibleVerseProgressRepository.findAll();
-            const progressToRemove = allProgress.filter(progress =>
-                progress.bibleVerseId === bibleVerseId
-            );
-
-            for (const progress of progressToRemove) {
-                await bibleVerseProgressRepository.deleteById(progress.id);
-            }
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to unmark verse as read: ${bibleVerseId}`, error as Error);
-        }
-    }
-
-    /**
-     * Gets the current reading plan with books, chapters, and verses
-     */
-    async getReadingPlan(): Promise<ReadingPlan[]> {
-        console.log("fetching plans:");
-        try {
-            const readingPlanConfigs = await readingPlanConfigRepository.findAll();
-            console.log("existingPlan:", readingPlanConfigs);
-            let existingPlan = readingPlanConfigs.find(config => config.is_active);
-
-            console.log("existingPlan:", existingPlan);
-
-            if (!existingPlan) {
-                existingPlan = await readingPlanConfigRepository.create({
-                    plan_name: "Sequential Reading",
-                    plan_type: "sequential",
-                    is_active: true
-                });
-            }
-
-            return [{
-                readingPlanConfig: existingPlan
-            }];
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get reading plan', error as Error);
-        }
-    }
-
-    /**
-     * Gets reading progress for a specific date range
-     */
-    async getReadingProgress(startDate: Date, endDate: Date): Promise<any[]> {
-        this.validateInput(startDate, 'date', 'startDate');
-        this.validateInput(endDate, 'date', 'endDate');
-
-        const startDateStr = this.formatDate(startDate);
-        const endDateStr = this.formatDate(endDate);
-
-        try {
-            const allProgress = await bibleVerseProgressRepository.findAll();
-            return allProgress.filter(progress =>
-                progress.dateRead >= startDateStr && progress.dateRead <= endDateStr
-            );
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get reading progress', error as Error);
-        }
-    }
-
-    /**
-     * Gets completion percentage for a date range
-     */
-    async getCompletionPercentage(startDate: Date, endDate: Date, totalExpectedVerses: number): Promise<number> {
-        const progress = await this.getReadingProgress(startDate, endDate);
-        const completedVerses = progress.filter(p => p.isRead).length;
-
-        if (totalExpectedVerses === 0) return 0;
-        return Math.round((completedVerses / totalExpectedVerses) * 100);
-    }
-
-    /**
-     * Changes the active reading plan
-     */
-    async switchReadingPlan(planType: 'sequential' | 'topical' | 'chronological'): Promise<void> {
-        try {
-            // Deactivate all plans
-            const allPlans = await readingPlanConfigRepository.findAll();
-            for (const plan of allPlans) {
-                if (plan.is_active) {
-                    await readingPlanConfigRepository.update({
-                        id: plan.id,
-                        is_active: false
-                    });
-                }
-            }
-
-// Activate the selected plan
-            let targetPlan = allPlans.find(p => p.plan_type === planType);
-            if (!targetPlan) {
-                targetPlan = await readingPlanConfigRepository.create({
-                    plan_name: this.getPlanDisplayName(planType),
-                    plan_type: planType,
-                    is_active: true
-                });
-            } else {
-                await readingPlanConfigRepository.update({
-                    id: targetPlan.id,
-                    is_active: true
-                });
-            }
-
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to switch reading plan', error as Error);
-        }
-    }
-
-    /**
      * Gets display name for plan type
      */
     private getPlanDisplayName(planType: string): string {
         const names: Record<string, string> = {
-            'sequential': 'Sequential Reading',
-            'topical': 'Topical Weekly',
-            'chronological': 'Chronological Reading'
+            'sequential': 'Sequential Reading', 'topical': 'Topical Weekly', 'chronological': 'Chronological Reading'
         };
         return names[planType] || planType;
     }

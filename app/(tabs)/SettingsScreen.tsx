@@ -7,6 +7,7 @@ import {Appbar} from 'react-native-paper';
 import {
     AppearanceCard,
     DataStorageCard,
+    LanguageSelector,
     LoadingScreen,
     NotificationSettingsCard,
     ReadingGoalsCard,
@@ -15,11 +16,14 @@ import {
     SettingsQuickStatusCard,
     SettingsTimePicker
 } from '@/components';
+
 // Service and utility imports
-import {useNotifications, useSettingsData} from '@/hooks';
+import {useNotifications, useSettingsData, useTranslation} from '@/hooks';
 import {ThemeService} from '@/services';
 
 export default function SettingsScreen() {
+    const t = useTranslation(); // Add translation hook
+
     // Separate the hooks to avoid circular dependency
     const settingsHook = useSettingsData();
     const notificationsHook = useNotifications();
@@ -52,8 +56,8 @@ export default function SettingsScreen() {
 
     // Compute notification status locally
     const notificationStatus = React.useMemo(() => {
-        if (!notificationsInitialized) return {status: 'initializing', color: '#f59e0b'};
-        if (!settings?.notifications) return {status: 'disabled', color: '#ef4444'};
+        if (!notificationsInitialized) return {status: t('settings.notificationStatus.initializing'), color: '#f59e0b'};
+        if (!settings?.notifications) return {status: t('settings.notificationStatus.disabled'), color: '#ef4444'};
 
         // Check if any specific notification type is enabled
         const hasAnyEnabled = settings?.dailyReminder ||
@@ -61,10 +65,10 @@ export default function SettingsScreen() {
             settings?.goalReminder ||
             settings?.achievementNotifications;
 
-        if (!hasAnyEnabled) return {status: 'disabled', color: '#ef4444'};
-        return {status: 'active', color: '#10b981'};
+        if (!hasAnyEnabled) return {status: t('settings.notificationStatus.disabled'), color: '#ef4444'};
+        return {status: t('settings.notificationStatus.active'), color: '#10b981'};
     }, [notificationsInitialized, settings?.notifications, settings?.dailyReminder,
-        settings?.streakReminder, settings?.goalReminder, settings?.achievementNotifications]);
+        settings?.streakReminder, settings?.goalReminder, settings?.achievementNotifications, t]);
 
     // Theme and styling
     const colorScheme = useColorScheme();
@@ -129,7 +133,7 @@ export default function SettingsScreen() {
     if (loading) {
         return (
             <LoadingScreen
-                message="Loading settings..."
+                message={t('settings.loadingMessage')}
                 styles={styles}
                 customColors={customColors}
             />
@@ -139,7 +143,7 @@ export default function SettingsScreen() {
     if (!settings) {
         return (
             <LoadingScreen
-                message="Failed to load settings"
+                message={t('settings.failedToLoad')}
                 isError={true}
                 onRetry={handleRefresh}
                 styles={styles}
@@ -153,7 +157,7 @@ export default function SettingsScreen() {
         <View style={styles.container}>
             <Appbar.Header style={styles.appbar}>
                 <Appbar.Content
-                    title="Settings"
+                    title={t('settings.title')}
                     titleStyle={{color: customColors.color, fontWeight: '600'}}
                 />
                 <Appbar.Action
@@ -173,10 +177,20 @@ export default function SettingsScreen() {
                     customColors={customColors}
                 />
 
+                <LanguageSelector
+                    styles={styles}
+                    customColors={customColors}/>
+
                 {/* Reading Goals Section */}
                 <ReadingGoalsCard
                     dailyVerseGoal={dailyVerseGoal}
                     onEditGoal={() => handleToggleDialog('dailyGoal', true)}
+                    styles={styles}
+                    customColors={customColors}
+                />
+
+                {/* Language Selection Section */}
+                <LanguageSelector
                     styles={styles}
                     customColors={customColors}
                 />

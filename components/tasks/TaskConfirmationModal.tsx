@@ -1,6 +1,8 @@
+// TaskConfirmationModal.tsx
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Modal, Portal } from 'react-native-paper';
+import { useTranslation } from '@/hooks';
 
 interface Props {
     visible: boolean;
@@ -19,6 +21,8 @@ export default function TaskConfirmationModal({
                                                   styles,
                                                   customColors
                                               }: Props) {
+    const t = useTranslation();
+
     if (!task) return null;
 
     return (
@@ -29,7 +33,6 @@ export default function TaskConfirmationModal({
                 contentContainerStyle={styles.modalContainer}
             >
                 <View style={[styles.modalCard, { borderRadius: 12 }]}>
-                    {/* Modal header */}
                     <View style={{ padding: 20, paddingBottom: 16 }}>
                         <Text style={{
                             fontSize: 18,
@@ -38,7 +41,7 @@ export default function TaskConfirmationModal({
                             textAlign: 'center',
                             marginBottom: 8
                         }}>
-                            Mark as Complete?
+                            {t('taskConfirmation.title')}
                         </Text>
                         <Text style={{
                             fontSize: 14,
@@ -46,17 +49,15 @@ export default function TaskConfirmationModal({
                             textAlign: 'center',
                             lineHeight: 20
                         }}>
-                            Are you sure you've completed "{task}"?
+                            {t('taskConfirmation.message', { task })}
                         </Text>
                     </View>
 
-                    {/* Action buttons */}
                     <View style={{
                         flexDirection: 'row',
                         borderTopWidth: 0.5,
                         borderTopColor: customColors?.borderColor || '#dbdbdb',
                     }}>
-                        {/* Cancel button */}
                         <TouchableOpacity
                             onPress={onCancel}
                             style={{
@@ -72,11 +73,10 @@ export default function TaskConfirmationModal({
                                 fontWeight: '500',
                                 color: customColors?.subtleGray || '#8e8e8e'
                             }}>
-                                Cancel
+                                {t('taskConfirmation.cancel')}
                             </Text>
                         </TouchableOpacity>
 
-                        {/* Confirm button */}
                         <TouchableOpacity
                             onPress={() => onConfirm(task, undefined)}
                             style={{
@@ -90,7 +90,7 @@ export default function TaskConfirmationModal({
                                 fontWeight: '600',
                                 color: customColors?.instagramBlue || '#0095f6'
                             }}>
-                                Mark Complete
+                                {t('taskConfirmation.markComplete')}
                             </Text>
                         </TouchableOpacity>
                     </View>

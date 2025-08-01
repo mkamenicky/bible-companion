@@ -1,6 +1,7 @@
 // ReadingGoalsCard.tsx
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useTranslation } from '@/hooks';
 
 interface ReadingGoalsCardProps {
     dailyVerseGoal: number;
@@ -15,6 +16,8 @@ export default function ReadingGoalsCard({
                                              styles,
                                              customColors,
                                          }: ReadingGoalsCardProps) {
+    const t = useTranslation();
+
     // Calculate some motivational stats
     const weeklyGoal = dailyVerseGoal * 7;
     const monthlyGoal = dailyVerseGoal * 30;
@@ -23,8 +26,8 @@ export default function ReadingGoalsCard({
         <View style={styles.card}>
             {/* Section header */}
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Reading Goals</Text>
-                <Text style={styles.sectionSubtitle}>Set your daily scripture reading target</Text>
+                <Text style={styles.sectionTitle}>{t('settings.readingGoals')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('settings.readingGoalsSubtitle')}</Text>
             </View>
 
             {/* Daily goal setting */}
@@ -40,9 +43,9 @@ export default function ReadingGoalsCard({
                 </View>
 
                 <View style={styles.itemContent}>
-                    <Text style={styles.itemTitle}>Daily Verse Goal</Text>
+                    <Text style={styles.itemTitle}>{t('settings.dailyVerseGoal')}</Text>
                     <Text style={styles.itemSubtitle}>
-                        Current target: {dailyVerseGoal} verses per day
+                        {t('settings.currentTarget', { count: dailyVerseGoal })}
                     </Text>
                 </View>
 
@@ -61,17 +64,17 @@ export default function ReadingGoalsCard({
             {/* Goal projections */}
             <View style={styles.progressContainer}>
                 <View style={styles.progressHeader}>
-                    <Text style={styles.progressLabel}>Projected Reading</Text>
+                    <Text style={styles.progressLabel}>{t('settings.projectedReading')}</Text>
                 </View>
                 <View style={styles.goalProjections}>
                     <View style={styles.projectionItem}>
                         <Text style={styles.projectionValue}>{weeklyGoal}</Text>
-                        <Text style={styles.projectionLabel}>per week</Text>
+                        <Text style={styles.projectionLabel}>{t('settings.perWeek')}</Text>
                     </View>
                     <View style={styles.projectionDivider} />
                     <View style={styles.projectionItem}>
                         <Text style={styles.projectionValue}>{monthlyGoal}</Text>
-                        <Text style={styles.projectionLabel}>per month</Text>
+                        <Text style={styles.projectionLabel}>{t('settings.perMonth')}</Text>
                     </View>
                 </View>
             </View>
@@ -89,7 +92,7 @@ export default function ReadingGoalsCard({
                     color: customColors?.instagramBlue || '#0095f6',
                     textAlign: 'center'
                 }}>
-                    📖 Stay consistent with your daily reading!
+                    {t('settings.motivationalMessage')}
                 </Text>
             </View>
         </View>

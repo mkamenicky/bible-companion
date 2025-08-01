@@ -1,11 +1,7 @@
-// React imports
+// CalendarScreen.tsx
 import React from 'react';
 import { useColorScheme, View } from 'react-native';
-
-// Third-party library imports
 import { Appbar } from 'react-native-paper';
-
-// Local component imports
 import {
     CalendarGrid,
     LoadingScreen,
@@ -13,12 +9,11 @@ import {
     ScreenContainer,
     YearSelector
 } from '@/components';
-
-// Service and utility imports
-import { useCalendarData } from '@/hooks';
+import { useCalendarData, useTranslation } from '@/hooks';
 import { ThemeService } from '@/services';
 
 export default function ReadingCalendarScreen() {
+    const t = useTranslation();
     const {
         readingDays,
         loading,
@@ -36,7 +31,7 @@ export default function ReadingCalendarScreen() {
     if (loading) {
         return (
             <LoadingScreen
-                message="Loading reading calendar..."
+                message={t('calendar.loadingMessage')}
                 styles={styles}
                 customColors={customColors}
             />
@@ -47,7 +42,7 @@ export default function ReadingCalendarScreen() {
         <View style={styles.container}>
             <Appbar.Header style={styles.appbar}>
                 <Appbar.Content
-                    title="Reading Calendar"
+                    title={t('calendar.title')}
                     titleStyle={{ color: customColors.color, fontWeight: '600' }}
                 />
             </Appbar.Header>
@@ -72,6 +67,8 @@ export default function ReadingCalendarScreen() {
                     readingDays={readingDays}
                     currentMonth={currentMonth}
                     currentYear={currentYear}
+                    onMonthChange={handleMonthChange}
+                    onYearChange={handleYearChange}
                     styles={styles}
                     customColors={customColors}
                 />

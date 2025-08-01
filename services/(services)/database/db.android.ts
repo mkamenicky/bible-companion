@@ -28,6 +28,7 @@ export class AndroidDatabaseService extends DatabaseService {
             await this.setupDatabase();
             await this.openDatabase();
             await this.verifyDatabase();
+            await this.runMigrations();
 
             this.initialized = true;
             this.log('info', `Database initialized successfully at: ${this.dbPath}`);
@@ -83,8 +84,7 @@ export class AndroidDatabaseService extends DatabaseService {
         try {
             this.log('info', `Opening database at: ${this.dbPath}`);
             this.database = await openDatabaseAsync(this.dbPath);
-            let allAsync = await this.database.getAllAsync('SELECT is_done FROM tasks LIMIT 1');
-            console.log("tasks", allAsync);
+
             if (!this.database) {
                 throw new Error('Failed to open database - null returned');
             }

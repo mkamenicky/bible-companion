@@ -1,6 +1,7 @@
 // DataStorageCard.tsx
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useTranslation } from '@/hooks';
 
 interface DataStorageCardProps {
     settings: any;
@@ -19,12 +20,14 @@ export default function DataStorageCard({
                                             styles,
                                             customColors,
                                         }: DataStorageCardProps) {
+    const t = useTranslation();
+
     return (
         <View style={styles.card}>
             {/* Section header */}
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Data & Storage</Text>
-                <Text style={styles.sectionSubtitle}>Manage your app data and preferences</Text>
+                <Text style={styles.sectionTitle}>{t('settings.dataStorage')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('settings.dataStorageSubtitle')}</Text>
             </View>
 
             {/* Offline mode toggle */}
@@ -42,11 +45,11 @@ export default function DataStorageCard({
                 </View>
 
                 <View style={styles.itemContent}>
-                    <Text style={styles.itemTitle}>Offline Mode</Text>
+                    <Text style={styles.itemTitle}>{t('settings.offlineMode')}</Text>
                     <Text style={styles.itemSubtitle}>
                         {settings.offlineMode
-                            ? 'Content downloaded for offline reading'
-                            : 'Download content for offline reading'}
+                            ? t('settings.offlineModeEnabled')
+                            : t('settings.offlineModeDisabled')}
                     </Text>
                 </View>
 
@@ -73,15 +76,15 @@ export default function DataStorageCard({
                 </View>
 
                 <View style={styles.itemContent}>
-                    <Text style={styles.itemTitle}>Export Settings</Text>
+                    <Text style={styles.itemTitle}>{t('settings.exportSettings')}</Text>
                     <Text style={styles.itemSubtitle}>
-                        Save your preferences as a backup file
+                        {t('settings.exportSettingsSubtitle')}
                     </Text>
                 </View>
 
                 <View style={styles.itemAction}>
                     <Text style={[styles.actionText, { color: customColors.instagramBlue }]}>
-                        Export
+                        {t('settings.export')}
                     </Text>
                 </View>
             </TouchableOpacity>
@@ -100,16 +103,16 @@ export default function DataStorageCard({
 
                 <View style={styles.itemContent}>
                     <Text style={[styles.itemTitle, { color: customColors.error || '#ef4444' }]}>
-                        Reset All Settings
+                        {t('settings.resetSettings')}
                     </Text>
                     <Text style={styles.itemSubtitle}>
-                        Restore everything to default values
+                        {t('settings.resetSettingsSubtitle')}
                     </Text>
                 </View>
 
                 <View style={styles.itemAction}>
                     <Text style={[styles.actionText, { color: customColors.error || '#ef4444' }]}>
-                        Reset
+                        {t('settings.reset')}
                     </Text>
                 </View>
             </TouchableOpacity>
@@ -117,9 +120,9 @@ export default function DataStorageCard({
             {/* Storage info */}
             <View style={styles.progressContainer}>
                 <View style={styles.progressHeader}>
-                    <Text style={styles.progressLabel}>Storage Status</Text>
+                    <Text style={styles.progressLabel}>{t('settings.storageStatus')}</Text>
                     <Text style={styles.progressValue}>
-                        {settings.offlineMode ? 'Offline Ready' : 'Online Only'}
+                        {settings.offlineMode ? t('settings.offlineReady') : t('settings.onlineOnly')}
                     </Text>
                 </View>
             </View>
@@ -137,7 +140,7 @@ export default function DataStorageCard({
                     textAlign: 'center',
                     lineHeight: 18
                 }}>
-                    ⚠️ Resetting settings will restore all preferences to their default values and cannot be undone.
+                    {t('settings.resetWarning')}
                 </Text>
             </View>
         </View>

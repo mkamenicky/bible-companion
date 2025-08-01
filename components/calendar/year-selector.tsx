@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useTranslation } from '@/hooks';
 
 interface Props {
     currentYear: number;
@@ -14,6 +15,7 @@ export default function YearSelector({
                                          styles,
                                          customColors
                                      }: Props) {
+    const t = useTranslation();
     const currentActualYear = new Date().getFullYear();
 
     // Generate years from 3 years ago to current year
@@ -35,7 +37,7 @@ export default function YearSelector({
                     marginBottom: 12,
                     textAlign: 'center',
                 }}>
-                    Select Year
+                    {t('calendar.selectYear')}
                 </Text>
 
                 <ScrollView

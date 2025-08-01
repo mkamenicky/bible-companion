@@ -2,6 +2,7 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {Alert, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {progressService} from '@/services';
+import {useTranslation} from '@/hooks';
 import type {Achievement, AchievementUnlockEvent} from '@/models';
 import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
@@ -32,6 +33,7 @@ export default function AchievementsCard({
                                              userId = 1,
                                              onAchievementUnlocked
                                          }: Props) {
+    const t = useTranslation();
     const [achievements, setAchievements] = useState<Achievement[]>([]);
     const [achievementStats, setAchievementStats] = useState<{
         total: number;
@@ -97,12 +99,16 @@ export default function AchievementsCard({
 
         // Define category metadata with enhanced styling
         const categoryMetadata = {
-            milestone: {name: 'Milestones', icon: '🎯', color: customColors.error},
-            streak: {name: 'Streak Master', icon: '🔥', color: customColors.warning},
-            reading: {name: 'Reading Goals', icon: '📚', color: customColors.info},
-            exploration: {name: 'Explorer', icon: '🗺️', color: customColors.success},
-            seasonal: {name: 'Seasonal', icon: '🎄', color: customColors.secondary},
-            general: {name: 'General', icon: '🏆', color: customColors.primary}
+            milestone: {name: t('progress.achievements.categories.milestones'), icon: '🎯', color: customColors.error},
+            streak: {name: t('progress.achievements.categories.streakMaster'), icon: '🔥', color: customColors.warning},
+            reading: {name: t('progress.achievements.categories.readingGoals'), icon: '📚', color: customColors.info},
+            exploration: {
+                name: t('progress.achievements.categories.explorer'),
+                icon: '🗺️',
+                color: customColors.success
+            },
+            seasonal: {name: t('progress.achievements.categories.seasonal'), icon: '🎄', color: customColors.secondary},
+            general: {name: t('progress.achievements.categories.general'), icon: '🏆', color: customColors.primary}
         };
 
         achievementList.forEach(achievement => {
@@ -166,8 +172,8 @@ export default function AchievementsCard({
                         const unlockDate = new Date(achievement.unlockedAt).toLocaleDateString();
                         Alert.alert(
                             `🎉 ${achievement.name}`,
-                            `${achievement.description}\n\nUnlocked on ${unlockDate}`,
-                            [{text: 'OK'}]
+                            `${achievement.description}\n\n${t('progress.achievements.unlockedOn')} ${unlockDate}`,
+                            [{text: t('common.ok')}]
                         );
                     }
                 }}
@@ -219,7 +225,7 @@ export default function AchievementsCard({
                                     color: 'white',
                                     fontWeight: '600',
                                 }}>
-                                    UNLOCKED
+                                    {t('progress.achievements.unlocked').toUpperCase()}
                                 </Text>
                             </View>
                         )}
@@ -271,7 +277,7 @@ export default function AchievementsCard({
 
     const renderCategoryFilter = () => {
         const categories = [
-            {id: 'all', name: 'All', icon: '🏆'},
+            {id: 'all', name: t('progress.achievements.categories.all'), icon: '🏆'},
             ...categorizedAchievements.map(cat => ({
                 id: cat.id,
                 name: cat.name,
@@ -327,8 +333,8 @@ export default function AchievementsCard({
         return (
             <View style={styles.card}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Achievements</Text>
-                    <Text style={styles.sectionSubtitle}>Loading achievements...</Text>
+                    <Text style={styles.sectionTitle}>{t('progress.achievements.title')}</Text>
+                    <Text style={styles.sectionSubtitle}>{t('progress.achievements.loading')}</Text>
                 </View>
             </View>
         );
@@ -340,11 +346,15 @@ export default function AchievementsCard({
         <>
             <View style={styles.card}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Achievements</Text>
+                    <Text style={styles.sectionTitle}>{t('progress.achievements.title')}</Text>
                     <Text style={styles.sectionSubtitle}>
                         {achievementStats
-                            ? `${achievementStats.unlocked}/${achievementStats.total} unlocked (${achievementStats.completionPercentage}%)`
-                            : 'Milestones and badges earned'
+                            ? t('progress.achievements.unlockedSummary', {
+                                unlocked: achievementStats.unlocked,
+                                total: achievementStats.total,
+                                percentage: achievementStats.completionPercentage
+                            })
+                            : t('progress.achievements.subtitle')
                         }
                     </Text>
                 </View>
@@ -372,7 +382,7 @@ export default function AchievementsCard({
                                 color: customColors.primary,
                                 fontWeight: '600',
                             }}>
-                                View All Achievements ({achievements.length})
+                                {t('progress.achievements.viewAll', {count: achievements.length})}
                             </Text>
                         </TouchableOpacity>
                     )}
@@ -405,7 +415,7 @@ export default function AchievementsCard({
                                 fontWeight: '600',
                                 color: customColors.text,
                             }}>
-                                All Achievements
+                                {t('progress.achievements.allTitle')}
                             </Text>
                             {achievementStats && (
                                 <Text style={{
@@ -413,7 +423,10 @@ export default function AchievementsCard({
                                     color: customColors.subtleGray,
                                     marginTop: 2,
                                 }}>
-                                    {achievementStats.unlocked} of {achievementStats.total} unlocked
+                                    {t('progress.achievements.modalSubtitle', {
+                                        unlocked: achievementStats.unlocked,
+                                        total: achievementStats.total
+                                    })}
                                 </Text>
                             )}
                         </View>
@@ -428,7 +441,7 @@ export default function AchievementsCard({
                                 color: customColors.primary,
                                 fontWeight: '500',
                             }}>
-                                Done
+                                {t('progress.achievements.done')}
                             </Text>
                         </TouchableOpacity>
                     </View>
@@ -451,7 +464,7 @@ export default function AchievementsCard({
                                 color: customColors.text,
                                 marginBottom: 8,
                             }}>
-                                Progress Overview
+                                {t('progress.achievements.progressOverview')}
                             </Text>
                             <View style={{
                                 flexDirection: 'row',
@@ -469,7 +482,7 @@ export default function AchievementsCard({
                                         fontSize: 12,
                                         color: customColors.subtleGray,
                                     }}>
-                                        Unlocked
+                                        {t('progress.achievements.unlocked')}
                                     </Text>
                                 </View>
                                 <View style={{alignItems: 'center'}}>
@@ -484,7 +497,7 @@ export default function AchievementsCard({
                                         fontSize: 12,
                                         color: customColors.subtleGray,
                                     }}>
-                                        Available
+                                        {t('progress.achievements.available')}
                                     </Text>
                                 </View>
                                 <View style={{alignItems: 'center'}}>
@@ -499,7 +512,7 @@ export default function AchievementsCard({
                                         fontSize: 12,
                                         color: customColors.subtleGray,
                                     }}>
-                                        Complete
+                                        {t('progress.achievements.complete')}
                                     </Text>
                                 </View>
                             </View>
@@ -540,7 +553,7 @@ export default function AchievementsCard({
                                         color: customColors.subtleGray,
                                         textAlign: 'center',
                                     }}>
-                                        No achievements in this category yet
+                                        {t('progress.achievements.noAchievements')}
                                     </Text>
                                 </View>
                             )}

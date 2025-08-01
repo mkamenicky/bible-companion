@@ -5,11 +5,13 @@ import {useTheme} from "react-native-paper";
 import {useColorScheme} from "react-native";
 import {ThemeService} from "@/services";
 import {useEffect, useState} from "react";
+import {useTranslation} from "@/hooks";
 
 export default function TabLayout() {
     const theme = useTheme();
     const colorScheme = useColorScheme();
     const [themeVariant, setThemeVariant] = useState(ThemeService.getCurrentVariant());
+    const t = useTranslation(); // Add translation hook
 
     // Listen for theme variant changes
     useEffect(() => {
@@ -35,14 +37,14 @@ export default function TabLayout() {
             <Tabs.Screen
                 name="index"
                 options={{
-                    title: 'Home',
+                    title: t('navigation.home'),
                     tabBarIcon: ({color, size}) => (<FontAwesome name="home" color={color} size={size}/>),
                 }}
             />
             <Tabs.Screen
                 name="ProgressScreen"
                 options={{
-                    title: 'Progress',
+                    title: t('navigation.progress'),
                     tabBarIcon: ({color, size}) => (<FontAwesome name="pie-chart" color={color} size={size - 2}/>),
                 }}
             />
@@ -50,21 +52,21 @@ export default function TabLayout() {
                 name="FeedbackScreen"
                 redirect={true}
                 options={{
-                    title: 'Feedback',
+                    title: t('navigation.feedback'),
                     tabBarIcon: ({color, size}) => (<MaterialIcons name="edit-note" color={color} size={size}/>),
                 }}
             />
             <Tabs.Screen
                 name="CalendarScreen"
                 options={{
-                    title: 'Calendar',
+                    title: t('navigation.calendar'),
                     tabBarIcon: ({color, size}) => (<MaterialIcons name="calendar-month" color={color} size={size}/>),
                 }}
             />
             <Tabs.Screen
                 name="SettingsScreen"
                 options={{
-                    title: 'Settings',
+                    title: t('navigation.settings'),
                     tabBarIcon: ({color, size}) => (<FontAwesome name="cog" color={color} size={size}/>),
                 }}
             />

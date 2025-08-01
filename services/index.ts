@@ -34,3 +34,5 @@ export {AndroidDatabaseService, getAndroidDatabaseService} from '@/services/(ser
 export {IOSDatabaseService, getIOSDatabaseService} from '@/services/(services)/database/db.ios';
 export {WebDatabaseService, getWebDatabaseService} from '@/services/(services)/database/db.web';
 
+export { localizationService, SupportedLanguage, LanguageOption } from '@/services/(services)/localization/localization.service';
+

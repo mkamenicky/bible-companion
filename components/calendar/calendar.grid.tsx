@@ -1,10 +1,13 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, PanResponder } from 'react-native';
+import { useTranslation } from '@/hooks';
 
 interface Props {
     readingDays: Map<string, number>;
     currentMonth: number;
     currentYear: number;
+    onMonthChange: (month: number) => void;
+    onYearChange: (year: number) => void;
     styles: any;
     customColors: any;
 }
@@ -13,15 +16,39 @@ export default function CalendarGrid({
                                          readingDays,
                                          currentMonth,
                                          currentYear,
+                                         onMonthChange,
+                                         onYearChange,
                                          styles,
                                          customColors
                                      }: Props) {
+    const t = useTranslation();
+
+    // Get localized month names
     const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
+        t('dateFormat.months.january'),
+        t('dateFormat.months.february'),
+        t('dateFormat.months.march'),
+        t('dateFormat.months.april'),
+        t('dateFormat.months.may'),
+        t('dateFormat.months.june'),
+        t('dateFormat.months.july'),
+        t('dateFormat.months.august'),
+        t('dateFormat.months.september'),
+        t('dateFormat.months.october'),
+        t('dateFormat.months.november'),
+        t('dateFormat.months.december')
     ];
 
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    // Get localized day names (abbreviated)
+    const dayNames = [
+        t('dateFormat.weekdays.sunday').slice(0, 3),
+        t('dateFormat.weekdays.monday').slice(0, 3),
+        t('dateFormat.weekdays.tuesday').slice(0, 3),
+        t('dateFormat.weekdays.wednesday').slice(0, 3),
+        t('dateFormat.weekdays.thursday').slice(0, 3),
+        t('dateFormat.weekdays.friday').slice(0, 3),
+        t('dateFormat.weekdays.saturday').slice(0, 3)
+    ];
 
     // Get first day of the month and number of days in month
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
@@ -78,6 +105,48 @@ export default function CalendarGrid({
             today.getDate() === day;
     };
 
+    // Handle swipe gestures using PanResponder
+    const panResponder = PanResponder.create({
+        onMoveShouldSetPanResponder: (evt, gestureState) => {
+            // Only respond to horizontal gestures
+            return Math.abs(gestureState.dx) > Math.abs(gestureState.dy) && Math.abs(gestureState.dx) > 10;
+        },
+        onPanResponderMove: (evt, gestureState) => {
+            // Optional: Add visual feedback during swipe
+        },
+        onPanResponderRelease: (evt, gestureState) => {
+            const swipeThreshold = 50;
+
+            if (gestureState.dx > swipeThreshold) {
+                // Swipe right - go to previous month
+                navigateToPreviousMonth();
+            } else if (gestureState.dx < -swipeThreshold) {
+                // Swipe left - go to next month
+                navigateToNextMonth();
+            }
+        },
+    });
+
+    const navigateToPreviousMonth = () => {
+        if (currentMonth === 0) {
+            // Go to December of previous year
+            onYearChange(currentYear - 1);
+            onMonthChange(11);
+        } else {
+            onMonthChange(currentMonth - 1);
+        }
+    };
+
+    const navigateToNextMonth = () => {
+        if (currentMonth === 11) {
+            // Go to January of next year
+            onYearChange(currentYear + 1);
+            onMonthChange(0);
+        } else {
+            onMonthChange(currentMonth + 1);
+        }
+    };
+
     return (
         <View style={styles.card}>
             <View style={styles.sectionHeader}>
@@ -85,18 +154,21 @@ export default function CalendarGrid({
                     {monthNames[currentMonth]} {currentYear}
                 </Text>
                 <Text style={styles.sectionSubtitle}>
-                    Days you read the Bible
+                    {t('dateFormat.calendar.daysYouRead')}
                 </Text>
             </View>
 
-            <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+            <View
+                style={{ paddingHorizontal: 20, paddingBottom: 20 }}
+                {...panResponder.panHandlers}
+            >
                 {/* Day Headers */}
                 <View style={{
                     flexDirection: 'row',
                     marginBottom: 12,
                 }}>
-                    {dayNames.map((dayName) => (
-                        <View key={dayName} style={{
+                    {dayNames.map((dayName, index) => (
+                        <View key={index} style={{
                             flex: 1,
                             alignItems: 'center',
                             paddingVertical: 8,
@@ -189,7 +261,7 @@ export default function CalendarGrid({
                             fontSize: 12,
                             color: customColors.subtleGray,
                         }}>
-                            Reading Day
+                            {t('calendar.readingDay')}
                         </Text>
                     </View>
 
@@ -210,9 +282,27 @@ export default function CalendarGrid({
                             fontSize: 12,
                             color: customColors.subtleGray,
                         }}>
-                            Today
+                            {t('common.today')}
                         </Text>
                     </View>
+                </View>
+
+                {/* Swipe Hint */}
+                <View style={{
+                    alignItems: 'center',
+                    marginTop: 12,
+                    paddingTop: 8,
+                    borderTopWidth: 0.5,
+                    borderTopColor: customColors.borderColor,
+                }}>
+                    <Text style={{
+                        fontSize: 11,
+                        color: customColors.subtleGray,
+                        textAlign: 'center',
+                        fontStyle: 'italic',
+                    }}>
+                        {t('calendar.swipeHint')}
+                    </Text>
                 </View>
             </View>
         </View>

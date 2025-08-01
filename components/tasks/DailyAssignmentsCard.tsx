@@ -1,6 +1,8 @@
+// DailyAssignmentsCard.tsx
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import {DailyReadingAssignment, EnhancedDailyReadingAssignment} from '@/models';
+import { useTranslation } from '@/hooks';
 
 interface Props {
     dailyReadingAssignments: EnhancedDailyReadingAssignment[];
@@ -17,24 +19,23 @@ export default function DailyAssignmentsCard({
                                                  styles,
                                                  customColors
                                              }: Props) {
+    const t = useTranslation();
     const completedCount = dailyReadingAssignments.filter(item => item.is_completed).length;
     const progressPercentage = dailyReadingAssignments.length > 0 ? (completedCount / dailyReadingAssignments.length) * 100 : 100;
     const allDone = dailyReadingAssignments.length > 0 && dailyReadingAssignments.every(item => item.is_completed);
 
     return (
         <View style={styles.card}>
-            {/* Section header */}
             <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>{title}</Text>
-                <Text style={styles.sectionSubtitle}>Daily scripture reading</Text>
+                <Text style={styles.sectionSubtitle}>{t('dailyAssignments.subtitle')}</Text>
             </View>
 
-            {/* Reading list */}
             <View>
                 {dailyReadingAssignments.length === 0 ? (
                     <View style={[styles.listItem, { justifyContent: 'center' }]}>
                         <Text style={[styles.itemTitle, { textAlign: 'center', fontStyle: 'italic' }]}>
-                            No reading plan available for today
+                            {t('dailyAssignments.noReading')}
                         </Text>
                     </View>
                 ) : (
@@ -84,11 +85,10 @@ export default function DailyAssignmentsCard({
                 )}
             </View>
 
-            {/* Progress section - only show if there are items */}
             {dailyReadingAssignments.length > 0 && (
                 <View style={styles.progressContainer}>
                     <View style={styles.progressHeader}>
-                        <Text style={styles.progressLabel}>Today's Progress</Text>
+                        <Text style={styles.progressLabel}>{t('dailyAssignments.todayProgress')}</Text>
                         <Text style={styles.progressValue}>{completedCount}/{dailyReadingAssignments.length}</Text>
                     </View>
                     <View style={styles.progressBar}>
@@ -100,7 +100,6 @@ export default function DailyAssignmentsCard({
                 </View>
             )}
 
-            {/* Completion message */}
             {allDone && (
                 <View style={{
                     padding: 16,
@@ -114,7 +113,7 @@ export default function DailyAssignmentsCard({
                         color: customColors?.completedGreen || '#34d399',
                         textAlign: 'center'
                     }}>
-                        🎉 Congratulations! You've completed today's reading.
+                        {t('dailyAssignments.congratulations')}
                     </Text>
                 </View>
             )}

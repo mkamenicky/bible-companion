@@ -1,5 +1,7 @@
+// DailyTextBanner.tsx
 import React from 'react';
 import { Text, View, TouchableOpacity } from 'react-native';
+import { useTranslation } from '@/hooks';
 
 interface Props {
     today: Date;
@@ -18,11 +20,11 @@ export default function DailyTextBanner({
                                             styles,
                                             customColors
                                         }: Props) {
+    const t = useTranslation();
     const completedCount = dailyChecklistItems.filter(task => taskStatus[task]).length;
     const allDone = dailyChecklistItems.every(task => taskStatus[task]);
     const progressPercentage = (completedCount / dailyChecklistItems.length) * 100;
 
-    // Format the date nicely
     const formattedDate = today.toLocaleDateString(undefined, {
         weekday: 'long',
         month: 'long',
@@ -31,13 +33,11 @@ export default function DailyTextBanner({
 
     return (
         <View style={styles.card}>
-            {/* Section header */}
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Daily Text</Text>
-                <Text style={styles.sectionSubtitle}>Your daily spiritual reflection</Text>
+                <Text style={styles.sectionTitle}>{t('dailyText.title')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('dailyText.subtitle')}</Text>
             </View>
 
-            {/* Task list */}
             <View>
                 {dailyChecklistItems.map((task, index) => {
                     const isCompleted = taskStatus[task];
@@ -55,7 +55,7 @@ export default function DailyTextBanner({
                         >
                             <View style={[
                                 styles.itemIcon,
-                                { backgroundColor: '#fff3e0' } // Calendar/daily color
+                                { backgroundColor: '#fff3e0' }
                             ]}>
                                 <Text style={{ fontSize: 18 }}>📅</Text>
                             </View>
@@ -71,7 +71,7 @@ export default function DailyTextBanner({
                                     {formattedDate}
                                 </Text>
                                 <Text style={styles.itemSubtitle}>
-                                    Daily scripture and reflection
+                                    {t('dailyText.description')}
                                 </Text>
                             </View>
 
@@ -88,10 +88,9 @@ export default function DailyTextBanner({
                 })}
             </View>
 
-            {/* Progress section */}
             <View style={styles.progressContainer}>
                 <View style={styles.progressHeader}>
-                    <Text style={styles.progressLabel}>Daily Progress</Text>
+                    <Text style={styles.progressLabel}>{t('dailyText.dailyProgress')}</Text>
                     <Text style={styles.progressValue}>{completedCount}/{dailyChecklistItems.length}</Text>
                 </View>
                 <View style={styles.progressBar}>
@@ -102,7 +101,6 @@ export default function DailyTextBanner({
                 </View>
             </View>
 
-            {/* Completion message */}
             {allDone && (
                 <View style={{
                     padding: 16,
@@ -116,7 +114,7 @@ export default function DailyTextBanner({
                         color: customColors?.completedGreen || '#34d399',
                         textAlign: 'center'
                     }}>
-                        🎉 Daily text completed! Great start to your day!
+                        {t('dailyText.completed')}
                     </Text>
                 </View>
             )}

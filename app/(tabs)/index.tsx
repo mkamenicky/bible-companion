@@ -6,21 +6,15 @@ import {useColorScheme, View} from 'react-native';
 import {Appbar} from 'react-native-paper';
 
 // Local component imports
-import {
-    DailyTextBanner,
-    DailyAssignmentsCard,
-    ScreenContainer,
-    TaskConfirmationModal,
-    WeeklyChecklistCard,
-    LoadingScreen
-} from '@/components';
+import {DailyAssignmentsCard, DailyTextBanner, LoadingScreen, ScreenContainer, WeeklyChecklistCard} from '@/components';
 
 // Service and utility imports
-import {useHomeData} from '@/hooks';
+import {useHomeData, useTranslation} from '@/hooks';
 import {DateFormattingService, ThemeService} from '@/services';
-import {DailyReadingAssignment} from "@/models";
 
 export default function Index() {
+    const t = useTranslation(); // Add translation hook
+
     // Custom hook for data management
     const {
         today,
@@ -45,7 +39,7 @@ export default function Index() {
     if (loading) {
         return (
             <LoadingScreen
-                message="Loading home..."
+                message={t('home.loadingMessage')}
                 styles={styles}
                 customColors={customColors}
             />
@@ -61,7 +55,7 @@ export default function Index() {
         <View style={styles.container}>
             <Appbar.Header style={styles.appbar}>
                 <Appbar.Content
-                    title="Home"
+                    title={t('home.title')}
                     titleStyle={{color: customColors.color, fontWeight: '600'}}
                 />
             </Appbar.Header>
@@ -80,7 +74,7 @@ export default function Index() {
                             key={assignmentTitle}
                             dailyReadingAssignments={assignments}
                             onToggle={handleToggleVerses}
-                            title={`Reading Plan Today: ${assignmentTitle}`}
+                            title={t('home.readingPlanToday', {title: assignmentTitle})}
                             styles={styles}
                             customColors={customColors}
                         />
@@ -89,7 +83,7 @@ export default function Index() {
 
                 <WeeklyChecklistCard
                     items={weeklyChecklistItems}
-                    title={`Week: ${weekRange}`}
+                    title={t('home.week', {range: weekRange})}
                     taskStatus={taskStatus}
                     onConfirm={confirmTaskCompletion}
                     styles={styles}

@@ -1,6 +1,7 @@
 // AppearanceCard.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import {Text, TouchableOpacity, View} from 'react-native';
+import {useTranslation} from '@/hooks';
 
 interface AppearanceCardProps {
     settings: any;
@@ -17,10 +18,12 @@ export default function AppearanceCard({
                                            styles,
                                            customColors,
                                        }: AppearanceCardProps) {
+    const t = useTranslation();
+
     const fontSizeOptions = [
-        { value: 'small', label: 'Small', display: 'S' },
-        { value: 'medium', label: 'Medium', display: 'M' },
-        { value: 'large', label: 'Large', display: 'L' },
+        {value: 'small', label: t('settings.fontSize.small'), display: 'S'},
+        {value: 'medium', label: t('settings.fontSize.medium'), display: 'M'},
+        {value: 'large', label: t('settings.fontSize.large'), display: 'L'},
     ];
 
     const currentFontSize = fontSizeOptions.find(option => option.value === settings.fontSize);
@@ -29,8 +32,8 @@ export default function AppearanceCard({
         <View style={styles.card}>
             {/* Section header */}
             <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Appearance</Text>
-                <Text style={styles.sectionSubtitle}>Customize your app's look and feel</Text>
+                <Text style={styles.sectionTitle}>{t('settings.appearance')}</Text>
+                <Text style={styles.sectionSubtitle}>{t('settings.appearanceSubtitle')}</Text>
             </View>
 
             {/* Theme selection */}
@@ -40,21 +43,21 @@ export default function AppearanceCard({
             >
                 <View style={[
                     styles.itemIcon,
-                    { backgroundColor: '#f3e5f5' }
+                    {backgroundColor: '#f3e5f5'}
                 ]}>
-                    <Text style={{ fontSize: 18 }}>🎨</Text>
+                    <Text style={{fontSize: 18}}>🎨</Text>
                 </View>
 
                 <View style={styles.itemContent}>
-                    <Text style={styles.itemTitle}>Theme</Text>
+                    <Text style={styles.itemTitle}>{t('settings.theme')}</Text>
                     <Text style={styles.itemSubtitle}>
-                        Current: System Default
+                        {t('settings.themeSubtitle')}
                     </Text>
                 </View>
 
                 <View style={styles.itemAction}>
-                    <Text style={[styles.actionText, { color: customColors.instagramBlue }]}>
-                        Change
+                    <Text style={[styles.actionText, {color: customColors.instagramBlue}]}>
+                        {t('settings.change')}
                     </Text>
                 </View>
             </TouchableOpacity>
@@ -78,9 +81,9 @@ export default function AppearanceCard({
             {/*    </View>*/}
 
             {/*    <View style={styles.itemContent}>*/}
-            {/*        <Text style={styles.itemTitle}>Font Size</Text>*/}
+            {/*        <Text style={styles.itemTitle}>{t('settings.fontSize')}</Text>*/}
             {/*        <Text style={styles.itemSubtitle}>*/}
-            {/*            Current: {currentFontSize ? currentFontSize.label : 'Medium'}*/}
+            {/*            {t('settings.fontSizeCurrent', { size: currentFontSize ? currentFontSize.label : t('settings.fontSize.medium') })}*/}
             {/*        </Text>*/}
             {/*    </View>*/}
 

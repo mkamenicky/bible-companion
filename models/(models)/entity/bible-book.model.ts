@@ -7,6 +7,8 @@ export interface BibleBook {
   readonly BookDisplayTitle?: string;
   readonly BookDisplayTitleRich?: string;
   readonly ChapterDisplayTitle?: string;
+  readonly ChapterDisplayTitleGerman?: string;
+  readonly ChapterDisplayTitleJapanese?: string;
   readonly ChapterDisplayTitleRich?: string;
   readonly PublicationId?: number;
   readonly FirstVerseId?: number;

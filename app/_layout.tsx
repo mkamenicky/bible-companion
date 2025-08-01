@@ -1,7 +1,3 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import {Stack} from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import {useCallback, useEffect, useMemo, useState} from 'react';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {MD3DarkTheme, MD3LightTheme, PaperProvider} from 'react-native-paper';
 import {useFonts} from 'expo-font';
@@ -11,6 +7,10 @@ import {initDatabase} from '@/services/(services)/database/db';
 import {useColorScheme} from "react-native";
 import {ThemeService} from "@/services/(services)/theme/ThemeService";
 import {useThemeInitializer} from "@/components/theme/ThemeSelector";
+import { localizationService } from '@/services';
+import {SplashScreen, Stack} from "expo-router";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import {useCallback, useEffect, useMemo, useState} from "react";
 
 export {ErrorBoundary} from 'expo-router';
 
@@ -18,7 +18,7 @@ export const unstable_settings = {
     initialRouteName: '(tabs)',
 };
 
-// Prevent auto-hiding the splash screen before fonts and DB are ready
+// Prevent auto-hiding the splash screen before fonts, DB, and localization are ready
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -28,6 +28,7 @@ export default function RootLayout() {
     });
 
     const [dbReady, setDbReady] = useState(false);
+    const [localizationReady, setLocalizationReady] = useState(false);
 
     useEffect(() => {
         if (error) throw error;
@@ -35,24 +36,33 @@ export default function RootLayout() {
 
     const prepare = useCallback(async () => {
         try {
+            // Initialize database
             await initDatabase();
             console.log('✅ Database initialized successfully');
             setDbReady(true);
+
+            // Initialize localization
+            await localizationService.initialize();
+            console.log('✅ Localization initialized successfully');
+            setLocalizationReady(true);
         } catch (err) {
-            console.error('❌ Error initializing database:', err);
+            console.error('❌ Error during initialization:', err);
+            // Set to true anyway to prevent infinite loading
+            setDbReady(true);
+            setLocalizationReady(true);
         } finally {
             if (loaded) await SplashScreen.hideAsync();
         }
     }, [loaded]);
 
     useEffect(() => {
-        if (loaded && !dbReady) {
+        if (loaded && (!dbReady || !localizationReady)) {
             prepare();
         }
-    }, [loaded, dbReady, prepare]);
+    }, [loaded, dbReady, localizationReady, prepare]);
 
-    // ❗ Don't render anything until fonts and DB are ready
-    if (!loaded || !dbReady) return null;
+    // ❗ Don't render anything until everything is ready
+    if (!loaded || !dbReady || !localizationReady) return null;
 
     return <RootLayoutNav/>;
 }
