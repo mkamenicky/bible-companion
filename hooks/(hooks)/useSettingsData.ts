@@ -1,9 +1,9 @@
-// useSettingsData.ts
+// useSettingsData.ts (Corrected - only exposing what exists)
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {Alert, Linking, Platform} from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as IntentLauncher from 'expo-intent-launcher';
-import {SettingsService} from '@/services';
+import {SettingsService, databaseBackupService} from '@/services';
 import {AppSettings} from "@/models";
 
 export interface DialogStates {
@@ -32,12 +32,19 @@ export function useSettingsData() {
 
     // Dialog states
     const [dialogs, setDialogs] = useState<DialogStates>({
-        changeTheme: false, dailyGoal: false, fontSize: false, exportData: false, resetConfirm: false,
+        changeTheme: false,
+        dailyGoal: false,
+        fontSize: false,
+        exportData: false,
+        resetConfirm: false,
     });
 
     // Form states
     const [formStates, setFormStates] = useState<FormStates>({
-        dailyGoalInput: '10', timePickerVisible: false, selectedTime: new Date(), refreshing: false,
+        dailyGoalInput: '10',
+        timePickerVisible: false,
+        selectedTime: new Date(),
+        refreshing: false,
     });
 
     // Update form input when dailyVerseGoal changes
@@ -47,7 +54,7 @@ export function useSettingsData() {
         }));
     }, [dailyVerseGoal]);
 
-    // Fixed: Remove settingsService from dependency array to prevent infinite loop
+    // Load settings function
     const loadSettings = useCallback(async (): Promise<void> => {
         try {
             setLoading(true);
@@ -63,7 +70,7 @@ export function useSettingsData() {
         } finally {
             setLoading(false);
         }
-    }, []); // Remove settingsService from dependencies
+    }, []);
 
     const onRefresh = useCallback(async () => {
         setFormStates(prev => ({...prev, refreshing: true}));
@@ -71,7 +78,7 @@ export function useSettingsData() {
         setFormStates(prev => ({...prev, refreshing: false}));
     }, [loadSettings]);
 
-    // Fixed: Remove settingsService from dependency array
+    // Update setting function
     const updateSetting = useCallback(async <K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<AppSettings | null> => {
         try {
             await settingsService.updateSetting(key, value);
@@ -82,9 +89,9 @@ export function useSettingsData() {
             Alert.alert('Error', 'Failed to update setting');
             return null;
         }
-    }, []); // Remove settingsService from dependencies
+    }, []);
 
-    // Fixed: Remove settingsService from dependency array
+    // Update daily verse goal function
     const updateDailyVerseGoal = useCallback(async (goal: number): Promise<void> => {
         try {
             await settingsService.updateDailyVerseGoal(goal);
@@ -93,7 +100,7 @@ export function useSettingsData() {
             console.error('Error updating daily verse goal:', error);
             Alert.alert('Error', 'Failed to update daily verse goal');
         }
-    }, []); // Remove settingsService from dependencies
+    }, []);
 
     // Dialog management
     const handleToggleDialog = useCallback((dialogName: keyof DialogStates, visible?: boolean) => {
@@ -154,7 +161,7 @@ export function useSettingsData() {
                 await Linking.openURL('app-settings:');
             } else {
                 await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.APPLICATION_DETAILS_SETTINGS, {
-                    data: 'package:' + 'your.app.package.name', // Replace with actual package name
+                    data: 'package:' + 'your.app.package.name',
                 });
             }
         } catch (error) {
@@ -164,7 +171,6 @@ export function useSettingsData() {
     }, []);
 
     const checkNotificationPermissions = async (): Promise<boolean> => {
-        // You would implement this with expo-notifications
         return true; // Placeholder
     };
 
@@ -184,17 +190,121 @@ export function useSettingsData() {
         await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }, [updateSetting, openNotificationSettings]);
 
-    // Test notification handler - removed direct call to sendTestNotification
+    // Test notification handler
     const handleTestNotification = useCallback(async () => {
         try {
-            // This will be handled by the notifications hook in the component
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (error) {
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         }
     }, []);
 
-    // Export/Import handlers
+    // DATABASE BACKUP HANDLERS - Simple interface for DataStorageCard
+
+    // Handle database backup creation
+    const handleDatabaseBackup = useCallback(async () => {
+        try {
+            const result = await databaseBackupService.createDatabaseBackup();
+
+            if (result.success) {
+                const sizeText = result.size ? ` (${formatBytes(result.size)})` : '';
+                Alert.alert(
+                    'Backup Created',
+                    `Database backup created successfully${sizeText}. What would you like to do?`,
+                    [
+                        {text: 'Nothing', style: 'cancel'},
+                        {
+                            text: 'Download',
+                            onPress: async () => {
+                                if (result.filePath) {
+                                    const downloadResult = await databaseBackupService.copyToDownloads(result.filePath);
+                                    if (downloadResult.success) {
+                                        Alert.alert(
+                                            'Downloaded',
+                                            'Backup saved to Downloads folder',
+                                            [{text: 'OK'}]
+                                        );
+                                    } else {
+                                        Alert.alert('Download Error', downloadResult.error);
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            text: 'Share',
+                            onPress: async () => {
+                                if (result.filePath) {
+                                    const shareResult = await databaseBackupService.shareBackup(result.filePath);
+                                    if (!shareResult.success) {
+                                        Alert.alert('Share Error', shareResult.error);
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                );
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            } else {
+                Alert.alert('Backup Failed', result.error || 'Failed to create database backup');
+                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            }
+        } catch (error) {
+            console.error('Database backup error:', error);
+            Alert.alert('Backup Error', 'An unexpected error occurred while creating the backup');
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        }
+    }, []);
+
+    // Handle database restore
+    const handleDatabaseRestore = useCallback(async () => {
+        Alert.alert(
+            'Restore Database',
+            'This will replace all your current data with the backup. This action cannot be undone. Continue?',
+            [
+                {text: 'Cancel', style: 'cancel'},
+                {
+                    text: 'Restore',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            const result = await databaseBackupService.restoreDatabaseBackup();
+
+                            if (result.success) {
+                                let message = 'Database restored successfully!';
+                                if (result.warnings && result.warnings.length > 0) {
+                                    message += '\n\nWarnings:\n' + result.warnings.join('\n');
+                                }
+
+                                Alert.alert(
+                                    'Restore Complete',
+                                    message,
+                                    [
+                                        {
+                                            text: 'OK',
+                                            onPress: () => {
+                                                // Reload settings after restore
+                                                loadSettings();
+                                            }
+                                        }
+                                    ]
+                                );
+                                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            } else {
+                                Alert.alert('Restore Failed', result.error || 'Failed to restore database');
+                                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                            }
+                        } catch (error) {
+                            console.error('Database restore error:', error);
+                            Alert.alert('Restore Error', 'An unexpected error occurred while restoring the database');
+                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                        }
+                    }
+                }
+            ]
+        );
+    }, [loadSettings]);
+
+    // Export/Import handlers (existing settings export)
     const handleExportSettings = useCallback(async () => {
         try {
             const exportData = await exportSettings();
@@ -208,7 +318,7 @@ export function useSettingsData() {
         }
     }, [handleToggleDialog]);
 
-    // Fixed: Remove settingsService from dependency array
+    // Reset settings function
     const resetSettings = useCallback(async (): Promise<void> => {
         Alert.alert('Reset All Settings', 'This will restore all settings to their default values. This action cannot be undone.', [{
             text: 'Cancel',
@@ -224,13 +334,13 @@ export function useSettingsData() {
                 }
             },
         },]);
-    }, [loadSettings]); // Only keep loadSettings dependency
+    }, [loadSettings]);
 
     const handleResetSettings = useCallback(() => {
         resetSettings();
     }, [resetSettings]);
 
-    // Fixed: Remove settingsService from dependency array
+    // Export settings function
     const exportSettings = useCallback(async (): Promise<{ success: boolean; data?: string; error?: string }> => {
         try {
             return await settingsService.exportSettings();
@@ -238,9 +348,9 @@ export function useSettingsData() {
             Alert.alert('Error', 'Failed to export settings');
             return Promise.reject(error);
         }
-    }, []); // Remove settingsService from dependencies
+    }, []);
 
-    // Fixed: Remove settingsService from dependency array
+    // Import settings function
     const importSettings = useCallback(async (settingsJson: string): Promise<void> => {
         try {
             await settingsService.importSettings(settingsJson);
@@ -249,17 +359,26 @@ export function useSettingsData() {
         } catch (error) {
             Alert.alert('Error', 'Failed to import settings. Please check the format.');
         }
-    }, [loadSettings]); // Only keep loadSettings dependency
+    }, [loadSettings]);
 
     // Form state updaters
     const updateFormState = useCallback(<K extends keyof FormStates>(key: K, value: FormStates[K]) => {
         setFormStates(prev => ({...prev, [key]: value}));
     }, []);
 
-    // Fixed: Add explicit dependency array to prevent infinite loop
+    // Helper function for formatting bytes
+    const formatBytes = (bytes: number): string => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+
+    // Load settings on mount
     useEffect(() => {
         loadSettings();
-    }, []); // Empty dependency array - only run once on mount
+    }, []);
 
     return {
         // Core settings data
@@ -295,5 +414,9 @@ export function useSettingsData() {
 
         // Export/import actions
         handleExportSettings,
+
+        // Database backup actions (only the ones that actually exist)
+        handleDatabaseBackup,
+        handleDatabaseRestore,
     };
 }

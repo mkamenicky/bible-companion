@@ -23,7 +23,6 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.maximilian.kamenicky.biblecompanion"
     },
     "web": {
@@ -42,6 +41,14 @@
             "backgroundColor": "#000000"
           },
           "imageWidth": 200
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Bible Companion to save database backups.",
+          "savePhotosPermission": "Allow Bible Companion to save database backups to your device.",
+          "isAccessMediaLocationEnabled": true
         }
       ],
       "expo-router",

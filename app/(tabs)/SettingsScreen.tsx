@@ -1,9 +1,9 @@
-// SettingsScreen.tsx
+// SettingsScreen.tsx (Corrected - only using existing fields)
 import React from 'react';
 import {useColorScheme, View} from 'react-native';
 import {Appbar} from 'react-native-paper';
 
-// Import individual components (now with default exports)
+// Import individual components
 import {
     AppearanceCard,
     DataStorageCard,
@@ -22,7 +22,7 @@ import {useNotifications, useSettingsData, useTranslation} from '@/hooks';
 import {ThemeService} from '@/services';
 
 export default function SettingsScreen() {
-    const t = useTranslation(); // Add translation hook
+    const t = useTranslation();
 
     // Separate the hooks to avoid circular dependency
     const settingsHook = useSettingsData();
@@ -45,6 +45,9 @@ export default function SettingsScreen() {
         showTimePicker,
         updateSetting,
         updateFormState,
+        // Database backup handlers (only the ones that exist)
+        handleDatabaseBackup,
+        handleDatabaseRestore,
     } = settingsHook;
 
     const {
@@ -177,20 +180,16 @@ export default function SettingsScreen() {
                     customColors={customColors}
                 />
 
+                {/* Language Selection Section */}
                 <LanguageSelector
                     styles={styles}
-                    customColors={customColors}/>
+                    customColors={customColors}
+                />
 
                 {/* Reading Goals Section */}
                 <ReadingGoalsCard
                     dailyVerseGoal={dailyVerseGoal}
                     onEditGoal={() => handleToggleDialog('dailyGoal', true)}
-                    styles={styles}
-                    customColors={customColors}
-                />
-
-                {/* Language Selection Section */}
-                <LanguageSelector
                     styles={styles}
                     customColors={customColors}
                 />
@@ -201,7 +200,7 @@ export default function SettingsScreen() {
                     onFontSizeChange={(size: any) => updateSetting('fontSize', size)}
                     onThemeChange={() => {
                         handleToggleDialog('changeTheme', true)
-                    }} // Will be implemented
+                    }}
                     styles={styles}
                     customColors={customColors}
                 />
@@ -230,6 +229,8 @@ export default function SettingsScreen() {
                     onOfflineModeToggle={(value: any) => updateSetting('offlineMode', value)}
                     onExportSettings={() => handleToggleDialog('exportData', true)}
                     onResetSettings={resetSettings}
+                    onDatabaseBackup={handleDatabaseBackup}
+                    onDatabaseRestore={handleDatabaseRestore}
                     styles={styles}
                     customColors={customColors}
                 />

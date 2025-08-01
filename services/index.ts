@@ -27,12 +27,19 @@ export {ReadingService} from '@/services/(services)/readings/ReadingService';
 export {SettingsService} from '@/services/(services)/settings/SettingsService';
 export {TaskService} from '@/services/(services)/task/TaskService';
 export {ThemeService} from '@/services/(services)/theme/ThemeService';
-export {NotificationService, NotificationSchedule, NotificationPermissionStatus} from '@/services/(services)/notifications/NotificationsServices';
+export {
+    NotificationService, NotificationSchedule, NotificationPermissionStatus
+} from '@/services/(services)/notifications/NotificationsServices';
 
 // Export platform-specific database services
 export {AndroidDatabaseService, getAndroidDatabaseService} from '@/services/(services)/database/db.android';
 export {IOSDatabaseService, getIOSDatabaseService} from '@/services/(services)/database/db.ios';
 export {WebDatabaseService, getWebDatabaseService} from '@/services/(services)/database/db.web';
+export {
+    DatabaseBackupResult, DatabaseBackupService, BackupFileInfo, DatabaseRestoreResult, databaseBackupService
+} from '@/services/(services)/database/DatabaseBackupService';
 
-export { localizationService, SupportedLanguage, LanguageOption } from '@/services/(services)/localization/localization.service';
+export {
+    localizationService, SupportedLanguage, LanguageOption
+} from '@/services/(services)/localization/localization.service';
 
