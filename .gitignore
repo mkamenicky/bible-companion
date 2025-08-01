@@ -36,3 +36,5 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+/assets/bible_de.db
+/assets/bible_jp.db
