@@ -154,7 +154,7 @@ export default function CalendarGrid({
                     {monthNames[currentMonth]} {currentYear}
                 </Text>
                 <Text style={styles.sectionSubtitle}>
-                    {t('dateFormat.calendar.daysYouRead')}
+                    {t('calendar.daysYouRead')}
                 </Text>
             </View>
 

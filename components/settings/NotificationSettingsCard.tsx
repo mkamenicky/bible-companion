@@ -1,15 +1,6 @@
-// NotificationSettingsCard.tsx
+// NotificationSettingsCard.tsx (Fixed with rounded corners)
 import React, {useEffect} from 'react';
-import {
-    Card,
-    List,
-    Switch,
-    Button,
-    Divider,
-    Surface,
-    IconButton
-} from 'react-native-paper';
-import { View } from "react-native";
+import { View, TouchableOpacity } from 'react-native';
 import { Text } from './TextProps';
 import { useTranslation } from '@/hooks';
 
@@ -100,221 +91,272 @@ export default function NotificationSettingsCard({
     );
 
     return (
-        <View style={styles.settingsSection}>
-            <Card.Title
-                title={t('settings.notifications.title')}
-                titleStyle={styles.settingsSectionTitle}
-                subtitle={t('settings.notifications.activeReminders', { count: notificationCounts.total })}
-                subtitleStyle={{ color: customColors.subtleGray, paddingHorizontal: 16 }}
-                left={(props) => (
-                    <Surface {...props} style={[styles.settingsItemIcon, { marginLeft: 16 }]} elevation={1}>
-                        <List.Icon icon="bell-outline" color={notificationStatus.color} />
-                    </Surface>
-                )}
-                right={(props) => (
-                    <View style={{ flexDirection: 'row', marginRight: 16 }}>
-                        <IconButton
-                            {...props}
-                            icon="test-tube"
-                            mode="outlined"
-                            size={20}
-                            onPress={sendTestNotification}
-                            disabled={!settings.notifications || !hasAnyNotificationsEnabled}
-                        />
-                    </View>
-                )}
-            />
+        <View style={styles.card}>
+            {/* Section header */}
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>{t('settings.notifications.title')}</Text>
+                <Text style={styles.sectionSubtitle}>
+                    {t('settings.notifications.activeReminders', { count: notificationCounts.total })}
+                </Text>
+            </View>
 
             {/* Master Enable Notifications Toggle */}
-            <View style={styles.settingsItem}>
-                <View style={styles.settingsItemIcon}>
-                    <List.Icon icon="toggle-switch-outline" />
+            <TouchableOpacity
+                style={styles.listItem}
+                onPress={() => onNotificationToggle(!settings.notifications)}
+            >
+                <View style={[
+                    styles.itemIcon,
+                    { backgroundColor: settings.notifications ? '#e8f5e8' : '#ffebee' }
+                ]}>
+                    <Text style={{ fontSize: 18 }}>
+                        {settings.notifications ? '🔔' : '🔕'}
+                    </Text>
                 </View>
-                <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>{t('settings.notifications.enable')}</Text>
-                    <Text style={styles.settingsItemDescription}>
+
+                <View style={styles.itemContent}>
+                    <Text style={styles.itemTitle}>{t('settings.notifications.enable')}</Text>
+                    <Text style={styles.itemSubtitle}>
                         {t('settings.notifications.enableDescription')}
                     </Text>
                 </View>
-                <Switch
-                    value={settings.notifications}
-                    onValueChange={onNotificationToggle}
-                    color={customColors.accent}
-                />
-            </View>
 
-            <Divider style={{ marginHorizontal: 16 }} />
+                <View style={[
+                    styles.checkbox,
+                    settings.notifications && styles.checkboxChecked
+                ]}>
+                    {settings.notifications && (
+                        <Text style={styles.checkboxIcon}>✓</Text>
+                    )}
+                </View>
+            </TouchableOpacity>
 
             {/* Daily Reading Reminder */}
-            <View style={[styles.settingsItem, !settings.notifications && { opacity: 0.5 }]}>
-                <View style={styles.settingsItemIcon}>
-                    <List.Icon
-                        icon="clock-outline"
-                        color={settings.notifications && settings.dailyReminder ? customColors.accent : customColors.subtleGray}
-                    />
+            <TouchableOpacity
+                style={[styles.listItem, !settings.notifications && { opacity: 0.5 }]}
+                onPress={() => settings.notifications && onDailyReminderToggle(!settings.dailyReminder)}
+                disabled={!settings.notifications}
+            >
+                <View style={[
+                    styles.itemIcon,
+                    { backgroundColor: settings.notifications && settings.dailyReminder ? '#e3f2fd' : '#f5f5f5' }
+                ]}>
+                    <Text style={{ fontSize: 18 }}>🕐</Text>
                 </View>
-                <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>{t('settings.dailyReminder')}</Text>
-                    <Text style={styles.settingsItemDescription}>
+
+                <View style={styles.itemContent}>
+                    <Text style={styles.itemTitle}>{t('settings.dailyReminder')}</Text>
+                    <Text style={styles.itemSubtitle}>
                         {t('settings.notifications.dailyDescription')}
                         {notificationCounts.daily > 0 && ` • ${t('settings.notifications.scheduled', { count: notificationCounts.daily })}`}
                     </Text>
                 </View>
-                <Switch
-                    value={settings.dailyReminder && settings.notifications}
-                    onValueChange={onDailyReminderToggle}
-                    disabled={!settings.notifications}
-                    color={customColors.accent}
-                />
-            </View>
 
-            <Divider style={{ marginHorizontal: 16 }} />
+                <View style={[
+                    styles.checkbox,
+                    settings.dailyReminder && settings.notifications && styles.checkboxChecked
+                ]}>
+                    {settings.dailyReminder && settings.notifications && (
+                        <Text style={styles.checkboxIcon}>✓</Text>
+                    )}
+                </View>
+            </TouchableOpacity>
 
             {/* Streak Reminder */}
-            <View style={[styles.settingsItem, !settings.notifications && { opacity: 0.5 }]}>
-                <View style={styles.settingsItemIcon}>
-                    <List.Icon
-                        icon="fire"
-                        color={settings.notifications && settings.streakReminder ? customColors.accent : customColors.subtleGray}
-                    />
+            <TouchableOpacity
+                style={[styles.listItem, !settings.notifications && { opacity: 0.5 }]}
+                onPress={() => settings.notifications && onStreakReminderToggle(!settings.streakReminder)}
+                disabled={!settings.notifications}
+            >
+                <View style={[
+                    styles.itemIcon,
+                    { backgroundColor: settings.notifications && settings.streakReminder ? '#fff3e0' : '#f5f5f5' }
+                ]}>
+                    <Text style={{ fontSize: 18 }}>🔥</Text>
                 </View>
-                <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>{t('settings.streakReminder')}</Text>
-                    <Text style={styles.settingsItemDescription}>
+
+                <View style={styles.itemContent}>
+                    <Text style={styles.itemTitle}>{t('settings.streakReminder')}</Text>
+                    <Text style={styles.itemSubtitle}>
                         {t('settings.notifications.streakDescription')}
                         {notificationCounts.streak > 0 && ` • ${t('settings.notifications.scheduled', { count: notificationCounts.streak })}`}
                     </Text>
                 </View>
-                <Switch
-                    value={settings.streakReminder && settings.notifications}
-                    onValueChange={onStreakReminderToggle}
-                    disabled={!settings.notifications}
-                    color={customColors.accent}
-                />
-            </View>
 
-            <Divider style={{ marginHorizontal: 16 }} />
+                <View style={[
+                    styles.checkbox,
+                    settings.streakReminder && settings.notifications && styles.checkboxChecked
+                ]}>
+                    {settings.streakReminder && settings.notifications && (
+                        <Text style={styles.checkboxIcon}>✓</Text>
+                    )}
+                </View>
+            </TouchableOpacity>
 
             {/* Goal Progress Reminder */}
-            <View style={[styles.settingsItem, !settings.notifications && { opacity: 0.5 }]}>
-                <View style={styles.settingsItemIcon}>
-                    <List.Icon
-                        icon="target"
-                        color={settings.notifications && settings.goalReminder ? customColors.accent : customColors.subtleGray}
-                    />
+            <TouchableOpacity
+                style={[styles.listItem, !settings.notifications && { opacity: 0.5 }]}
+                onPress={() => settings.notifications && onGoalReminderToggle(!settings.goalReminder)}
+                disabled={!settings.notifications}
+            >
+                <View style={[
+                    styles.itemIcon,
+                    { backgroundColor: settings.notifications && settings.goalReminder ? '#e8f5e8' : '#f5f5f5' }
+                ]}>
+                    <Text style={{ fontSize: 18 }}>🎯</Text>
                 </View>
-                <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>{t('settings.goalReminder')}</Text>
-                    <Text style={styles.settingsItemDescription}>
+
+                <View style={styles.itemContent}>
+                    <Text style={styles.itemTitle}>{t('settings.goalReminder')}</Text>
+                    <Text style={styles.itemSubtitle}>
                         {t('settings.notifications.goalDescription')}
                         {notificationCounts.goal > 0 && ` • ${t('settings.notifications.scheduled', { count: notificationCounts.goal })}`}
                     </Text>
                 </View>
-                <Switch
-                    value={settings.goalReminder && settings.notifications}
-                    onValueChange={onGoalReminderToggle}
-                    disabled={!settings.notifications}
-                    color={customColors.accent}
-                />
-            </View>
 
-            <Divider style={{ marginHorizontal: 16 }} />
+                <View style={[
+                    styles.checkbox,
+                    settings.goalReminder && settings.notifications && styles.checkboxChecked
+                ]}>
+                    {settings.goalReminder && settings.notifications && (
+                        <Text style={styles.checkboxIcon}>✓</Text>
+                    )}
+                </View>
+            </TouchableOpacity>
 
             {/* Achievement Notifications */}
-            <View style={[styles.settingsItem, !settings.notifications && { opacity: 0.5 }]}>
-                <View style={styles.settingsItemIcon}>
-                    <List.Icon
-                        icon="trophy"
-                        color={settings.notifications && settings.achievementNotifications ? customColors.accent : customColors.subtleGray}
-                    />
+            <TouchableOpacity
+                style={[styles.listItem, !settings.notifications && { opacity: 0.5 }]}
+                onPress={() => settings.notifications && onAchievementNotificationToggle(!settings.achievementNotifications)}
+                disabled={!settings.notifications}
+            >
+                <View style={[
+                    styles.itemIcon,
+                    { backgroundColor: settings.notifications && settings.achievementNotifications ? '#fff3e0' : '#f5f5f5' }
+                ]}>
+                    <Text style={{ fontSize: 18 }}>🏆</Text>
                 </View>
-                <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>{t('settings.achievementNotifications')}</Text>
-                    <Text style={styles.settingsItemDescription}>
+
+                <View style={styles.itemContent}>
+                    <Text style={styles.itemTitle}>{t('settings.achievementNotifications')}</Text>
+                    <Text style={styles.itemSubtitle}>
                         {t('settings.notifications.achievementDescription')}
                         {notificationCounts.achievement > 0 && ` • ${t('settings.notifications.scheduled', { count: notificationCounts.achievement })}`}
                     </Text>
                 </View>
-                <Switch
-                    value={settings.achievementNotifications && settings.notifications}
-                    onValueChange={onAchievementNotificationToggle}
-                    disabled={!settings.notifications}
-                    color={customColors.accent}
-                />
-            </View>
 
-            <Divider style={{ marginHorizontal: 16 }} />
+                <View style={[
+                    styles.checkbox,
+                    settings.achievementNotifications && settings.notifications && styles.checkboxChecked
+                ]}>
+                    {settings.achievementNotifications && settings.notifications && (
+                        <Text style={styles.checkboxIcon}>✓</Text>
+                    )}
+                </View>
+            </TouchableOpacity>
 
             {/* Reminder Time Setting */}
-            <View style={[
-                styles.settingsItem,
-                styles.settingsItemLast,
-                (!settings.notifications || !settings.dailyReminder) && { opacity: 0.5 }
-            ]}>
-                <View style={styles.settingsItemIcon}>
-                    <List.Icon
-                        icon="alarm"
-                        color={
-                            settings.notifications && settings.dailyReminder
-                                ? customColors.accent
-                                : customColors.subtleGray
-                        }
-                    />
+            <TouchableOpacity
+                style={[styles.listItem, (!settings.notifications || !settings.dailyReminder) && { opacity: 0.5 }]}
+                onPress={() => settings.notifications && settings.dailyReminder && onShowTimePicker()}
+                disabled={!settings.notifications || !settings.dailyReminder}
+            >
+                <View style={[
+                    styles.itemIcon,
+                    { backgroundColor: settings.notifications && settings.dailyReminder ? '#e3f2fd' : '#f5f5f5' }
+                ]}>
+                    <Text style={{ fontSize: 18 }}>⏰</Text>
                 </View>
-                <View style={styles.settingsItemContent}>
-                    <Text style={styles.settingsItemTitle}>{t('settings.notifications.reminderTime')}</Text>
-                    <Text style={styles.settingsItemDescription}>
+
+                <View style={styles.itemContent}>
+                    <Text style={styles.itemTitle}>{t('settings.notifications.reminderTime')}</Text>
+                    <Text style={styles.itemSubtitle}>
                         {settings.notifications && settings.dailyReminder
                             ? t('settings.notifications.reminderTimeSet', { time: settings.reminderTime })
                             : t('settings.notifications.reminderTimeDisabled')
                         }
                     </Text>
                 </View>
-                <Button
-                    mode="outlined"
-                    compact
-                    onPress={onShowTimePicker}
-                    disabled={!settings.notifications || !settings.dailyReminder}
-                    buttonColor={customColors.surface}
-                    textColor={customColors.accent}
-                    style={{ marginLeft: 8 }}
-                >
-                    {t('settings.change')}
-                </Button>
-            </View>
 
-            {/* Cancel All Notifications Button - only show if there are scheduled notifications */}
+                <View style={styles.itemAction}>
+                    <Text style={[
+                        styles.actionText,
+                        { color: settings.notifications && settings.dailyReminder ? customColors.instagramBlue : customColors.subtleGray }
+                    ]}>
+                        {t('settings.change')}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+
+            {/* Test Notification */}
+            <TouchableOpacity
+                style={[styles.listItem, (!settings.notifications || !hasAnyNotificationsEnabled) && { opacity: 0.5 }]}
+                onPress={() => hasAnyNotificationsEnabled && sendTestNotification()}
+                disabled={!settings.notifications || !hasAnyNotificationsEnabled}
+            >
+                <View style={[
+                    styles.itemIcon,
+                    { backgroundColor: hasAnyNotificationsEnabled ? '#e8f5e8' : '#f5f5f5' }
+                ]}>
+                    <Text style={{ fontSize: 18 }}>🧪</Text>
+                </View>
+
+                <View style={styles.itemContent}>
+                    <Text style={styles.itemTitle}>{t('settings.notifications.testNotification')}</Text>
+                    <Text style={styles.itemSubtitle}>
+                        {t('settings.notifications.testNotificationDescription')}
+                    </Text>
+                </View>
+
+                <View style={styles.itemAction}>
+                    <Text style={[
+                        styles.actionText,
+                        { color: hasAnyNotificationsEnabled ? customColors.instagramBlue : customColors.subtleGray }
+                    ]}>
+                        {t('settings.notifications.test')}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+
+            {/* Cancel All Notifications - only show if there are scheduled notifications */}
             {notificationCounts.total > 0 && (
-                <>
-                    <Divider style={{ marginHorizontal: 16, marginTop: 8 }} />
-                    <View style={[styles.settingsItem, { paddingVertical: 12 }]}>
-                        <View style={styles.settingsItemIcon}>
-                            <List.Icon
-                                icon="bell-cancel"
-                                color={customColors.subtleGray}
-                            />
-                        </View>
-                        <View style={styles.settingsItemContent}>
-                            <Text style={[styles.settingsItemTitle, { color: customColors.subtleGray }]}>
-                                {t('settings.notifications.cancelAll')}
-                            </Text>
-                            <Text style={styles.settingsItemDescription}>
-                                {t('settings.notifications.cancelAllDescription', { count: notificationCounts.total })}
-                            </Text>
-                        </View>
-                        <Button
-                            mode="outlined"
-                            compact
-                            onPress={onCancelAllNotifications}
-                            buttonColor={customColors.surface}
-                            textColor={customColors.error || '#ef4444'}
-                            style={{ marginLeft: 8 }}
-                        >
-                            {t('settings.notifications.cancelAllButton')}
-                        </Button>
+                <TouchableOpacity
+                    style={[styles.listItem, styles.listItemLast]}
+                    onPress={onCancelAllNotifications}
+                >
+                    <View style={[
+                        styles.itemIcon,
+                        { backgroundColor: '#ffebee' }
+                    ]}>
+                        <Text style={{ fontSize: 18 }}>🚫</Text>
                     </View>
-                </>
+
+                    <View style={styles.itemContent}>
+                        <Text style={[styles.itemTitle, { color: customColors.error || '#ef4444' }]}>
+                            {t('settings.notifications.cancelAll')}
+                        </Text>
+                        <Text style={styles.itemSubtitle}>
+                            {t('settings.notifications.cancelAllDescription', { count: notificationCounts.total })}
+                        </Text>
+                    </View>
+
+                    <View style={styles.itemAction}>
+                        <Text style={[styles.actionText, { color: customColors.error || '#ef4444' }]}>
+                            {t('settings.notifications.cancelAllButton')}
+                        </Text>
+                    </View>
+                </TouchableOpacity>
             )}
+
+            {/* Status info */}
+            <View style={styles.progressContainer}>
+                <View style={styles.progressHeader}>
+                    <Text style={styles.progressLabel}>{t('settings.notifications.status')}</Text>
+                    <Text style={[styles.progressValue, { color: notificationStatus.color }]}>
+                        {notificationStatus.status}
+                    </Text>
+                </View>
+            </View>
         </View>
     );
 }

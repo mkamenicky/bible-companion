@@ -1,17 +1,9 @@
+// LanguageSelector.tsx (Fixed with rounded cards)
 import React, { useState } from 'react';
-import { View, FlatList } from 'react-native';
-import {
-    Card,
-    Text,
-    RadioButton,
-    TouchableRipple,
-    Portal,
-    Modal,
-    Button,
-    IconButton
-} from 'react-native-paper';
+import { View, FlatList, TouchableOpacity, Modal } from 'react-native';
+import { Text } from 'react-native';
 import { SupportedLanguage, LanguageOption } from '@/services';
-import {useLocalization} from "@/hooks";
+import { useLocalization } from "@/hooks";
 
 interface LanguageSelectorProps {
     styles: any;
@@ -45,131 +37,163 @@ export default function LanguageSelector({ styles, customColors }: LanguageSelec
         setModalVisible(false);
     };
 
+    const handleCardPress = () => {
+        setModalVisible(true);
+    };
+
     const renderLanguageItem = ({ item }: { item: LanguageOption }) => (
-        <TouchableRipple
+        <TouchableOpacity
+            style={[
+                styles.listItem,
+                {
+                    backgroundColor: selectedLanguage === item.code ? customColors.instagramBlue + '20' : 'transparent',
+                    borderColor: selectedLanguage === item.code ? customColors.instagramBlue : customColors.borderColor,
+                    borderWidth: 1,
+                    marginVertical: 4,
+                    borderRadius: 8,
+                }
+            ]}
             onPress={() => handleLanguageSelect(item.code)}
-            rippleColor={customColors.primary + '20'}
         >
-            <View style={[styles.listItem, {
-                backgroundColor: selectedLanguage === item.code ? customColors.primary + '10' : 'transparent',
-                borderColor: selectedLanguage === item.code ? customColors.primary : 'transparent',
-                borderWidth: selectedLanguage === item.code ? 1 : 0,
-            }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                    <Text style={[styles.flagText, { fontSize: 24, marginRight: 12 }]}>
-                        {item.flag}
-                    </Text>
-                    <View style={{ flex: 1 }}>
-                        <Text style={[styles.listItemTitle, { color: customColors.text }]}>
-                            {item.nativeName}
-                        </Text>
-                        <Text style={[styles.listItemSubtitle, { color: customColors.textSecondary }]}>
-                            {item.name}
-                        </Text>
-                    </View>
-                </View>
-                <RadioButton
-                    value={item.code}
-                    status={selectedLanguage === item.code ? 'checked' : 'unchecked'}
-                    onPress={() => handleLanguageSelect(item.code)}
-                    color={customColors.primary}
-                />
+            <View style={[
+                styles.itemIcon,
+                { backgroundColor: 'transparent' }
+            ]}>
+                <Text style={{ fontSize: 24 }}>
+                    {item.flag}
+                </Text>
             </View>
-        </TouchableRipple>
+
+            <View style={styles.itemContent}>
+                <Text style={[styles.itemTitle, { color: customColors.text }]}>
+                    {item.nativeName}
+                </Text>
+                <Text style={[styles.itemSubtitle, { color: customColors.subtleGray }]}>
+                    {item.name}
+                </Text>
+            </View>
+
+            <View style={[
+                styles.checkbox,
+                selectedLanguage === item.code && styles.checkboxChecked
+            ]}>
+                {selectedLanguage === item.code && (
+                    <Text style={styles.checkboxIcon}>✓</Text>
+                )}
+            </View>
+        </TouchableOpacity>
     );
 
     const currentLanguageInfo = availableLanguages.find(lang => lang.code === currentLanguage);
 
     return (
         <>
-            <Card style={[styles.card, { backgroundColor: customColors.surface }]}>
-                <Card.Content>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <View style={{ flex: 1 }}>
-                            <Text style={[styles.cardTitle, { color: customColors.text }]}>
-                                {t('settings.language')}
-                            </Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                                <Text style={[styles.flagText, { fontSize: 20, marginRight: 8 }]}>
-                                    {currentLanguageInfo?.flag}
-                                </Text>
-                                <Text style={[styles.cardSubtitle, { color: customColors.textSecondary }]}>
-                                    {currentLanguageInfo?.nativeName} ({currentLanguageInfo?.name})
-                                </Text>
-                            </View>
-                        </View>
-                        <IconButton
-                            icon="chevron-right"
-                            size={24}
-                            iconColor={customColors.textSecondary}
-                            onPress={() => setModalVisible(true)}
-                        />
-                    </View>
-                </Card.Content>
-            </Card>
+            <View style={styles.card}>
+                {/* Section header */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>{t('settings.language')}</Text>
+                    <Text style={styles.sectionSubtitle}>{t('settings.languageSubtitle')}</Text>
+                </View>
 
-            <Portal>
-                <Modal
-                    visible={modalVisible}
-                    onDismiss={handleCancel}
-                    contentContainerStyle={[
-                        styles.modalContainer,
-                        {
-                            backgroundColor: customColors.surface,
-                            margin: 20,
-                            borderRadius: 12,
-                            maxHeight: '80%'
-                        }
-                    ]}
+                {/* Language selection - clickable entire card content */}
+                <TouchableOpacity
+                    style={[styles.listItem, styles.listItemLast]}
+                    onPress={handleCardPress}
                 >
-                    <View style={{ padding: 20 }}>
+                    <View style={[
+                        styles.itemIcon,
+                        { backgroundColor: '#e3f2fd' }
+                    ]}>
+                        <Text style={{ fontSize: 18 }}>
+                            {currentLanguageInfo?.flag || '🌍'}
+                        </Text>
+                    </View>
+
+                    <View style={styles.itemContent}>
+                        <Text style={styles.itemTitle}>{t('settings.currentLanguage')}</Text>
+                        <Text style={styles.itemSubtitle}>
+                            {currentLanguageInfo?.nativeName} ({currentLanguageInfo?.name})
+                        </Text>
+                    </View>
+
+                    <View style={styles.itemAction}>
+                        <Text style={[styles.actionText, { color: customColors.instagramBlue }]}>
+                            {t('settings.change')}
+                        </Text>
+                    </View>
+                </TouchableOpacity>
+            </View>
+
+            {/* Modal for language selection */}
+            <Modal
+                visible={modalVisible}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={handleCancel}
+            >
+                <View style={[
+                    styles.modalContainer,
+                    {
+                        backgroundColor: customColors.background,
+                        flex: 1,
+                        paddingTop: 60,
+                    }
+                ]}>
+                    {/* Modal Header */}
+                    <View style={[
+                        styles.modalHeader,
+                        {
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingHorizontal: 20,
+                            paddingBottom: 20,
+                            borderBottomWidth: 0.5,
+                            borderBottomColor: customColors.borderColor,
+                        }
+                    ]}>
+                        <TouchableOpacity onPress={handleCancel}>
+                            <Text style={[styles.modalButton, { color: customColors.subtleGray }]}>
+                                {t('common.cancel')}
+                            </Text>
+                        </TouchableOpacity>
+
                         <Text style={[
                             styles.modalTitle,
-                            { color: customColors.text, fontSize: 20, fontWeight: '600', marginBottom: 20 }
+                            {
+                                color: customColors.text,
+                                fontSize: 18,
+                                fontWeight: '600'
+                            }
                         ]}>
                             {t('settings.selectLanguage')}
                         </Text>
 
+                        <TouchableOpacity onPress={handleSave}>
+                            <Text style={[
+                                styles.modalButton,
+                                {
+                                    color: customColors.instagramBlue,
+                                    fontWeight: '600'
+                                }
+                            ]}>
+                                {t('common.save')}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Language List */}
+                    <View style={styles.card}>
                         <FlatList
                             data={availableLanguages}
                             renderItem={renderLanguageItem}
                             keyExtractor={(item) => item.code}
                             showsVerticalScrollIndicator={false}
-                            style={{ maxHeight: 400 }}
+                            style={{ padding: 16 }}
                         />
-
-                        <View style={{
-                            flexDirection: 'row',
-                            justifyContent: 'space-between',
-                            marginTop: 20,
-                            gap: 12
-                        }}>
-                            <Button
-                                mode="outlined"
-                                onPress={handleCancel}
-                                style={{
-                                    flex: 1,
-                                    borderColor: customColors.primary
-                                }}
-                                labelStyle={{ color: customColors.primary }}
-                            >
-                                {t('common.cancel')}
-                            </Button>
-                            <Button
-                                mode="contained"
-                                onPress={handleSave}
-                                style={{
-                                    flex: 1,
-                                    backgroundColor: customColors.primary
-                                }}
-                                labelStyle={{ color: '#fff' }}
-                            >
-                                {t('common.save')}
-                            </Button>
-                        </View>
                     </View>
-                </Modal>
-            </Portal>
+                </View>
+            </Modal>
         </>
     );
 }

@@ -100,6 +100,8 @@
     "restore": "Restore",
     "appSettings": "App Settings",
     "databaseBackupWarning": "Database backups contain all your reading history, achievements and preferences. Keep them secure.",
+    "languageSubtitle": "Choose your preferred language",
+    "currentLanguage": "Current Language",
     "backup": {
       "title": "Database Backup & Restore",
       "export": "Backup",
@@ -208,9 +210,19 @@
       "reminderTimeDisabled": "Enable daily reminders to set a time",
       "cancelAll": "Cancel All Scheduled Notifications",
       "cancelAllDescription": "Remove all {{count}} scheduled notifications",
-      "cancelAllButton": "Cancel All"
+      "cancelAllButton": "Cancel All",
+      "status": "Notification Status",
+      "testNotification": "Test Notification",
+      "testNotificationDescription": "Send a test notification",
+      "test": "Test"
     },
     "quickStatus": {
+      "title": "Quick Status",
+      "subtitle": "Overview of your current settings",
+      "dailyGoalDescription": "Current daily reading target",
+      "notificationsDescription": "{count} scheduled, {status}",
+      "themeDescription": "Current theme setting",
+      "auto": "Auto",
       "dailyGoal": "Daily Goal",
       "notifications": "Notifications",
       "theme": "Theme"

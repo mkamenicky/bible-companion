@@ -4,7 +4,7 @@ import { getLocales } from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import translation files
-import {en, de} from '@/localization';
+import {en, es, fr, de} from '@/localization';
 
 export type SupportedLanguage = 'en' | 'es' | 'fr' | 'de' | 'ja' | 'zh';
 
@@ -39,8 +39,8 @@ class LocalizationService {
         compatibilityJSON: 'v4',
         resources: {
           en: { translation: en },
-          // es: { translation: es },
-          // fr: { translation: fr },
+          es: { translation: es },
+          fr: { translation: fr },
           de: { translation: de },
           // ja: { translation: ja },
           // zh: { translation: zh },

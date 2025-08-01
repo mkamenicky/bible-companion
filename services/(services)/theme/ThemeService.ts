@@ -775,7 +775,7 @@ export class ThemeService {
             // Goal badge (MISSING STYLE ADDED)
             goalBadge: {
                 minWidth: 40,
-                height: 32,
+                height: 40,
                 borderRadius: 16,
                 alignItems: 'center',
                 justifyContent: 'center',

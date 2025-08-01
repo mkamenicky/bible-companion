@@ -1,9 +1,9 @@
-// SettingsQuickStatusCard.tsx
-import React from 'react';
-import { View } from 'react-native';
-import { Badge, Chip } from 'react-native-paper';
-import { Text } from './TextProps';
-import { useTranslation } from '@/hooks';
+// SettingsQuickStatusCard.tsx (Fixed - keeping side-by-side layout with rounded card)
+import React, {useEffect, useState} from 'react';
+import {Text, View} from 'react-native';
+import {useTranslation} from '@/hooks';
+import {ThemeService} from "@/services";
+import {ThemeVariant} from "@/services/(services)/theme/ThemeService";
 
 interface SettingsQuickStatusCardProps {
     dailyVerseGoal: number;
@@ -21,42 +21,86 @@ export default function SettingsQuickStatusCard({
                                                     customColors,
                                                 }: SettingsQuickStatusCardProps) {
     const t = useTranslation();
+    const [themeVariant, setThemeVariant] = useState(ThemeService.getCurrentVariant());
 
-    return (
-        <View style={styles.quickStatusCard}>
-            <View style={styles.quickStatusRow}>
-                <View style={styles.quickStatusItem}>
-                    <Text style={styles.quickStatusValue}>{dailyVerseGoal}</Text>
-                    <Text style={styles.quickStatusLabel}>{t('settings.quickStatus.dailyGoal')}</Text>
+    const getThemeIcon = (theme: ThemeVariant | string): string => {
+        switch (theme) {
+            case 'instagram':
+                return '📸';
+            case 'dark-modern':
+                return '💜';
+            case 'minimal':
+                return '⚪'
+            case 'default':
+            default:
+                return '🔄';
+        }};
+
+        useEffect(() => {
+            return ThemeService.addThemeChangeListener((newVariant) => {
+                setThemeVariant(newVariant);
+            }); // Cleanup listener on unmount
+        }, []);
+
+        return (
+            <View style={styles.card}>
+                {/* Section header */}
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>{t('settings.quickStatus.title')}</Text>
+                    <Text style={styles.sectionSubtitle}>{t('settings.quickStatus.subtitle')}</Text>
                 </View>
 
-                <View style={styles.quickStatusDivider} />
+                {/* Quick status row - side by side */}
+                <View style={styles.quickStatusRow}>
+                    {/* Daily Goal */}
+                    <View style={[styles.quickStatusItem, {marginTop: 12}]}>
+                        <View style={[
+                            styles.goalBadge,
+                            {backgroundColor: customColors.instagramBlue}
+                        ]}>
+                            <Text style={[styles.goalBadgeText, {color: 'white'}]}>
+                                {dailyVerseGoal}
+                            </Text>
+                        </View>
+                        <Text
+                            style={[styles.quickStatusLabel, {marginBottom: 12}]}>{t('settings.quickStatus.dailyGoal')}</Text>
+                    </View>
 
-                <View style={styles.quickStatusItem}>
-                    <Badge
-                        size={24}
-                        style={{ backgroundColor: notificationStatus.color }}
-                    >
-                        {scheduledNotifications.length}
-                    </Badge>
-                    <Text style={[styles.quickStatusLabel, { marginTop: 4 }]}>
-                        {t('settings.quickStatus.notifications')}
-                    </Text>
-                </View>
+                    <View style={styles.quickStatusDivider}/>
 
-                <View style={styles.quickStatusDivider} />
+                    {/* Notifications */}
+                    <View style={[styles.quickStatusItem, {marginTop: 12}]}>
+                        <View style={[
+                            styles.goalBadge,
+                            {backgroundColor: notificationStatus.color}
+                        ]}>
+                            <Text style={[styles.goalBadgeText, {color: 'white'}]}>
+                                {scheduledNotifications.length}
+                            </Text>
+                        </View>
+                        <Text
+                            style={[styles.quickStatusLabel, {marginBottom: 12}]}>{t('settings.quickStatus.notifications')}</Text>
+                    </View>
 
-                <View style={styles.quickStatusItem}>
-                    <Chip
-                        icon="palette"
-                        compact
-                        textStyle={{ fontSize: 10 }}
-                        style={styles.chip}
-                    >
-                        {t('settings.quickStatus.theme')}
-                    </Chip>
+                    <View style={styles.quickStatusDivider}/>
+
+                    {/* Theme */}
+                    <View style={styles.quickStatusItem}>
+                        <View style={[
+                            styles.themeBadge,
+                            {
+                                backgroundColor: customColors.surface,
+                                borderWidth: 1,
+                                borderColor: customColors.borderColor
+                            }
+                        ]}>
+                            <Text style={[styles.goalBadgeText, {color: customColors.text, fontSize: 35, backgroundColor: 'transparent'}]}>
+                                {getThemeIcon(themeVariant)}
+                            </Text>
+                        </View>
+                        <Text style={styles.quickStatusLabel}>{t('settings.quickStatus.theme')}: {themeVariant}</Text>
+                    </View>
                 </View>
             </View>
-        </View>
-    );
-}
+        );
+    }
