@@ -21,6 +21,7 @@ export default function Index() {
         onRefresh,
         taskStatus,
         handleToggleVerses,
+        handleReadMore, // Add this
         dailyChecklistItems,
         weeklyChecklistItems,
         confirmTaskCompletion,
@@ -69,16 +70,21 @@ export default function Index() {
                     customColors={customColors}
                 />
                 {dailyReadingAssignments && Array.from(dailyReadingAssignments.entries()).map(
-                    ([assignmentTitle, assignments]) => (
-                        <DailyAssignmentsCard
-                            key={assignmentTitle}
-                            dailyReadingAssignments={assignments}
-                            onToggle={handleToggleVerses}
-                            title={t('home.readingPlanToday', {title: assignmentTitle})}
-                            styles={styles}
-                            customColors={customColors}
-                        />
-                    ))
+                    ([assignmentTitle, assignments]) => {
+                        console.log(`Rendering assignments for ${assignmentTitle}:`, assignments.length, 'assignments');
+
+                        return (
+                            <DailyAssignmentsCard
+                                key={`${assignmentTitle}-${assignments.length}-${assignments.map(a => a.id).join(',')}`} // Force re-render when assignments change
+                                dailyReadingAssignments={assignments}
+                                onToggle={handleToggleVerses}
+                                onReadMore={handleReadMore} // Add this prop
+                                title={t('home.readingPlanToday', {title: assignmentTitle})}
+                                styles={styles}
+                                customColors={customColors}
+                            />
+                        );
+                    })
                 }
 
                 <WeeklyChecklistCard

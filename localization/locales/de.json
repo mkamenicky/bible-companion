@@ -170,7 +170,9 @@
     "subtitle": "Tägliche Schriftlesung",
     "noReading": "Kein Leseplan für heute verfügbar",
     "todayProgress": "Heutiger Fortschritt",
-    "congratulations": "🎉 Herzlichen Glückwunsch! Du hast die heutige Lesung abgeschlossen."
+    "congratulations": "🎉 Herzlichen Glückwunsch! Du hast die heutige Lesung abgeschlossen.",
+    "readMore": "Mehr Lesen",
+    "loadingMore": "Laden..."
   },
   "dailyText": {
     "title": "Tagestext",

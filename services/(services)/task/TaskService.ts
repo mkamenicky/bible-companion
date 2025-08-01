@@ -243,28 +243,91 @@ export class TaskService {
         return await readingService.getReadingPlan();
     }
 
-    async fetchReadingAssignments(): Promise<EnhancedDailyReadingAssignment[]> {
-        return await readingService.fetchReadingAssignments();
+    /**
+     * Updated fetchReadingAssignments to use the provided date
+     */
+    async fetchReadingAssignments(date: Date = new Date()): Promise<EnhancedDailyReadingAssignment[]> {
+        const dateStr = this.formatDate(date);
+        console.log("TaskService: Fetching reading assignments for date:", dateStr);
+
+        return await readingService.fetchReadingAssignments(date);
     }
 
+    /**
+     * Generates additional reading assignments for the specified date (not default date)
+     * This delegates to ReadingService to generate more assignments based on the user's daily verse goal
+     */
+    async generateAdditionalAssignments(date: Date): Promise<EnhancedDailyReadingAssignment[]> {
+        try {
+            const dateStr = this.formatDate(date);
+            console.log("TaskService: Generating additional assignments for date:", dateStr);
+
+            // Delegate to ReadingService to generate additional assignments for the EXACT date provided
+            const additionalAssignments = await readingService.generateAdditionalAssignments(date);
+
+            console.log("TaskService: Generated additional assignments:", additionalAssignments);
+            return additionalAssignments;
+
+        } catch (error: any) {
+            console.error('TaskService: Error generating additional assignments:', error);
+            throw new DatabaseMessageError(`Failed to generate additional assignments`, error as Error);
+        }
+    }
+
+    /**
+     * Enhanced mark assignment as read with better error handling
+     */
     async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
-        console.log('Marking daily assignment as read:', dailyReadingAssignment);
-        for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-            console.log('Marking verse as read on:', verseId, new Date());
-            await readingService.markVerseAsRead(verseId, new Date());
-        }
+        console.log('TaskService: Marking daily assignment as read:', {
+            id: dailyReadingAssignment.id,
+            verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
+            chapter: dailyReadingAssignment.chapter_id,
+            display_title: dailyReadingAssignment.display_title
+        });
 
-        await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, new Date(), true);
+        try {
+            // Mark individual verses as read
+            for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
+                console.log('Marking verse as read:', verseId);
+                await readingService.markVerseAsRead(verseId, new Date());
+            }
+
+            // Mark the assignment itself as completed
+            await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, new Date(), true);
+
+            console.log('Successfully marked assignment as read');
+        } catch (error) {
+            console.error('Error marking assignment as read:', error);
+            throw error;
+        }
     }
 
+    /**
+     * Enhanced unmark assignment as read with better error handling
+     */
     async unmarkDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
-        console.log('Unmarking daily assignment as not read:', dailyReadingAssignment);
-        for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-            console.log('Marking verse as not read:', verseId);
-            await readingService.unmarkVerseAsRead(verseId);
-        }
+        console.log('TaskService: Unmarking daily assignment as read:', {
+            id: dailyReadingAssignment.id,
+            verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
+            chapter: dailyReadingAssignment.chapter_id,
+            display_title: dailyReadingAssignment.display_title
+        });
 
-        await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, undefined, false);
+        try {
+            // Unmark individual verses
+            for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
+                console.log('Unmarking verse:', verseId);
+                await readingService.unmarkVerseAsRead(verseId);
+            }
+
+            // Mark the assignment itself as not completed
+            await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, undefined, false);
+
+            console.log('Successfully unmarked assignment as read');
+        } catch (error) {
+            console.error('Error unmarking assignment as read:', error);
+            throw error;
+        }
     }
 
     /**

@@ -1,12 +1,13 @@
 // DailyAssignmentsCard.tsx
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import {DailyReadingAssignment, EnhancedDailyReadingAssignment} from '@/models';
 import { useTranslation } from '@/hooks';
 
 interface Props {
     dailyReadingAssignments: EnhancedDailyReadingAssignment[];
     onToggle: (item: DailyReadingAssignment) => void;
+    onReadMore: () => Promise<void>;
     title: string;
     styles: any;
     customColors?: any;
@@ -15,14 +16,28 @@ interface Props {
 export default function DailyAssignmentsCard({
                                                  dailyReadingAssignments,
                                                  onToggle,
+                                                 onReadMore,
                                                  title,
                                                  styles,
                                                  customColors
                                              }: Props) {
     const t = useTranslation();
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+
     const completedCount = dailyReadingAssignments.filter(item => item.is_completed).length;
     const progressPercentage = dailyReadingAssignments.length > 0 ? (completedCount / dailyReadingAssignments.length) * 100 : 100;
     const allDone = dailyReadingAssignments.length > 0 && dailyReadingAssignments.every(item => item.is_completed);
+
+    const handleReadMore = async () => {
+        setIsLoadingMore(true);
+        try {
+            await onReadMore();
+        } catch (error) {
+            console.error('Error loading more assignments:', error);
+        } finally {
+            setIsLoadingMore(false);
+        }
+    };
 
     return (
         <View style={styles.card}>
@@ -44,13 +59,21 @@ export default function DailyAssignmentsCard({
 
                         return (
                             <TouchableOpacity
-                                key={item.id}
+                                key={`${item.id}-${item.start_verse_id}-${item.end_verse_id}`} // More unique key
                                 style={[
                                     styles.listItem,
                                     isLast && styles.listItemLast,
                                     item.is_completed && { opacity: 0.6 }
                                 ]}
-                                onPress={() => onToggle(item)}
+                                onPress={() => {
+                                    console.log('Assignment clicked:', {
+                                        id: item.id,
+                                        verses: `${item.start_verse_id}-${item.end_verse_id}`,
+                                        current_status: item.is_completed,
+                                        display_title: item.display_title
+                                    });
+                                    onToggle(item);
+                                }}
                             >
                                 <View style={[
                                     styles.itemIcon,
@@ -97,6 +120,66 @@ export default function DailyAssignmentsCard({
                             { width: `${progressPercentage}%` }
                         ]} />
                     </View>
+                </View>
+            )}
+
+            {/* Read More Button */}
+            {dailyReadingAssignments.length > 0 && (
+                <View style={{
+                    paddingHorizontal: 20,
+                    paddingTop: 12,
+                    paddingBottom: 8,
+                }}>
+                    <TouchableOpacity
+                        style={[
+                            styles.readMoreButton || {
+                                paddingVertical: 12,
+                                paddingHorizontal: 16,
+                                backgroundColor: customColors?.lightGray || '#f3f4f6',
+                                borderRadius: 8,
+                                borderWidth: 1,
+                                borderColor: customColors?.borderColor || '#e5e7eb',
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            },
+                            isLoadingMore && { opacity: 0.7 }
+                        ]}
+                        onPress={handleReadMore}
+                        disabled={isLoadingMore}
+                    >
+                        {isLoadingMore ? (
+                            <>
+                                <ActivityIndicator
+                                    size="small"
+                                    color={customColors?.accent || '#0095f6'}
+                                    style={{ marginRight: 8 }}
+                                />
+                                <Text style={[
+                                    styles.readMoreButtonText || {
+                                        fontSize: 14,
+                                        fontWeight: '600',
+                                        color: customColors?.accent || '#0095f6',
+                                    }
+                                ]}>
+                                    {t('dailyAssignments.loadingMore')}
+                                </Text>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={{ fontSize: 16, marginRight: 6 }}>📚</Text>
+                                <Text style={[
+                                    styles.readMoreButtonText || {
+                                        fontSize: 14,
+                                        fontWeight: '600',
+                                        color: customColors?.accent || '#0095f6',
+                                    }
+                                ]}>
+                                    {t('dailyAssignments.readMore')}
+                                </Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
                 </View>
             )}
 

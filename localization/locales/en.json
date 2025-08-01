@@ -170,7 +170,9 @@
     "subtitle": "Daily scripture reading",
     "noReading": "No reading plan available for today",
     "todayProgress": "Today's Progress",
-    "congratulations": "🎉 Congratulations! You've completed today's reading."
+    "congratulations": "🎉 Congratulations! You've completed today's reading.",
+    "readMore": "Read More",
+    "loadingMore": "Loading..."
   },
   "dailyText": {
     "title": "Daily Text",
