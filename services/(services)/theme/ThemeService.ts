@@ -6,7 +6,7 @@ import type { CustomColors } from '@/models';
 import type {MD3Theme} from "react-native-paper/src/types";
 
 // Theme variants that users can choose from
-export type ThemeVariant = 'default' | 'instagram' | 'minimal' | 'dark-modern';
+export type ThemeVariant = 'default' | 'rose' | 'minimal' | 'dark-modern';
 
 export interface ThemeColors extends CustomColors {
     // Theme-specific colors
@@ -33,7 +33,7 @@ export interface ThemeColors extends CustomColors {
 
 export class ThemeService {
     // Current selected theme variant (you can store this in AsyncStorage)
-    private static currentVariant: ThemeVariant = 'instagram';
+    private static currentVariant: ThemeVariant = 'default';
     private static listeners: Array<(variant: ThemeVariant) => void> = [];
 
     static setThemeVariant(variant: ThemeVariant) {
@@ -66,8 +66,8 @@ export class ThemeService {
         let colors: ThemeColors;
 
         switch (variant) {
-            case 'instagram':
-                colors = this.getInstagramColors(baseTheme, isDark);
+            case 'rose':
+                colors = this.getRoseColors(baseTheme, isDark);
                 break;
             case 'minimal':
                 colors = this.getMinimalColors(baseTheme, isDark);
@@ -90,11 +90,12 @@ export class ThemeService {
     }
 
     /**
-     * INSTAGRAM THEME - Vibrant, poppy, and colorful
+     * ROSE THEME - Vibrant, poppy, and colorful
+     * UPDATED: Better background differentiation in light mode
      */
-    private static getInstagramColors(baseTheme: MD3Theme, isDark: boolean): ThemeColors {
+    private static getRoseColors(baseTheme: MD3Theme, isDark: boolean): ThemeColors {
         if (isDark) {
-            // Instagram Dark Theme - Still vibrant but dark
+            // Rose Dark Theme - Still vibrant but dark (unchanged)
             return {
                 ...baseTheme.colors,
                 primary: '#ff3366',           // Bright pink/red
@@ -129,28 +130,28 @@ export class ThemeService {
             };
         }
 
-        // Instagram Light Theme - Bright and poppy
+        // Rose Light Theme - UPDATED: More vibrant and differentiated backgrounds
         return {
             ...baseTheme.colors,
             primary: '#e91e63',           // Instagram pink
             secondary: '#ff5722',         // Bright orange
-            color: '#212121',            // Dark text
-            background: '#ffffff',       // Pure white background
-            surface: '#ffffff',          // White cards
-            onSurface: '#212121',        // Dark text on cards
-            onBackground: '#212121',     // Dark text on background
-            foreground: '#ffffff',       // White card backgrounds
-            titleBackground: '#ffffff',   // Header background
-            footerBackground: '#ffffff',  // Footer background
-            footerForeground: '#757575', // Footer text
-            text: '#212121',             // Dark text
+            color: '#1a1a1a',            // Slightly softer than pure black
+            background: '#fdf6f9',       // Very light pink background - CHANGED
+            surface: '#fff8fb',          // Light pink surface - CHANGED
+            onSurface: '#1a1a1a',        // Dark text on cards
+            onBackground: '#1a1a1a',     // Dark text on background
+            foreground: '#fff0f5',       // Pinkish card backgrounds - CHANGED
+            titleBackground: '#fff8fb',   // Header background - CHANGED
+            footerBackground: '#fff8fb',  // Footer background - CHANGED
+            footerForeground: '#8e4a6b', // Pink-tinted footer text - CHANGED
+            text: '#1a1a1a',             // Dark text
             accent: '#e91e63',           // Pink accent
 
-            // Theme-specific
+            // Theme-specific - more vibrant differentiation
             instagramBlue: '#2196f3',    // Bright blue
-            subtleGray: '#757575',       // Mid gray
-            lightGray: '#f5f5f5',        // Light backgrounds
-            borderColor: '#e0e0e0',      // Light borders
+            subtleGray: '#8e4a6b',       // Pink-tinted gray - CHANGED
+            lightGray: '#f8e8f0',        // Light pink backgrounds - CHANGED
+            borderColor: '#f0d1e0',      // Pink-tinted borders - CHANGED
             completedGreen: '#4caf50',   // Bright green
             shadowColor: 'rgba(233, 30, 99, 0.2)',
             cardBackground: '#ffffff',    // Card background
@@ -166,10 +167,11 @@ export class ThemeService {
 
     /**
      * MINIMAL THEME - Nearly total grayscale
+     * UPDATED: Better contrast in light mode while staying minimal
      */
     private static getMinimalColors(baseTheme: MD3Theme, isDark: boolean): ThemeColors {
         if (isDark) {
-            // Minimal Dark - Pure grayscale
+            // Minimal Dark - Pure grayscale (unchanged)
             return {
                 ...baseTheme.colors,
                 primary: '#f5f5f5',           // Light gray primary
@@ -204,28 +206,28 @@ export class ThemeService {
             };
         }
 
-        // Minimal Light - Pure grayscale
+        // Minimal Light - UPDATED: Better grayscale differentiation
         return {
             ...baseTheme.colors,
             primary: '#424242',           // Dark gray primary
             secondary: '#616161',         // Mid gray
-            color: '#212121',            // Very dark text
-            background: '#fafafa',       // Very light gray background
+            color: '#1a1a1a',            // Very dark text
+            background: '#f8f8f8',       // Slightly warmer gray background - CHANGED
             surface: '#ffffff',          // Pure white cards
-            onSurface: '#212121',        // Dark text on cards
-            onBackground: '#212121',     // Dark text on background
+            onSurface: '#1a1a1a',        // Dark text on cards
+            onBackground: '#1a1a1a',     // Dark text on background
             foreground: '#ffffff',       // White card backgrounds
-            titleBackground: '#ffffff',   // Header background
-            footerBackground: '#ffffff',  // Footer background
-            footerForeground: '#757575', // Gray footer text
-            text: '#212121',             // Very dark text
+            titleBackground: '#fdfdfd',   // Very light gray header - CHANGED
+            footerBackground: '#fdfdfd',  // Very light gray footer - CHANGED
+            footerForeground: '#666666', // Darker gray footer text - CHANGED
+            text: '#1a1a1a',             // Very dark text
             accent: '#424242',           // Dark gray accent
 
-            // Theme-specific - all grayscale
+            // Theme-specific - better grayscale hierarchy
             instagramBlue: '#757575',    // Mid gray
-            subtleGray: '#9e9e9e',       // Light gray
-            lightGray: '#f5f5f5',        // Very light backgrounds
-            borderColor: '#e0e0e0',      // Light borders
+            subtleGray: '#888888',       // Slightly darker gray - CHANGED
+            lightGray: '#f0f0f0',        // Light gray backgrounds - CHANGED
+            borderColor: '#e8e8e8',      // Lighter borders - CHANGED
             completedGreen: '#616161',   // Dark gray for completion
             shadowColor: 'rgba(66, 66, 66, 0.1)',
             cardBackground: '#ffffff',    // Card background
@@ -240,11 +242,12 @@ export class ThemeService {
     }
 
     /**
-     * DARK MODERN THEME - Matt violet tone, nearly dark mode
+     * DARK MODERN THEME - Matt violet tone
+     * UPDATED: Better violet differentiation in light mode
      */
     private static getDarkModernColors(baseTheme: MD3Theme, isDark: boolean): ThemeColors {
         if (isDark) {
-            // Dark Modern - Matt violet theme
+            // Dark Modern - Matt violet theme (unchanged)
             return {
                 ...baseTheme.colors,
                 primary: '#8b7cb0',           // Matt violet
@@ -394,7 +397,7 @@ export class ThemeService {
         const baseStyles = this.getBaseStyles(customColors);
 
         switch (variant) {
-            case 'instagram':
+            case 'rose':
                 return this.getInstagramStyles(baseStyles, customColors);
             case 'minimal':
                 return this.getMinimalStyles(baseStyles, customColors);
@@ -910,8 +913,8 @@ export class ThemeService {
                 preview: { primary: '#8aade6', background: '#fafafa' }
             },
             {
-                key: 'instagram',
-                name: 'Instagram',
+                key: 'rose',
+                name: 'Rose',
                 description: 'Vibrant, poppy, and colorful design',
                 preview: { primary: '#e91e63', background: '#ffffff' }
             },

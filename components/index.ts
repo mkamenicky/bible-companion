@@ -11,6 +11,9 @@ export { default as PeriodStatsCard } from './progress/PeriodStatsCard';
 export { default as AchievementsCard } from './progress/AchievementsCard';
 export { default as ReadingStatsCard } from './progress/ReadingStatsCard';
 export { default as StreakCard } from './progress/StreakCard';
+export { useAchievementContext, AchievementProvider } from './progress/AchievementContext';
+export { GlobalAchievementModal} from './progress/GlobalAchievementModal';
+export { default as AchievementNotificationModal} from './progress/AchievementNotificationModal';
 
 export {default as CalendarGrid} from './calendar/calendar.grid'
 export {default as YearSelector} from './calendar/year-selector'

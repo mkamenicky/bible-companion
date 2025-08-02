@@ -1,7 +1,8 @@
+
 // DailyTextBanner.tsx
 import React from 'react';
 import { Text, View, TouchableOpacity } from 'react-native';
-import { useTranslation } from '@/hooks';
+import {useLocalization, useTranslation} from '@/hooks';
 
 interface Props {
     today: Date;
@@ -20,12 +21,13 @@ export default function DailyTextBanner({
                                             styles,
                                             customColors
                                         }: Props) {
-    const t = useTranslation();
+    const { t, translateTask, formatDate } = useLocalization();
     const completedCount = dailyChecklistItems.filter(task => taskStatus[task]).length;
     const allDone = dailyChecklistItems.every(task => taskStatus[task]);
     const progressPercentage = (completedCount / dailyChecklistItems.length) * 100;
 
-    const formattedDate = today.toLocaleDateString(undefined, {
+    // Use localized date formatting
+    const formattedDate = formatDate(today, {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -42,6 +44,7 @@ export default function DailyTextBanner({
                 {dailyChecklistItems.map((task, index) => {
                     const isCompleted = taskStatus[task];
                     const isLast = index === dailyChecklistItems.length - 1;
+                    const translatedTaskName = translateTask(task);
 
                     return (
                         <TouchableOpacity
@@ -68,7 +71,7 @@ export default function DailyTextBanner({
                                         color: customColors?.subtleGray || '#8e8e8e'
                                     }
                                 ]}>
-                                    {formattedDate}
+                                    {translatedTaskName}: {formattedDate}
                                 </Text>
                                 <Text style={styles.itemSubtitle}>
                                     {t('dailyText.description')}

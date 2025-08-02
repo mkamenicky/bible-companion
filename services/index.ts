@@ -6,7 +6,6 @@ import {ReadingService} from '@/services/(services)/readings/ReadingService';
 import {SettingsService} from '@/services/(services)/settings/SettingsService';
 import {TaskService} from '@/services/(services)/task/TaskService';
 import {ThemeService} from '@/services/(services)/theme/ThemeService';
-import {NotificationService} from "@/services/(services)/notifications/NotificationsServices";
 
 // Create singleton instances
 export const databaseManager = DatabaseManager.getInstance();
@@ -16,7 +15,6 @@ export const readingService = new ReadingService();
 export const settingsService = new SettingsService();
 export const taskService = new TaskService();
 export const themeService = new ThemeService();
-export const notificationService = new NotificationService();
 
 // Export service classes
 export {DatabaseManager} from '@/services/(services)/database/DatabaseManager';
@@ -27,9 +25,6 @@ export {ReadingService} from '@/services/(services)/readings/ReadingService';
 export {SettingsService} from '@/services/(services)/settings/SettingsService';
 export {TaskService} from '@/services/(services)/task/TaskService';
 export {ThemeService} from '@/services/(services)/theme/ThemeService';
-export {
-    NotificationService, NotificationSchedule, NotificationPermissionStatus
-} from '@/services/(services)/notifications/NotificationsServices';
 
 // Export platform-specific database services
 export {AndroidDatabaseService, getAndroidDatabaseService} from '@/services/(services)/database/db.android';
@@ -38,6 +33,16 @@ export {WebDatabaseService, getWebDatabaseService} from '@/services/(services)/d
 export {
     DatabaseBackupResult, DatabaseBackupService, BackupFileInfo, DatabaseRestoreResult, databaseBackupService
 } from '@/services/(services)/database/DatabaseBackupService';
+
+export {
+    notificationService,
+    NotificationService,
+    NotificationSchedule,
+    NotificationSettings,
+    NotificationType,
+    NotificationPermissionStatus,
+    UserData
+} from "@/services/(services)/notifications/NotificationsService";
 
 export {
     localizationService, SupportedLanguage, LanguageOption

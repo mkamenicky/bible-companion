@@ -2,7 +2,7 @@
 import React, {useCallback, useEffect, useState} from 'react';
 import {Alert, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View} from 'react-native';
 import {progressService} from '@/services';
-import {useTranslation} from '@/hooks';
+import {useLocalization, useTranslation} from '@/hooks';
 import type {Achievement, AchievementUnlockEvent} from '@/models';
 import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 
@@ -33,7 +33,7 @@ export default function AchievementsCard({
                                              userId = 1,
                                              onAchievementUnlocked
                                          }: Props) {
-    const t = useTranslation();
+    const { t, translateAchievement } = useLocalization();
     const [achievements, setAchievements] = useState<Achievement[]>([]);
     const [achievementStats, setAchievementStats] = useState<{
         total: number;
@@ -150,6 +150,7 @@ export default function AchievementsCard({
     };
 
     const renderAchievementItem = (achievement: Achievement, index: number, isInModal: boolean = false) => {
+        const translatedAchievement = translateAchievement(achievement);
         const progressPercentage = Math.min((achievement.progress / achievement.targetValue) * 100, 100);
         const isCompleted = achievement.unlocked;
 
@@ -171,8 +172,8 @@ export default function AchievementsCard({
                     if (isCompleted && achievement.unlockedAt) {
                         const unlockDate = new Date(achievement.unlockedAt).toLocaleDateString();
                         Alert.alert(
-                            `🎉 ${achievement.name}`,
-                            `${achievement.description}\n\n${t('progress.achievements.unlockedOn')} ${unlockDate}`,
+                            `🎉 ${translatedAchievement.name}`,
+                            `${translatedAchievement.description}\n\n${t('progress.achievements.unlockedOn')} ${unlockDate}`,
                             [{text: t('common.ok')}]
                         );
                     }
@@ -211,7 +212,7 @@ export default function AchievementsCard({
                             color: isCompleted ? customColors.success : customColors.text,
                             flex: 1,
                         }}>
-                            {achievement.name}
+                            {translatedAchievement.name}
                         </Text>
                         {isCompleted && (
                             <View style={{
@@ -236,7 +237,7 @@ export default function AchievementsCard({
                         color: customColors.subtleGray,
                         marginBottom: 6,
                     }}>
-                        {achievement.description}
+                        {translatedAchievement.description}
                     </Text>
 
                     <View style={{

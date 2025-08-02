@@ -1,6 +1,7 @@
-import {useEffect, useState, useCallback} from 'react';
-import {progressService} from '@/services';
-import {ProgressStats, Achievement, AchievementUnlockEvent} from "@/models";
+// Updated useProgressData.ts with achievement event handling
+import { useEffect, useState, useCallback } from 'react';
+import { progressService } from '@/services';
+import { ProgressStats, Achievement, AchievementUnlockEvent } from "@/models";
 
 export function useProgressData(userId: number = 1) {
     const [stats, setStats] = useState<ProgressStats | null>(null);
@@ -100,6 +101,36 @@ export function useProgressData(userId: number = 1) {
         }
     }, [userId, loadProgressData]);
 
+    // NEW: Method to handle external achievement events (from other hooks)
+    const handleExternalAchievementEvents = useCallback((events: AchievementUnlockEvent[]) => {
+        console.log('🏆 useProgressData received external achievement events:', events);
+        setRecentUnlocks(prev => [...events, ...prev].slice(0, 5));
+
+        // Optionally reload data to ensure UI is in sync
+        loadProgressData();
+    }, [loadProgressData]);
+
+    // NEW: Method to manually trigger achievement check
+    const triggerAchievementCheck = useCallback(async (): Promise<AchievementUnlockEvent[]> => {
+        try {
+            console.log('🏆 Manually triggering achievement check...');
+            const unlockedEvents = await progressService.updateAchievementProgressFromDatabase(userId);
+
+            if (unlockedEvents.length > 0) {
+                console.log('🎉 New achievements found:', unlockedEvents.map(e => e.achievementName));
+                setRecentUnlocks(prev => [...unlockedEvents, ...prev].slice(0, 5));
+
+                // Reload data to reflect changes
+                await loadProgressData();
+            }
+
+            return unlockedEvents;
+        } catch (error) {
+            console.error('❌ Error checking achievements:', error);
+            return [];
+        }
+    }, [userId, loadProgressData]);
+
     const clearRecentUnlocks = useCallback(() => {
         setRecentUnlocks([]);
     }, []);
@@ -147,6 +178,10 @@ export function useProgressData(userId: number = 1) {
         // Actions
         onRefresh,
         markReadingProgress,
+
+        // NEW: Achievement event handling
+        handleExternalAchievementEvents,
+        triggerAchievementCheck,
 
         // Achievement queries
         getAchievementsByCategory,

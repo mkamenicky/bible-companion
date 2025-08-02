@@ -1,11 +1,12 @@
 // AppearanceCard.tsx
 import React from 'react';
 import {Text, TouchableOpacity, View} from 'react-native';
-import {useTranslation} from '@/hooks';
+import {ExtendedAppSettings, useTranslation} from '@/hooks';
+import {ThemeService} from '@/services';
 
 interface AppearanceCardProps {
     settings: any;
-    onFontSizeChange: (size: string) => void;
+    onFontSizeChange: (size: ExtendedAppSettings["fontSize"]) => void;
     onThemeChange: () => void;
     styles: any;
     customColors: any;
@@ -27,6 +28,16 @@ export default function AppearanceCard({
     ];
 
     const currentFontSize = fontSizeOptions.find(option => option.value === settings.fontSize);
+
+    // Get current theme information
+    const getCurrentThemeInfo = () => {
+        const currentVariant = ThemeService.getCurrentVariant();
+        const availableThemes = ThemeService.getAvailableThemes();
+        const currentTheme = availableThemes.find(theme => theme.key === currentVariant);
+        return currentTheme ? currentTheme.name : 'Classic';
+    };
+
+    const currentThemeName = getCurrentThemeInfo();
 
     return (
         <View style={styles.card}>
@@ -51,7 +62,7 @@ export default function AppearanceCard({
                 <View style={styles.itemContent}>
                     <Text style={styles.itemTitle}>{t('settings.theme')}</Text>
                     <Text style={styles.itemSubtitle}>
-                        {t('settings.themeSubtitle')}
+                        {t('settings.themeSubtitleCurrent', { theme: currentThemeName })}
                     </Text>
                 </View>
 
@@ -61,43 +72,6 @@ export default function AppearanceCard({
                     </Text>
                 </View>
             </TouchableOpacity>
-
-            {/*/!* Font size selection *!/*/}
-            {/*<TouchableOpacity*/}
-            {/*    style={[styles.listItem, styles.listItemLast]}*/}
-            {/*    onPress={() => {*/}
-            {/*        // Cycle through font sizes*/}
-            {/*        const currentIndex = fontSizeOptions.findIndex(option => option.value === settings.fontSize);*/}
-            {/*        const nextIndex = (currentIndex + 1) % fontSizeOptions.length;*/}
-            {/*        const nextSize = fontSizeOptions[nextIndex];*/}
-            {/*        onFontSizeChange(nextSize.value);*/}
-            {/*    }}*/}
-            {/*>*/}
-            {/*    <View style={[*/}
-            {/*        styles.itemIcon,*/}
-            {/*        { backgroundColor: '#e3f2fd' }*/}
-            {/*    ]}>*/}
-            {/*        <Text style={{ fontSize: 18 }}>🔤</Text>*/}
-            {/*    </View>*/}
-
-            {/*    <View style={styles.itemContent}>*/}
-            {/*        <Text style={styles.itemTitle}>{t('settings.fontSize')}</Text>*/}
-            {/*        <Text style={styles.itemSubtitle}>*/}
-            {/*            {t('settings.fontSizeCurrent', { size: currentFontSize ? currentFontSize.label : t('settings.fontSize.medium') })}*/}
-            {/*        </Text>*/}
-            {/*    </View>*/}
-
-            {/*    <View style={styles.itemAction}>*/}
-            {/*        <View style={[*/}
-            {/*            styles.fontSizeButton,*/}
-            {/*            { backgroundColor: customColors.instagramBlue }*/}
-            {/*        ]}>*/}
-            {/*            <Text style={[styles.fontSizeButtonText, { color: 'white' }]}>*/}
-            {/*                {currentFontSize ? currentFontSize.display : 'M'}*/}
-            {/*            </Text>*/}
-            {/*        </View>*/}
-            {/*    </View>*/}
-            {/*</TouchableOpacity>*/}
         </View>
     );
 }

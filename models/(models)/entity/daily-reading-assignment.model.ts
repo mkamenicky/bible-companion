@@ -45,11 +45,12 @@ export interface UpdateDailyReadingAssignmentDto {
 
 // Enhanced Daily Reading Assignment (if you want to extend the existing one)
 export interface EnhancedDailyReadingAssignment extends DailyReadingAssignment {
-    start_verse_title?: string;
-    end_verse_title?: string;
-    chapter_title?: number;
-    topic_name?: string;
-    topic_display_name?: string;
-    color_hex?: string;
-    book_title?: string;
+    localized_title?: string; // Add this field for the localized title
+    verses_in_range?: number;
+    estimated_reading_time?: number;
+    difficulty_level?: 'easy' | 'medium' | 'hard';
+    book_name?: string;
+    chapter_number?: number;
+    testament?: 'Old' | 'New';
 }
+

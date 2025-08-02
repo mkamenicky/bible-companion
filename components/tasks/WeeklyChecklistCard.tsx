@@ -1,7 +1,7 @@
 // WeeklyChecklistCard.tsx
 import React from 'react';
 import {Text, TouchableOpacity, View} from 'react-native';
-import {useTranslation} from '@/hooks';
+import {useLocalization, useTranslation} from '@/hooks';
 
 interface Props {
     items: string[];
@@ -21,7 +21,7 @@ const getTaskIcon = (task: string) => {
 };
 
 export default function WeeklyChecklistCard({items, title, taskStatus, onConfirm, styles, customColors}: Props) {
-    const t = useTranslation();
+    const { t, translateTask } = useLocalization();
     const completedCount = items.filter(task => taskStatus[task]).length;
     const allDone = items.every(task => taskStatus[task]);
     const progressPercentage = (completedCount / items.length) * 100;
@@ -45,6 +45,7 @@ export default function WeeklyChecklistCard({items, title, taskStatus, onConfirm
                 {items.map((task, index) => {
                     const isCompleted = taskStatus[task];
                     const isLast = index === items.length - 1;
+                    const translatedTaskName = translateTask(task);
 
                     return (
                         <TouchableOpacity
@@ -74,7 +75,7 @@ export default function WeeklyChecklistCard({items, title, taskStatus, onConfirm
                                         color: customColors?.subtleGray || '#8e8e8e'
                                     }
                                 ]}>
-                                    {task}
+                                    {translatedTaskName}
                                 </Text>
                                 <Text style={styles.itemSubtitle}>
                                     {getTaskSubtitle(task)}

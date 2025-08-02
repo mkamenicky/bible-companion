@@ -1,10 +1,15 @@
+// Updated useHomeData.ts - Using AchievementContext
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { TaskService } from '@/services';
-import {DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
+import { TaskService, progressService } from '@/services';
+import { DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan } from "@/models";
+import { useAchievementContext } from '@/components'; // Add this import
 
 export function useHomeData() {
-    // State management
+    // Get achievement context
+    const { addAchievementEvents } = useAchievementContext();
+
+    // Existing state management
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [readingPlan, setReadingPlan] = useState<ReadingPlan[]>([]);
@@ -16,17 +21,36 @@ export function useHomeData() {
     const [weeklyChecklistItems, setWeeklyChecklistItems] = useState<string[]>([]);
     const [dailyChecklistItems, setDailyChecklistItems] = useState<string[]>([]);
 
-    // Also update the today calculation to ensure it's consistent
+    // Existing today calculation
     const today = useMemo(() => {
         const now = new Date();
         const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         console.log('Today calculated as:', todayDate.toISOString().split('T')[0]);
         return todayDate;
-    }, [new Date().toDateString()]); // Updates when date string changes
+    }, [new Date().toDateString()]);
 
     const taskService = useMemo(() => new TaskService(), []);
 
-    // Data fetching methods
+    // Helper to check for achievement unlocks
+    const checkForAchievementUnlocks = useCallback(async (userId: number = 1) => {
+        try {
+            console.log('🏆 Checking for achievement unlocks...');
+            const unlockedEvents = await progressService.updateAchievementProgressFromDatabase(userId);
+
+            if (unlockedEvents.length > 0) {
+                console.log('🎉 New achievements unlocked:', unlockedEvents.map(e => e.achievementName));
+                // Add to global achievement context
+                addAchievementEvents(unlockedEvents);
+            }
+
+            return unlockedEvents;
+        } catch (error) {
+            console.error('❌ Error checking achievements:', error);
+            return [];
+        }
+    }, [addAchievementEvents]);
+
+    // Existing data fetching methods...
     const fetchReadingPlan = useCallback(async (): Promise<void> => {
         const plan = await taskService.fetchReadingPlan();
         setReadingPlan(plan);
@@ -143,6 +167,8 @@ export function useHomeData() {
                 display_title: item.display_title
             });
 
+            const wasCompleted = item.is_completed;
+
             // Optimistically update UI state first for better UX
             setDailyReadingAssignments(prevAssignments => {
                 const newAssignments = new Map(prevAssignments);
@@ -169,12 +195,16 @@ export function useHomeData() {
             });
 
             // Perform the actual database operation
-            if (item.is_completed) {
+            if (wasCompleted) {
                 console.log('Unmarking assignment as read');
                 await taskService.unmarkDailyAssignmentAsRead(item);
             } else {
                 console.log('Marking assignment as read');
                 await taskService.markDailyAssignmentAsRead(item);
+
+                // Check for achievements when marking as completed
+                console.log('🏆 Assignment completed - checking for achievement unlocks...');
+                await checkForAchievementUnlocks();
             }
 
             // Refresh the data to ensure consistency with database
@@ -196,7 +226,7 @@ export function useHomeData() {
             // Re-throw to allow UI to handle error display
             throw error;
         }
-    }, [taskService, fetchAssignments, fetchTaskStates]);
+    }, [taskService, fetchAssignments, fetchTaskStates, checkForAchievementUnlocks]);
 
     const handleConfirmationTaskSet = useCallback((task: string): void => {
         setConfirmationTask(task);
@@ -206,10 +236,11 @@ export function useHomeData() {
         setConfirmationTask(null);
     }, []);
 
-    const confirmTaskCompletion = useCallback(async (task: string | null = confirmationTask, status: any ): Promise<void> => {
+    // UPDATED: Task completion with achievement checking
+    const confirmTaskCompletion = useCallback(async (task: string | null = confirmationTask, status: any): Promise<void> => {
         if (!task) return;
 
-        if(status === undefined){
+        if (status === undefined) {
             status = !taskStatus[task];
         }
 
@@ -218,17 +249,21 @@ export function useHomeData() {
         await taskService.toggleTaskCompletion(task, status, today);
         setTaskStatus(prev => ({ ...prev, [task]: status }));
         setConfirmationTask(null);
-        onRefresh()
-    }, [confirmationTask, taskService, today, taskStatus, onRefresh]);
 
-    /**
-     * Handles generating additional reading assignments with correct date
-     */
+        // Check for achievements when completing tasks
+        if (status) {
+            console.log('🏆 Task completed - checking for achievement unlocks...');
+            await checkForAchievementUnlocks();
+        }
+
+        await onRefresh();
+    }, [confirmationTask, taskService, today, taskStatus, onRefresh, checkForAchievementUnlocks]);
+
+    // UPDATED: Read more with achievement checking
     const handleReadMore = useCallback(async (): Promise<void> => {
         try {
             console.log('Generating additional reading assignments for date:', today.toISOString().split('T')[0]);
 
-            // Generate additional assignments using the same date as current assignments
             const additionalAssignments = await taskService.generateAdditionalAssignments(today);
 
             if (additionalAssignments.length === 0) {
@@ -240,17 +275,19 @@ export function useHomeData() {
 
             // Force refresh assignments data for TODAY's date
             await fetchAssignments();
-
-            // Also refresh task states to ensure completion status is correct
             await fetchTaskStates();
+
+            // Check for achievements after generating more content
+            console.log('🏆 Additional content generated - checking for achievement unlocks...');
+            await checkForAchievementUnlocks();
 
             console.log('Successfully refreshed assignments and task states');
 
         } catch (error) {
             console.error('Error generating additional assignments:', error);
-            throw error; // Re-throw to let the component handle the error
+            throw error;
         }
-    }, [taskService, today, fetchAssignments, fetchTaskStates]);
+    }, [taskService, today, fetchAssignments, fetchTaskStates, checkForAchievementUnlocks]);
 
     // Lifecycle effects
     useFocusEffect(
@@ -260,7 +297,7 @@ export function useHomeData() {
     );
 
     return {
-        // State
+        // Existing state
         loading,
         refreshing,
         readingPlan,
@@ -268,17 +305,15 @@ export function useHomeData() {
         confirmationTask,
         today,
         dailyReadingAssignments,
-
-        // Dynamic task lists from database
         weeklyChecklistItems,
         dailyChecklistItems,
 
-        // Actions
+        // Existing actions
         onRefresh,
         handleToggleVerses,
         handleConfirmationTaskSet,
         handleConfirmationCancel,
         confirmTaskCompletion,
-        handleReadMore
+        handleReadMore,
     };
 }

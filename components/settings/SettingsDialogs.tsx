@@ -15,7 +15,12 @@ interface DialogStates {
 interface FormStates {
     dailyGoalInput: string;
     timePickerVisible: boolean;
+    streakTimePickerVisible: boolean;
+    goalTimePickerVisible: boolean;
     selectedTime: Date;
+    selectedStreakTime: Date;
+    selectedGoalTime: Date;
+    currentTimePickerType: 'daily' | 'streak' | 'goal';
     refreshing: boolean;
 }
 

@@ -1,5 +1,5 @@
 import React, {useState} from 'react';
-import {ScrollView, Text, TouchableOpacity, View} from 'react-native';
+import {ScrollView, Text, TouchableOpacity, View, useColorScheme} from 'react-native';
 import {RadioButton} from 'react-native-paper';
 import {ThemeService} from '@/services';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,7 +16,7 @@ export function ThemeSelector({onThemeChange}: ThemeSelectorProps) {
 
     const themes = ThemeService.getAvailableThemes();
     const styles = ThemeService.useThemedStyles();
-    const colorScheme = 'light'; // You can get this from useColorScheme()
+    const colorScheme = useColorScheme(); // Use actual color scheme
     const colors = ThemeService.getCustomColors(colorScheme, selectedTheme);
 
     const handleThemeSelect = async (theme: ThemeVariant) => {
@@ -30,6 +30,21 @@ export function ThemeSelector({onThemeChange}: ThemeSelectorProps) {
         onThemeChange?.(theme);
     };
 
+    // Get proper selection background color based on the theme
+    const getSelectionBackgroundColor = (isSelected: boolean) => {
+        if (!isSelected) return 'transparent';
+
+        // Use surface color for selection to ensure proper contrast
+        // In dark mode, surface is darker than lightGray
+        // In light mode, surface provides good contrast
+        return colors.surface === colors.background ? colors.lightGray : colors.surface;
+    };
+
+    // Get proper border color for selected items
+    const getSelectionBorderColor = (isSelected: boolean) => {
+        return isSelected ? colors.primary : colors.borderColor;
+    };
+
     return (
         <View>
             <Text style={[styles.cardTitle, {textAlign: 'left'}]}>
@@ -40,37 +55,58 @@ export function ThemeSelector({onThemeChange}: ThemeSelectorProps) {
             </Text>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-                {themes.map((theme) => (
-                    <TouchableOpacity
-                        key={theme.key}
-                        style={[
-                            styles.listItem,
-                            {
-                                backgroundColor: selectedTheme === theme.key ? colors.lightGray : 'transparent',
-                                borderRadius: 8,
-                                marginBottom: 8,
-                            }
-                        ]}
-                        onPress={() => handleThemeSelect(theme.key)}
-                    >
-                        <View style={styles.itemContent}>
-                            <Text style={styles.itemTitle}>{theme.name}</Text>
-                            <Text style={[styles.itemSubtitle, {color: colors.subtleGray}]}>
-                                {theme.description}
-                            </Text>
-                        </View>
-                        <RadioButton
-                            value={theme.key}
-                            status={selectedTheme === theme.key ? 'checked' : 'unchecked'}
+                {themes.map((theme) => {
+                    const isSelected = selectedTheme === theme.key;
+
+                    return (
+                        <TouchableOpacity
+                            key={theme.key}
+                            style={[
+                                styles.listItem,
+                                {
+                                    backgroundColor: getSelectionBackgroundColor(isSelected),
+                                    borderWidth: 1,
+                                    borderColor: getSelectionBorderColor(isSelected),
+                                    borderRadius: 8,
+                                    marginBottom: 8,
+                                    // Add subtle elevation for selected items in dark mode
+                                    ...(isSelected && colorScheme === 'dark' && {
+                                        elevation: 2,
+                                        shadowColor: colors.primary,
+                                        shadowOffset: { width: 0, height: 1 },
+                                        shadowOpacity: 0.2,
+                                        shadowRadius: 2,
+                                    })
+                                }
+                            ]}
                             onPress={() => handleThemeSelect(theme.key)}
-                            color={colors.instagramBlue}
-                        />
-                    </TouchableOpacity>
-                ))}
+                        >
+                            <View style={styles.itemContent}>
+                                <Text style={styles.itemTitle}>{theme.name}</Text>
+                                <Text style={[styles.itemSubtitle, {color: colors.subtleGray}]}>
+                                    {theme.description}
+                                </Text>
+                            </View>
+                            <RadioButton
+                                value={theme.key}
+                                status={selectedTheme === theme.key ? 'checked' : 'unchecked'}
+                                onPress={() => handleThemeSelect(theme.key)}
+                                color={colors.primary}
+                            />
+                        </TouchableOpacity>
+                    );
+                })}
             </ScrollView>
 
             {/* Theme Preview */}
-            <View style={{marginTop: 16, padding: 12, backgroundColor: colors.lightGray, borderRadius: 8}}>
+            <View style={{
+                marginTop: 16,
+                padding: 12,
+                backgroundColor: colors.surface, // Use surface instead of lightGray
+                borderWidth: 1,
+                borderColor: colors.borderColor,
+                borderRadius: 8
+            }}>
                 <Text style={[styles.text, {fontSize: 12, color: colors.subtleGray, marginBottom: 8}]}>
                     Preview
                 </Text>

@@ -12,6 +12,10 @@ import {SplashScreen, Stack} from "expo-router";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import {useCallback, useEffect, useMemo, useState} from "react";
 
+// NEW: Import AchievementProvider and GlobalAchievementModal
+import { AchievementProvider } from '@/components/progress/AchievementContext';
+import { GlobalAchievementModal } from '@/components';
+
 export {ErrorBoundary} from 'expo-router';
 
 export const unstable_settings = {
@@ -85,7 +89,13 @@ function RootLayoutNav() {
     return (
         <SafeAreaProvider>
             <PaperProvider theme={theme}>
-                <Stack screenOptions={{headerShown: false}}/>
+                {/* NEW: Wrap everything in AchievementProvider */}
+                <AchievementProvider>
+                    <Stack screenOptions={{headerShown: false}}/>
+
+                    {/* NEW: Add global achievement modal */}
+                    <GlobalAchievementModal />
+                </AchievementProvider>
             </PaperProvider>
         </SafeAreaProvider>
     );

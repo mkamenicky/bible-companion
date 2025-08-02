@@ -1,38 +1,40 @@
-// React imports
+// Updated Index.tsx - Clean version using global achievement context
 import React from 'react';
-import {useColorScheme, View} from 'react-native';
-
-// Third-party library imports
-import {Appbar} from 'react-native-paper';
+import { useColorScheme, View } from 'react-native';
+import { Appbar } from 'react-native-paper';
 
 // Local component imports
-import {DailyAssignmentsCard, DailyTextBanner, LoadingScreen, ScreenContainer, WeeklyChecklistCard} from '@/components';
+import {
+    DailyAssignmentsCard,
+    DailyTextBanner,
+    LoadingScreen,
+    ScreenContainer,
+    WeeklyChecklistCard,
+} from '@/components';
 
 // Service and utility imports
-import {useHomeData, useTranslation} from '@/hooks';
-import {DateFormattingService, ThemeService} from '@/services';
+import { useHomeData, useTranslation } from '@/hooks';
+import { DateFormattingService, ThemeService } from '@/services';
 
 export default function Index() {
-    const t = useTranslation(); // Add translation hook
+    const t = useTranslation();
 
-    // Custom hook for data management
+    // Custom hook for data management (now handles achievements via context)
     const {
         today,
         onRefresh,
         taskStatus,
         handleToggleVerses,
-        handleReadMore, // Add this
+        handleReadMore,
         dailyChecklistItems,
         weeklyChecklistItems,
         confirmTaskCompletion,
         dailyReadingAssignments,
-        loading, // Add loading state if not already present in hook
+        loading,
     } = useHomeData();
 
-    // Theme and styling - Now using Instagram theme by default
+    // Theme and styling
     const colorScheme = useColorScheme();
-
-    // Get Instagram-style colors and styles
     const customColors = ThemeService.getCustomColors(colorScheme);
     const styles = ThemeService.getStyles(customColors);
 
@@ -57,9 +59,10 @@ export default function Index() {
             <Appbar.Header style={styles.appbar}>
                 <Appbar.Content
                     title={t('home.title')}
-                    titleStyle={{color: customColors.color, fontWeight: '600'}}
+                    titleStyle={{ color: customColors.color, fontWeight: '600' }}
                 />
             </Appbar.Header>
+
             <ScreenContainer onRefresh={onRefresh}>
                 <DailyTextBanner
                     today={today}
@@ -69,17 +72,18 @@ export default function Index() {
                     styles={styles}
                     customColors={customColors}
                 />
+
                 {dailyReadingAssignments && Array.from(dailyReadingAssignments.entries()).map(
                     ([assignmentTitle, assignments]) => {
                         console.log(`Rendering assignments for ${assignmentTitle}:`, assignments.length, 'assignments');
 
                         return (
                             <DailyAssignmentsCard
-                                key={`${assignmentTitle}-${assignments.length}-${assignments.map(a => a.id).join(',')}`} // Force re-render when assignments change
+                                key={`${assignmentTitle}-${assignments.length}-${assignments.map(a => a.id).join(',')}`}
                                 dailyReadingAssignments={assignments}
                                 onToggle={handleToggleVerses}
-                                onReadMore={handleReadMore} // Add this prop
-                                title={t('home.readingPlanToday', {title: assignmentTitle})}
+                                onReadMore={handleReadMore}
+                                title={t('home.readingPlanToday', { title: assignmentTitle })}
                                 styles={styles}
                                 customColors={customColors}
                             />
@@ -89,7 +93,7 @@ export default function Index() {
 
                 <WeeklyChecklistCard
                     items={weeklyChecklistItems}
-                    title={t('home.week', {range: weekRange})}
+                    title={t('home.week', { range: weekRange })}
                     taskStatus={taskStatus}
                     onConfirm={confirmTaskCompletion}
                     styles={styles}

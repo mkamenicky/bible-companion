@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS daily_reading_assignments
     display_title  TEXT    NOT NULL,
     is_completed   BOOLEAN NOT NULL DEFAULT 0,
     completed_at   TEXT,
-    UNIQUE (date, plan_name, chapter_id),
+    UNIQUE (date, plan_name, chapter_id, start_verse_id, end_verse_id),
     FOREIGN KEY (start_verse_id) REFERENCES BibleVerse (BibleVerseId),
     FOREIGN KEY (end_verse_id) REFERENCES BibleVerse (BibleVerseId)
 );

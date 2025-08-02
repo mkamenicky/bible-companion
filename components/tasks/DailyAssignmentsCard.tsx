@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import {DailyReadingAssignment, EnhancedDailyReadingAssignment} from '@/models';
-import { useTranslation } from '@/hooks';
+import {useLocalization, useTranslation} from '@/hooks';
 
 interface Props {
     dailyReadingAssignments: EnhancedDailyReadingAssignment[];
@@ -21,7 +21,7 @@ export default function DailyAssignmentsCard({
                                                  styles,
                                                  customColors
                                              }: Props) {
-    const t = useTranslation();
+    const { t, getLocalizedBookTitle } = useLocalization();
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     const completedCount = dailyReadingAssignments.filter(item => item.is_completed).length;
@@ -56,10 +56,11 @@ export default function DailyAssignmentsCard({
                 ) : (
                     dailyReadingAssignments.map((item, index) => {
                         const isLast = index === dailyReadingAssignments.length - 1;
+                        const localizedTitle = getLocalizedBookTitle(item);
 
                         return (
                             <TouchableOpacity
-                                key={`${item.id}-${item.start_verse_id}-${item.end_verse_id}`} // More unique key
+                                key={`${item.id}-${item.start_verse_id}-${item.end_verse_id}`}
                                 style={[
                                     styles.listItem,
                                     isLast && styles.listItemLast,
@@ -70,7 +71,8 @@ export default function DailyAssignmentsCard({
                                         id: item.id,
                                         verses: `${item.start_verse_id}-${item.end_verse_id}`,
                                         current_status: item.is_completed,
-                                        display_title: item.display_title
+                                        display_title: item.display_title,
+                                        localized_title: localizedTitle
                                     });
                                     onToggle(item);
                                 }}
@@ -90,8 +92,17 @@ export default function DailyAssignmentsCard({
                                             color: customColors?.subtleGray || '#8e8e8e'
                                         }
                                     ]}>
-                                        {item.book_title} {item.chapter_title}:{item.start_verse_title} - {item.end_verse_title}
+                                        {localizedTitle}
                                     </Text>
+                                    {/* Add additional info if available */}
+                                    {item.verses_in_range && (
+                                        <Text style={styles.itemSubtitle}>
+                                            {item.verses_in_range} {t('common.verses')}
+                                            {item.estimated_reading_time && (
+                                                ` • ${Math.ceil(item.estimated_reading_time)} min`
+                                            )}
+                                        </Text>
+                                    )}
                                 </View>
 
                                 <View style={[

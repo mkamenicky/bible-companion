@@ -1,9 +1,6 @@
-// SettingsScreen.tsx (Corrected - only using existing fields)
-import React from 'react';
-import {useColorScheme, View} from 'react-native';
-import {Appbar} from 'react-native-paper';
-
-// Import individual components
+import React, { useCallback, useMemo } from 'react';
+import { useColorScheme, View } from 'react-native';
+import { Appbar } from 'react-native-paper';
 import {
     AppearanceCard,
     DataStorageCard,
@@ -16,123 +13,89 @@ import {
     SettingsQuickStatusCard,
     SettingsTimePicker
 } from '@/components';
+import { useSettingsData, useTranslation, useProgressData, ExtendedAppSettings, NotificationState } from '@/hooks';
+import { ThemeService } from '@/services';
 
-// Service and utility imports
-import {useNotifications, useSettingsData, useTranslation} from '@/hooks';
-import {ThemeService} from '@/services';
+interface SettingsScreenProps {}
 
-export default function SettingsScreen() {
+const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     const t = useTranslation();
+    const colorScheme = useColorScheme();
+    const progressData = useProgressData();
 
-    // Separate the hooks to avoid circular dependency
-    const settingsHook = useSettingsData();
-    const notificationsHook = useNotifications();
-
+    const settingsData = useSettingsData();
     const {
         settings,
         loading,
         dailyVerseGoal,
+        notificationState,
+        scheduledNotifications,
         dialogs,
         formStates,
         onRefresh,
+        updateSetting,
+        resetSettings,
         handleToggleDialog,
+        updateFormState,
         handleDailyGoalSave,
         handleTimeChange,
-        handleNotificationToggle,
-        handleTestNotification,
-        handleExportSettings,
-        resetSettings,
         showTimePicker,
-        updateSetting,
-        updateFormState,
-        // Database backup handlers (only the ones that exist)
+        showStreakTimePicker,
+        showGoalTimePicker,
+        handleNotificationToggle,
+        handleDailyReminderToggle,
+        handleStreakReminderToggle,
+        handleGoalReminderToggle,
+        handleAchievementNotificationToggle,
+        handleTestNotification,
         handleDatabaseBackup,
         handleDatabaseRestore,
-    } = settingsHook;
+        handleExportSettings,
+    } = settingsData;
 
-    const {
-        scheduledNotifications,
-        updateNotificationSchedule,
-        sendTestNotification,
-        initialized: notificationsInitialized,
-    } = notificationsHook;
+    // Memoized theme values
+    const { customColors, styles } = useMemo(() => {
+        const colors = ThemeService.getCustomColors(colorScheme);
+        const styleSheet = ThemeService.getStyles(colors);
+        return { customColors: colors, styles: styleSheet };
+    }, [colorScheme]);
 
-    // Compute notification status locally
-    const notificationStatus = React.useMemo(() => {
-        if (!notificationsInitialized) return {status: t('settings.notificationStatus.initializing'), color: '#f59e0b'};
-        if (!settings?.notifications) return {status: t('settings.notificationStatus.disabled'), color: '#ef4444'};
-
-        // Check if any specific notification type is enabled
-        const hasAnyEnabled = settings?.dailyReminder ||
-            settings?.streakReminder ||
-            settings?.goalReminder ||
-            settings?.achievementNotifications;
-
-        if (!hasAnyEnabled) return {status: t('settings.notificationStatus.disabled'), color: '#ef4444'};
-        return {status: t('settings.notificationStatus.active'), color: '#10b981'};
-    }, [notificationsInitialized, settings?.notifications, settings?.dailyReminder,
-        settings?.streakReminder, settings?.goalReminder, settings?.achievementNotifications, t]);
-
-    // Theme and styling
-    const colorScheme = useColorScheme();
-    const customColors = ThemeService.getCustomColors(colorScheme);
-    const styles = ThemeService.getStyles(customColors);
-
-    // Combine refresh functions
-    const handleRefresh = React.useCallback(async () => {
+    // Combined refresh handler
+    const handleRefresh = useCallback(async (): Promise<void> => {
         await Promise.all([
             onRefresh(),
-            notificationsHook.loadScheduledNotifications(),
+            progressData.onRefresh(),
         ]);
-    }, [onRefresh, notificationsHook.loadScheduledNotifications]);
+    }, [onRefresh, progressData.onRefresh]);
 
-    const handleTimeChangeInternal = React.useCallback(async (event: any, selectedDate?: Date) => {
-        console.log("setting time to:", selectedDate);
-        await handleTimeChange(event, selectedDate).then(updatedSettings => {
-            if (updatedSettings) {
-                updateNotificationSchedule(updatedSettings, dailyVerseGoal);
-            }
-        });
-    }, [handleTimeChange, updateNotificationSchedule, dailyVerseGoal]);
+    // Settings update handlers with proper typing
+    const handleFontSizeChange = useCallback((size: ExtendedAppSettings['fontSize']) => {
+        updateSetting('fontSize', size);
+    }, [updateSetting]);
 
-    // Individual notification toggle handlers
-    const handleDailyReminderToggle = React.useCallback(async (value: boolean) => {
-        await updateSetting('dailyReminder', value).then(result => {
-            if (result) {
-                console.log('Daily reminder toggle', result);
-                updateNotificationSchedule(result, dailyVerseGoal);
-            }
-        });
-    }, [updateSetting, updateNotificationSchedule, dailyVerseGoal]);
+    const handleOfflineModeToggle = useCallback((value: boolean) => {
+        updateSetting('offlineMode', value);
+    }, [updateSetting]);
 
-    const handleStreakReminderToggle = React.useCallback(async (value: boolean) => {
-        await updateSetting('streakReminder', value).then(result => {
-            if (result) {
-                console.log('Streak reminder toggle', result);
-                updateNotificationSchedule(result, dailyVerseGoal);
-            }
-        });
-    }, [updateSetting, updateNotificationSchedule, dailyVerseGoal]);
+    const handleThemeChange = useCallback(() => {
+        handleToggleDialog('changeTheme', true);
+    }, [handleToggleDialog]);
 
-    const handleGoalReminderToggle = React.useCallback(async (value: boolean) => {
-        await updateSetting('goalReminder', value).then(result => {
-            if (result) {
-                console.log('Goal reminder toggle', result);
-                updateNotificationSchedule(result, dailyVerseGoal);
-            }
-        });
-    }, [updateSetting, updateNotificationSchedule, dailyVerseGoal]);
+    const handleEditDailyGoal = useCallback(() => {
+        handleToggleDialog('dailyGoal', true);
+    }, [handleToggleDialog]);
 
-    const handleAchievementNotificationToggle = React.useCallback(async (value: boolean) => {
-        await updateSetting('achievementNotifications', value).then(result => {
-            if (result) {
-                console.log('Achievement notification toggle', result);
-                updateNotificationSchedule(result, dailyVerseGoal);
-            }
-        });
-    }, [updateSetting, updateNotificationSchedule, dailyVerseGoal]);
+    const handleExportData = useCallback(() => {
+        handleToggleDialog('exportData', true);
+    }, [handleToggleDialog]);
 
-    // Show loading screen if data is still loading
+    // Empty cancel all notifications handler (can be implemented later)
+    const handleCancelAllNotifications = useCallback(async (): Promise<void> => {
+        // Implementation can be added when needed
+        console.log('Cancel all notifications requested');
+    }, []);
+
+    // Loading state
     if (loading) {
         return (
             <LoadingScreen
@@ -143,6 +106,7 @@ export default function SettingsScreen() {
         );
     }
 
+    // Error state
     if (!settings) {
         return (
             <LoadingScreen
@@ -155,13 +119,16 @@ export default function SettingsScreen() {
         );
     }
 
-    // Render
     return (
         <View style={styles.container}>
+            {/* Header */}
             <Appbar.Header style={styles.appbar}>
                 <Appbar.Content
                     title={t('settings.title')}
-                    titleStyle={{color: customColors.color, fontWeight: '600'}}
+                    titleStyle={{
+                        color: customColors.color,
+                        fontWeight: '600'
+                    }}
                 />
                 <Appbar.Action
                     icon="refresh"
@@ -170,47 +137,45 @@ export default function SettingsScreen() {
                 />
             </Appbar.Header>
 
+            {/* Main Content */}
             <ScreenContainer onRefresh={handleRefresh}>
-                {/* Quick Status Overview */}
+                {/* Quick Status Card */}
                 <SettingsQuickStatusCard
                     dailyVerseGoal={dailyVerseGoal}
                     scheduledNotifications={scheduledNotifications}
-                    notificationStatus={notificationStatus}
+                    notificationStatus={notificationState}
                     styles={styles}
                     customColors={customColors}
                 />
 
-                {/* Language Selection Section */}
+                {/* Language Settings */}
                 <LanguageSelector
                     styles={styles}
                     customColors={customColors}
                 />
 
-                {/* Reading Goals Section */}
+                {/* Reading Goals */}
                 <ReadingGoalsCard
                     dailyVerseGoal={dailyVerseGoal}
-                    onEditGoal={() => handleToggleDialog('dailyGoal', true)}
+                    onEditGoal={handleEditDailyGoal}
                     styles={styles}
                     customColors={customColors}
                 />
 
-                {/* Appearance Section */}
+                {/* Appearance Settings */}
                 <AppearanceCard
                     settings={settings}
-                    onFontSizeChange={(size: any) => updateSetting('fontSize', size)}
-                    onThemeChange={() => {
-                        handleToggleDialog('changeTheme', true)
-                    }}
+                    onFontSizeChange={handleFontSizeChange}
+                    onThemeChange={handleThemeChange}
                     styles={styles}
                     customColors={customColors}
                 />
 
-                {/* Notifications Section */}
+                {/* Notification Settings */}
                 <NotificationSettingsCard
                     settings={settings}
                     scheduledNotifications={scheduledNotifications}
-                    sendTestNotification={sendTestNotification}
-                    notificationStatus={notificationStatus}
+                    notificationStatus={notificationState}
                     onNotificationToggle={handleNotificationToggle}
                     onDailyReminderToggle={handleDailyReminderToggle}
                     onStreakReminderToggle={handleStreakReminderToggle}
@@ -218,16 +183,18 @@ export default function SettingsScreen() {
                     onAchievementNotificationToggle={handleAchievementNotificationToggle}
                     onTestNotification={handleTestNotification}
                     onShowTimePicker={showTimePicker}
-                    onCancelAllNotifications={notificationsHook.cancelAllNotifications}
+                    onShowStreakTimePicker={showStreakTimePicker}
+                    onShowGoalTimePicker={showGoalTimePicker}
+                    onCancelAllNotifications={handleCancelAllNotifications}
                     styles={styles}
                     customColors={customColors}
                 />
 
-                {/* Data & Storage Section */}
+                {/* Data Storage Settings */}
                 <DataStorageCard
                     settings={settings}
-                    onOfflineModeToggle={(value: any) => updateSetting('offlineMode', value)}
-                    onExportSettings={() => handleToggleDialog('exportData', true)}
+                    onOfflineModeToggle={handleOfflineModeToggle}
+                    onExportSettings={handleExportData}
                     onResetSettings={resetSettings}
                     onDatabaseBackup={handleDatabaseBackup}
                     onDatabaseRestore={handleDatabaseRestore}
@@ -236,14 +203,25 @@ export default function SettingsScreen() {
                 />
             </ScreenContainer>
 
-            {/* Time Picker Component */}
+            {/* Modals and Dialogs */}
             <SettingsTimePicker
                 visible={formStates.timePickerVisible}
                 selectedTime={formStates.selectedTime}
-                onTimeChange={handleTimeChangeInternal}
+                onTimeChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'daily')}
             />
 
-            {/* All Dialogs */}
+            <SettingsTimePicker
+                visible={formStates.streakTimePickerVisible}
+                selectedTime={formStates.selectedStreakTime}
+                onTimeChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'streak')}
+            />
+
+            <SettingsTimePicker
+                visible={formStates.goalTimePickerVisible}
+                selectedTime={formStates.selectedGoalTime}
+                onTimeChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'goal')}
+            />
+
             <SettingsDialogs
                 dialogs={dialogs}
                 formStates={formStates}
@@ -256,4 +234,6 @@ export default function SettingsScreen() {
             />
         </View>
     );
-}
+};
+
+export default SettingsScreen;

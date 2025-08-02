@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Modal, Portal } from 'react-native-paper';
-import { useTranslation } from '@/hooks';
+import {useLocalization, useTranslation} from '@/hooks';
 
 interface Props {
     visible: boolean;
@@ -21,9 +21,12 @@ export default function TaskConfirmationModal({
                                                   styles,
                                                   customColors
                                               }: Props) {
-    const t = useTranslation();
+    const { t, translateTask } = useLocalization();
 
     if (!task) return null;
+
+    // Get the translated task name for display
+    const translatedTaskName = translateTask(task);
 
     return (
         <Portal>
@@ -49,7 +52,7 @@ export default function TaskConfirmationModal({
                             textAlign: 'center',
                             lineHeight: 20
                         }}>
-                            {t('taskConfirmation.message', { task })}
+                            {t('taskConfirmation.message', { task: translatedTaskName })}
                         </Text>
                     </View>
 
