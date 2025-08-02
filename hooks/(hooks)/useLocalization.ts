@@ -175,6 +175,7 @@ export function useLocalization(): UseLocalizationReturn {
     // Helper function to get localized book title from enhanced assignment
     // This will be used when the ReadingService has already provided the localized title
     const getLocalizedBookTitle = useCallback((assignment: EnhancedDailyReadingAssignment): string => {
+        console.log(assignment);
         return assignment.localized_title || assignment.display_title;
     }, []);
 

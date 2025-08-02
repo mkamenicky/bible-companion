@@ -54,9 +54,10 @@ export default function DailyAssignmentsCard({
                         </Text>
                     </View>
                 ) : (
-                    dailyReadingAssignments.map((item, index) => {
+                    dailyReadingAssignments.map((item: EnhancedDailyReadingAssignment, index) => {
                         const isLast = index === dailyReadingAssignments.length - 1;
                         const localizedTitle = getLocalizedBookTitle(item);
+                        const assignment: EnhancedDailyReadingAssignment = item;
 
                         return (
                             <TouchableOpacity
@@ -92,7 +93,7 @@ export default function DailyAssignmentsCard({
                                             color: customColors?.subtleGray || '#8e8e8e'
                                         }
                                     ]}>
-                                        {localizedTitle}
+                                        {localizedTitle} {assignment.chapter_number}:{assignment.start_verse_title}-{item.end_verse_title}
                                     </Text>
                                     {/* Add additional info if available */}
                                     {item.verses_in_range && (

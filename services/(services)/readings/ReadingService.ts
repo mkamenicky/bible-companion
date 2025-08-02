@@ -378,7 +378,6 @@ export class ReadingService {
 
         const todaysTopic = await this.getTodaysTopic(dayOfWeek);
         const booksForTopic = await this.getBooksForTopic(todaysTopic.id);
-
         const currentPosition = await this.getCurrentReadingPosition(progress, todaysTopic, booksForTopic, existingAssignments);
 
         const assignments = await this.generateAssignmentsForGoal(currentPosition, preferences.dailyVerseGoal, plan.plan_name, date, todaysTopic, booksForTopic);
@@ -466,6 +465,7 @@ export class ReadingService {
                 return null;
             }
 
+            console.log("trying to localize book", book)
             // Get the localized book title with proper typing
             let localizedTitle: string;
 
@@ -593,9 +593,25 @@ export class ReadingService {
                 // Create the complete localized display title
                 const localizedDisplayTitle = await this.createLocalizedDisplayTitle(assignment, titleColumn);
 
+                const calculateVerseNumber = (verseId: number, chapter: BibleChapter): number => {
+                    if (!chapter.FirstVerseId) return 1;
+
+                    // Calculate verse number as: (current verse ID - first verse ID of chapter) + 1
+                    return (verseId - chapter.FirstVerseId) + 1;
+                };
+                const [bibleChapter] = await Promise.all([bibleChapterRepository.findById(assignment.chapter_id)]);
+
+                // Calculate verse numbers within the chapter
+                const startVerseNumber = bibleChapter ? calculateVerseNumber(assignment.start_verse_id, bibleChapter) : 1;
+                const endVerseNumber = bibleChapter ? calculateVerseNumber(assignment.end_verse_id, bibleChapter) : 1;
+
+
                 enhanced.push({
                     ...assignment,
                     localized_title: localizedDisplayTitle,
+                    chapter_number: bibleChapter?.ChapterNumber,
+                    start_verse_title: startVerseNumber.toString(),
+                    end_verse_title: endVerseNumber.toString(),
                     verses_in_range: assignment.end_verse_id - assignment.start_verse_id + 1,
                     estimated_reading_time: Math.ceil((assignment.end_verse_id - assignment.start_verse_id + 1) * 0.5),
                 });
@@ -664,37 +680,63 @@ export class ReadingService {
         let chapterId: number | undefined = undefined;
         let verseId: number | undefined = undefined;
 
+        // First priority: Check existing assignments for TODAY'S TOPIC ONLY
         if (existingAssignments && existingAssignments.length > 0) {
-            const lastAssignment = existingAssignments.sort((a, b) => b.end_verse_id - a.end_verse_id)[0];
-            verseId = lastAssignment.end_verse_id + 1;
+            // Filter assignments to only those that belong to today's topic books
+            const topicBookIds = booksForTopic.map(bt => bt.bible_book_id);
+            const relevantAssignments = existingAssignments.filter(assignment => {
+                // Find which book this assignment belongs to
+                const chapter = allChapters.find(ch => ch.BibleChapterId === assignment.chapter_id);
+                return chapter && topicBookIds.includes(<number>chapter.BookNumber);
+            });
 
-            const verse = await bibleVerseRepository.findById(verseId);
-            if (verse) {
-                const chapter = allChapters.find(ch => verseId! >= (ch.FirstVerseId || 0) && verseId! <= (ch.LastVerseId || 0));
+            if (relevantAssignments.length > 0) {
+                // Continue from the last assignment within today's topic
+                const lastAssignment = relevantAssignments.sort((a, b) => b.end_verse_id - a.end_verse_id)[0];
+                const nextVerseId = lastAssignment.end_verse_id + 1;
 
-                if (chapter) {
-                    chapterId = chapter.BibleChapterId;
-                    const book = allBooks.find(b => b.BibleBookId === chapter.BookNumber);
-                    if (book) {
-                        bookIndex = booksForTopic.findIndex(bt => bt.bible_book_id === book.BibleBookId);
-                        if (bookIndex === -1) bookIndex = 0;
+                const verse = await bibleVerseRepository.findById(nextVerseId);
+                if (verse) {
+                    const chapter = allChapters.find(ch => nextVerseId >= (ch.FirstVerseId || 0) && nextVerseId <= (ch.LastVerseId || 0));
+
+                    if (chapter) {
+                        const book = allBooks.find(b => b.BibleBookId === chapter.BookNumber);
+                        if (book) {
+                            const topicBookIndex = booksForTopic.findIndex(bt => bt.bible_book_id === book.BibleBookId);
+                            if (topicBookIndex !== -1) {
+                                bookIndex = topicBookIndex;
+                                chapterId = chapter.BibleChapterId;
+                                verseId = nextVerseId;
+                                console.log(`Continuing from existing assignments in ${todaysTopic.display_name} at verse ${nextVerseId}`);
+                            }
+                        }
                     }
                 }
             }
-        } else if (progress.last_topic_id === todaysTopic.id && progress.current_book_id && progress.current_verse_id) {
+        }
+
+        // Second priority: Check saved progress ONLY if it's the same topic
+        if (verseId === undefined && progress.last_topic_id === todaysTopic.id && progress.current_book_id && progress.current_verse_id) {
+            // Verify that the saved book belongs to today's topic
             bookIndex = booksForTopic.findIndex(bt => bt.bible_book_id === progress.current_book_id);
-            if (bookIndex === -1) bookIndex = 0;
-            verseId = progress.current_verse_id;
 
-            const chaptersInCurrentBook = allChapters
-                .filter(ch => ch.BookNumber === booksForTopic[bookIndex].bible_book_id)
-                .sort((a, b) => (a.ChapterNumber || 0) - (b.ChapterNumber || 0));
+            if (bookIndex !== -1) {
+                verseId = progress.current_verse_id;
 
-            const currentChapter = chaptersInCurrentBook.find(ch => verseId! >= (ch.FirstVerseId || 0) && verseId! <= (ch.LastVerseId || 0));
+                const chaptersInCurrentBook = allChapters
+                    .filter(ch => ch.BookNumber === booksForTopic[bookIndex].bible_book_id)
+                    .sort((a, b) => (a.ChapterNumber || 0) - (b.ChapterNumber || 0));
 
-            chapterId = currentChapter?.BibleChapterId || chaptersInCurrentBook[0]?.BibleChapterId || undefined;
-        } else {
-            // Start from beginning
+                const currentChapter = chaptersInCurrentBook.find(ch => verseId! >= (ch.FirstVerseId || 0) && verseId! <= (ch.LastVerseId || 0));
+
+                chapterId = currentChapter?.BibleChapterId || chaptersInCurrentBook[0]?.BibleChapterId || undefined;
+                console.log(`Using saved progress for ${todaysTopic.display_name} at verse ${verseId}`);
+            }
+        }
+
+        // Third priority: Start from the beginning of TODAY'S TOPIC
+        if (verseId === undefined) {
+            console.log(`Starting fresh with ${todaysTopic.display_name} - no relevant progress found`);
             const firstBookForTopic = booksForTopic[0];
             if (firstBookForTopic) {
                 bookIndex = 0;
@@ -712,6 +754,7 @@ export class ReadingService {
 
         return {bookIndex, chapterId, verseId, allBooks, allChapters};
     }
+
 
     private async generateAssignmentsForGoal(position: ReadingPosition, dailyVerseGoal: number, planName: string, date: Date, topic: ReadingTopic, booksForTopic: BibleBookTopic[]): Promise<DailyReadingAssignment[]> {
         const assignments: DailyReadingAssignment[] = [];
