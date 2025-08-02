@@ -24,7 +24,7 @@ export {default as LanguageSelector} from './language/language-selector.componen
 
 export { default as  AppearanceCard} from './settings/AppearanceCard';
 export { default as DataStorageCard } from './settings/DataStorageCard';
-export { default as LoadingScreen } from './settings/LoadingScreen';
+export { LoadingScreen } from './loading/LoadingScreen';
 export { default as NotificationSettingsCard } from './settings/NotificationSettingsCard';
 export { default as ReadingGoalsCard } from './settings/ReadingGoalsCard';
 export { default as SettingsDialogs } from './settings/SettingsDialogs';

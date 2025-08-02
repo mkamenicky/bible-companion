@@ -199,7 +199,7 @@ export abstract class BaseRepository<T, CreateDto, UpdateDto> {
     /**
      * Generic find method with custom WHERE clause
      */
-    protected async findWhere(whereClause: string, params: any[], orderBy?: string): Promise<T[]> {
+    async findWhere(whereClause: string, params: any[], orderBy?: string): Promise<T[]> {
         const db = getDatabase();
 
         try {

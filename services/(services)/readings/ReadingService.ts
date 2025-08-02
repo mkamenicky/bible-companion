@@ -44,10 +44,33 @@ interface AssignmentContext {
 }
 
 export class ReadingService {
+    private static bookCache: BibleBook[] | null = null;
+    private static chapterCache: BibleChapter[] | null = null;
+    private static cacheTimestamp: number = 0;
+    private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
     // ========================================
     // PUBLIC API METHODS
     // ========================================
+
+    // Add these methods to your existing ReadingService class
+    private async getCachedBooks(): Promise<BibleBook[]> {
+        const now = Date.now();
+        if (!ReadingService.bookCache || (now - ReadingService.cacheTimestamp) > ReadingService.CACHE_DURATION) {
+            ReadingService.bookCache = await bibleBookRepository.findAll();
+            ReadingService.cacheTimestamp = now;
+        }
+        return ReadingService.bookCache;
+    }
+
+    private async getCachedChapters(): Promise<BibleChapter[]> {
+        const now = Date.now();
+        if (!ReadingService.chapterCache || (now - ReadingService.cacheTimestamp) > ReadingService.CACHE_DURATION) {
+            ReadingService.chapterCache = await bibleChapterRepository.findAll();
+            ReadingService.cacheTimestamp = now;
+        }
+        return ReadingService.chapterCache;
+    }
 
     async fetchReadingAssignments(date: Date, language?: SupportedLanguage): Promise<EnhancedDailyReadingAssignment[]> {
         try {
@@ -211,50 +234,6 @@ export class ReadingService {
             return [{readingPlanConfig: existingPlan}];
         } catch (error: any) {
             throw new DatabaseMessageError('Failed to get reading plan', error as Error);
-        }
-    }
-
-    async getReadingProgress(startDate: Date, endDate: Date): Promise<any[]> {
-        this.validateInput(startDate, 'date', 'startDate');
-        this.validateInput(endDate, 'date', 'endDate');
-
-        const startDateStr = this.formatDate(startDate);
-        const endDateStr = this.formatDate(endDate);
-
-        try {
-            const allProgress = await bibleVerseProgressRepository.findAll();
-            return allProgress.filter(p => p.dateRead >= startDateStr && p.dateRead <= endDateStr);
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get reading progress', error as Error);
-        }
-    }
-
-    async getCompletionPercentage(startDate: Date, endDate: Date, totalExpectedVerses: number): Promise<number> {
-        const progress = await this.getReadingProgress(startDate, endDate);
-        const completedVerses = progress.filter(p => p.isRead).length;
-        return totalExpectedVerses === 0 ? 0 : Math.round((completedVerses / totalExpectedVerses) * 100);
-    }
-
-    async switchReadingPlan(planType: 'sequential' | 'topical' | 'chronological'): Promise<void> {
-        try {
-            const allPlans = await readingPlanConfigRepository.findAll();
-
-            // Deactivate all plans
-            for (const plan of allPlans.filter(p => p.is_active)) {
-                await readingPlanConfigRepository.update({id: plan.id, is_active: false});
-            }
-
-            // Activate the selected plan
-            let targetPlan = allPlans.find(p => p.plan_type === planType);
-            if (!targetPlan) {
-                targetPlan = await readingPlanConfigRepository.create({
-                    plan_name: this.getPlanDisplayName(planType), plan_type: planType, is_active: true
-                });
-            } else {
-                await readingPlanConfigRepository.update({id: targetPlan.id, is_active: true});
-            }
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to switch reading plan', error as Error);
         }
     }
 
@@ -441,124 +420,6 @@ export class ReadingService {
         return columnMap[language] || 'ChapterDisplayTitle';
     }
 
-
-// Add method to get chapter with localized title
-    private async getBookWithLocalizedTitle(chapterId: number, titleColumn: string): Promise<{
-        localizedTitle: string
-    } | null> {
-        try {
-            // First, get the chapter to find which book it belongs to
-            const chapters = await bibleChapterRepository.findAll();
-            const chapter = chapters.find(c => c.BibleChapterId === chapterId);
-
-            if (!chapter) {
-                console.warn(`Chapter not found: ${chapterId}`);
-                return null;
-            }
-
-            // Then get the book information with localized title
-            const books = await bibleBookRepository.findAll();
-            const book = books.find(b => b.BibleBookId === chapter.BookNumber);
-
-            if (!book) {
-                console.warn(`Book not found for chapter: ${chapterId}`);
-                return null;
-            }
-
-            console.log("trying to localize book", book)
-            // Get the localized book title with proper typing
-            let localizedTitle: string;
-
-            switch (titleColumn) {
-                case 'ChapterDisplayTitle':
-                    localizedTitle = book.ChapterDisplayTitle || book.BookDisplayTitle || 'Unknown Book';
-                    break;
-                case 'ChapterDisplayTitleGerman':
-                    localizedTitle = book.ChapterDisplayTitleGerman || book.ChapterDisplayTitle || book.BookDisplayTitle || 'Unknown Book';
-                    break;
-                case 'ChapterDisplayTitleJapanese':
-                    localizedTitle = book.ChapterDisplayTitleJapanese || book.ChapterDisplayTitle || book.BookDisplayTitle || 'Unknown Book';
-                    break;
-                default:
-                    localizedTitle = book.ChapterDisplayTitle || book.BookDisplayTitle || 'Unknown Book';
-                    break;
-            }
-
-            return {
-                localizedTitle: localizedTitle
-            };
-        } catch (error) {
-            console.error('Error getting localized book title:', error);
-            return null;
-        }
-    }
-
-// Add method to create localized display title
-    private async createLocalizedDisplayTitle(assignment: DailyReadingAssignment, titleColumn: string): Promise<string> {
-        try {
-            // Get the localized book title
-            const bookInfo = await this.getBookWithLocalizedTitle(assignment.chapter_id, titleColumn);
-
-            if (!bookInfo) {
-                return assignment.display_title; // fallback
-            }
-
-            // Get chapter information to build the complete title
-            const chapters = await bibleChapterRepository.findAll();
-            const chapter = chapters.find(c => c.BibleChapterId === assignment.chapter_id);
-
-            if (!chapter) {
-                return bookInfo.localizedTitle; // just return book name
-            }
-
-            // Get verse information to create a complete reference
-            const startVerse = await bibleVerseRepository.findById(assignment.start_verse_id);
-            const endVerse = await bibleVerseRepository.findById(assignment.end_verse_id);
-
-            if (startVerse && endVerse) {
-                // Parse verse labels to extract chapter and verse numbers
-                // Assuming verse labels are in format like "Genesis 1:1"
-                const startVerseInfo = this.parseVerseLabel(startVerse.Label);
-                const endVerseInfo = this.parseVerseLabel(endVerse.Label);
-
-                if (startVerseInfo && endVerseInfo) {
-                    // Create a proper reference like "Genesis 1:1-15" or "Genesis 1:1-2:5"
-                    if (startVerseInfo.chapter === endVerseInfo.chapter) {
-                        // Same chapter: "Genesis 1:1-15"
-                        return `${bookInfo.localizedTitle} ${startVerseInfo.chapter}:${startVerseInfo.verse}-${endVerseInfo.verse}`;
-                    } else {
-                        // Different chapters: "Genesis 1:1-2:5"
-                        return `${bookInfo.localizedTitle} ${startVerseInfo.chapter}:${startVerseInfo.verse}-${endVerseInfo.chapter}:${endVerseInfo.verse}`;
-                    }
-                }
-            }
-
-            // Fallback: just return the localized book name
-            return bookInfo.localizedTitle;
-
-        } catch (error) {
-            console.error('Error creating localized display title:', error);
-            return assignment.display_title; // fallback
-        }
-    }
-
-    // Helper method to parse verse labels (assuming format like "Genesis 1:1")
-    private parseVerseLabel(label: string): { book: string; chapter: number; verse: number } | null {
-        try {
-            // This regex matches patterns like "Genesis 1:1" or "1 Samuel 2:15"
-            const match = label.match(/^(.+?)\s+(\d+):(\d+)$/);
-            if (match) {
-                return {
-                    book: match[1].trim(), chapter: parseInt(match[2]), verse: parseInt(match[3])
-                };
-            }
-            return null;
-        } catch (error) {
-            console.error('Error parsing verse label:', error);
-            return null;
-        }
-    }
-
     private getDisplayTitle(planType: string, currentTopic?: ReadingTopic): string {
         if (planType === 'topical' && currentTopic) {
             return currentTopic.display_name;
@@ -571,10 +432,14 @@ export class ReadingService {
         }
     }
 
-    private async getExistingAssignments(dateStr: string): Promise<EnhancedDailyReadingAssignment[]> {
-        const existingAssignments = await dailyReadingAssignmentsRepository.findAll();
-        const dailyReadingAssignments = existingAssignments.filter(assignment => assignment.date === dateStr);
-        return await this.mapToEnhancedReadingAssignments(dailyReadingAssignments);
+    private async getExistingAssignments(dateStr: string): Promise<DailyReadingAssignment[]> {
+        try {
+            // Use targeted query instead of findAll
+            return await dailyReadingAssignmentsRepository.findWhere('date = ?', [dateStr]);
+        } catch (error: any) {
+            console.error('Error fetching existing assignments:', error);
+            return [];
+        }
     }
 
     private async getExistingAssignmentsByDate(dateStr: string): Promise<DailyReadingAssignment[]> {
@@ -591,7 +456,7 @@ export class ReadingService {
         for (const assignment of assignments) {
             try {
                 // Create the complete localized display title
-                const localizedDisplayTitle = await this.createLocalizedDisplayTitle(assignment, titleColumn);
+
 
                 const calculateVerseNumber = (verseId: number, chapter: BibleChapter): number => {
                     if (!chapter.FirstVerseId) return 1;
@@ -600,15 +465,17 @@ export class ReadingService {
                     return (verseId - chapter.FirstVerseId) + 1;
                 };
                 const [bibleChapter] = await Promise.all([bibleChapterRepository.findById(assignment.chapter_id)]);
+                // @ts-ignore
+                const [book] = await Promise.all([bibleBookRepository.findById(bibleChapter.BookNumber)])
 
                 // Calculate verse numbers within the chapter
                 const startVerseNumber = bibleChapter ? calculateVerseNumber(assignment.start_verse_id, bibleChapter) : 1;
                 const endVerseNumber = bibleChapter ? calculateVerseNumber(assignment.end_verse_id, bibleChapter) : 1;
 
-
                 enhanced.push({
                     ...assignment,
-                    localized_title: localizedDisplayTitle,
+                    // @ts-ignore
+                    localized_title: book?.[titleColumn],
                     chapter_number: bibleChapter?.ChapterNumber,
                     start_verse_title: startVerseNumber.toString(),
                     end_verse_title: endVerseNumber.toString(),
@@ -629,7 +496,6 @@ export class ReadingService {
 
         return enhanced;
     }
-
 
     private async saveAssignments(assignments: DailyReadingAssignment[], dateStr: string, planName: string): Promise<DailyReadingAssignment[]> {
         const savedAssignments: DailyReadingAssignment[] = [];
@@ -674,7 +540,11 @@ export class ReadingService {
     // ========================================
 
     private async getCurrentReadingPosition(progress: ReadingPlanProgress, todaysTopic: ReadingTopic, booksForTopic: BibleBookTopic[], existingAssignments?: DailyReadingAssignment[]): Promise<ReadingPosition> {
-        const [allBooks, allChapters] = await Promise.all([bibleBookRepository.findAll(), bibleChapterRepository.findAll()]);
+        // Use cached data instead of loading everything each time
+        const [allBooks, allChapters] = await Promise.all([
+            this.getCachedBooks(),
+            this.getCachedChapters()
+        ]);
 
         let bookIndex = 0;
         let chapterId: number | undefined = undefined;
@@ -707,7 +577,6 @@ export class ReadingService {
                                 bookIndex = topicBookIndex;
                                 chapterId = chapter.BibleChapterId;
                                 verseId = nextVerseId;
-                                console.log(`Continuing from existing assignments in ${todaysTopic.display_name} at verse ${nextVerseId}`);
                             }
                         }
                     }
@@ -730,13 +599,11 @@ export class ReadingService {
                 const currentChapter = chaptersInCurrentBook.find(ch => verseId! >= (ch.FirstVerseId || 0) && verseId! <= (ch.LastVerseId || 0));
 
                 chapterId = currentChapter?.BibleChapterId || chaptersInCurrentBook[0]?.BibleChapterId || undefined;
-                console.log(`Using saved progress for ${todaysTopic.display_name} at verse ${verseId}`);
             }
         }
 
         // Third priority: Start from the beginning of TODAY'S TOPIC
         if (verseId === undefined) {
-            console.log(`Starting fresh with ${todaysTopic.display_name} - no relevant progress found`);
             const firstBookForTopic = booksForTopic[0];
             if (firstBookForTopic) {
                 bookIndex = 0;
@@ -754,7 +621,6 @@ export class ReadingService {
 
         return {bookIndex, chapterId, verseId, allBooks, allChapters};
     }
-
 
     private async generateAssignmentsForGoal(position: ReadingPosition, dailyVerseGoal: number, planName: string, date: Date, topic: ReadingTopic, booksForTopic: BibleBookTopic[]): Promise<DailyReadingAssignment[]> {
         const assignments: DailyReadingAssignment[] = [];
@@ -935,13 +801,6 @@ export class ReadingService {
         }
 
         return preferences;
-    }
-
-    private getPlanDisplayName(planType: string): string {
-        const names: Record<string, string> = {
-            'sequential': 'Sequential Reading', 'topical': 'Topical Weekly', 'chronological': 'Chronological Reading'
-        };
-        return names[planType] || planType;
     }
 
     private validateInput(value: any, type: 'string' | 'date' | 'number', fieldName: string): void {
