@@ -106,11 +106,11 @@ export function useSettingsData() {
     }, []);
 
     const getDefaultExtendedSettings = useCallback((): ExtendedAppSettings => ({
-        notifications: true,
-        dailyReminder: true,
-        streakReminder: true,
-        goalReminder: true,
-        achievementNotifications: true,
+        notifications: false,
+        dailyReminder: false,
+        streakReminder: false,
+        goalReminder: false,
+        achievementNotifications: false,
         reminderTime: '08:00',
         streakReminderTime: '20:00',
         goalReminderTime: '18:00',
@@ -162,10 +162,10 @@ export function useSettingsData() {
                 // Ensure new time fields have defaults if not present
                 streakReminderTime: baseSettings.streakReminderTime ?? '20:00',
                 goalReminderTime: baseSettings.goalReminderTime ?? '18:00',
-                dailyReminder: cachedNotificationPrefs?.dailyReminder ?? true,
-                streakReminder: cachedNotificationPrefs?.streakReminder ?? true,
-                goalReminder: cachedNotificationPrefs?.goalReminder ?? true,
-                achievementNotifications: cachedNotificationPrefs?.achievementNotifications ?? true,
+                dailyReminder: cachedNotificationPrefs?.dailyReminder ?? false,
+                streakReminder: cachedNotificationPrefs?.streakReminder ?? false,
+                goalReminder: cachedNotificationPrefs?.goalReminder ?? false,
+                achievementNotifications: cachedNotificationPrefs?.achievementNotifications ?? false,
             };
             setSettings(extendedSettings);
             console.log('✅ Settings state updated');

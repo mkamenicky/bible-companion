@@ -111,8 +111,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
         return (
             <LoadingScreen
                 message={t('settings.failedToLoad')}
-                isError={true}
-                onRetry={handleRefresh}
                 styles={styles}
                 customColors={customColors}
             />

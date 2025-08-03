@@ -1,8 +1,7 @@
-
-import React, { useMemo } from 'react';
-import { View, TouchableOpacity, Alert } from 'react-native';
-import { Text } from '@/components';
-import { useTranslation } from '@/hooks';
+import React, {useMemo} from 'react';
+import {Alert, TouchableOpacity, View} from 'react-native';
+import {Text} from '@/components';
+import {useTranslation} from '@/hooks';
 import type * as Notifications from 'expo-notifications';
 
 interface NotificationSettingsCardProps {
@@ -112,21 +111,21 @@ export default function NotificationSettingsCard({
 
     const statusInfo = useMemo(() => {
         if (!notificationStatus.initialized) {
-            return { status: 'Not initialized', color: '#f44336' };
+            return {status: 'Not initialized', color: '#f44336'};
         }
         if (notificationStatus.loading) {
-            return { status: 'Loading...', color: '#ff9800' };
+            return {status: 'Loading...', color: '#ff9800'};
         }
         if (notificationStatus.error) {
-            return { status: 'Error', color: '#f44336' };
+            return {status: 'Error', color: '#f44336'};
         }
         if (!notificationStatus.permissions?.granted) {
-            return { status: 'Permission denied', color: '#f44336' };
+            return {status: 'Permission denied', color: '#f44336'};
         }
         if (scheduledNotifications.length === 0) {
-            return { status: 'No active reminders', color: '#757575' };
+            return {status: 'No active reminders', color: '#757575'};
         }
-        return { status: 'Active', color: '#4caf50' };
+        return {status: 'Active', color: '#4caf50'};
     }, [notificationStatus, scheduledNotifications.length]);
 
     const isNotificationActive = (identifierPattern: string): boolean => {
@@ -142,8 +141,8 @@ export default function NotificationSettingsCard({
                 'Turn Off Notifications?',
                 'This will disable all Bible reading reminders.',
                 [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Turn Off', style: 'destructive', onPress: () => onNotificationToggle(false) }
+                    {text: 'Cancel', style: 'cancel'},
+                    {text: 'Turn Off', style: 'destructive', onPress: () => onNotificationToggle(false)}
                 ]
             );
         } else {
@@ -159,7 +158,7 @@ export default function NotificationSettingsCard({
             Alert.alert(
                 'Enable Notifications First',
                 'Please enable the main notifications setting first.',
-                [{ text: 'OK' }]
+                [{text: 'OK'}]
             );
             return;
         }
@@ -171,7 +170,7 @@ export default function NotificationSettingsCard({
             Alert.alert(
                 'Enable Notifications First',
                 'Please enable notifications to test them.',
-                [{ text: 'OK' }]
+                [{text: 'OK'}]
             );
             return;
         }
@@ -207,47 +206,46 @@ export default function NotificationSettingsCard({
         return (
             <TouchableOpacity
                 key={config.key}
-                style={[styles.listItem, !settings.notifications && { opacity: 0.5 }]}
+                style={[styles.listItem, !settings.notifications && {opacity: 0.5}]}
                 onPress={() => handleIndividualToggle(config, toggleFunction)}
                 disabled={!settings.notifications}
             >
                 <View style={[
                     styles.itemIcon,
-                    { backgroundColor: isEnabled ? config.color : '#f5f5f5' }
+                    {backgroundColor: isEnabled ? config.color : '#f5f5f5'}
                 ]}>
-                    <Text style={{ fontSize: 18 }}>{config.icon}</Text>
+                    <Text style={{fontSize: 18}}>{config.icon}</Text>
                 </View>
 
                 <View style={styles.itemContent}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <Text style={[styles.itemTitle, { marginRight: 8 }]}>
-                            {t(config.translationKey)}
-                        </Text>
-                        {isActive && (
-                            <Text style={{ fontSize: 12, color: '#4caf50', fontWeight: '600' }}>
-                                ● Active
-                            </Text>
-                        )}
-                        {isEnabled && !isActive && config.key !== 'achievementNotifications' && (
-                            <Text style={{ fontSize: 12, color: '#ff9800', fontWeight: '600' }}>
-                                ● Scheduled
-                            </Text>
-                        )}
-                        {isEnabled && config.key === 'achievementNotifications' && (
-                            <Text style={{ fontSize: 12, color: '#4caf50', fontWeight: '600' }}>
-                                ● Enabled
-                            </Text>
-                        )}
-                    </View>
+                    <Text style={styles.itemTitle}>
+                        {t(config.translationKey)}
+                    </Text>
                     <Text style={styles.itemSubtitle}>
                         {config.hasTimeSelector && isEnabled && config.timeField
                             ? `${config.key === 'dailyReminder' ? 'Daily' : config.key === 'streakReminder' ? 'Streak' : 'Goal'} reminder at ${formatTime(settings[config.timeField])}`
                             : config.description
                         }
                     </Text>
+                    {/* Active status moved under description */}
+                    {isActive && (
+                        <Text style={{fontSize: 12, color: '#4caf50', fontWeight: '600', marginTop: 4}}>
+                            ● Active
+                        </Text>
+                    )}
+                    {isEnabled && !isActive && config.key !== 'achievementNotifications' && (
+                        <Text style={{fontSize: 12, color: '#ff9800', fontWeight: '600', marginTop: 4}}>
+                            ● Scheduled
+                        </Text>
+                    )}
+                    {isEnabled && config.key === 'achievementNotifications' && (
+                        <Text style={{fontSize: 12, color: '#4caf50', fontWeight: '600', marginTop: 4}}>
+                            ● Enabled
+                        </Text>
+                    )}
                 </View>
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
                     {config.hasTimeSelector && isEnabled && config.timeField && (
                         <TouchableOpacity
                             style={[
@@ -264,7 +262,7 @@ export default function NotificationSettingsCard({
                                     borderColor: customColors.instagramBlue + '30',
                                 }
                             ]}
-                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}
                             onPress={(e) => {
                                 e.stopPropagation();
                                 if (config.key === 'dailyReminder') {
@@ -277,8 +275,8 @@ export default function NotificationSettingsCard({
                             }}
                         >
                             <Text style={[
-                                styles.actionText, 
-                                { 
+                                styles.actionText,
+                                {
                                     color: customColors.instagramBlue,
                                     fontWeight: '600',
                                     fontSize: 13,
@@ -311,7 +309,7 @@ export default function NotificationSettingsCard({
                     alignItems: 'flex-start',
                     marginBottom: 8
                 }}>
-                    <View style={{ flex: 1 }}>
+                    <View style={{flex: 1}}>
                         <Text style={styles.sectionTitle}>
                             {t('settings.notifications.title')}
                         </Text>
@@ -320,7 +318,7 @@ export default function NotificationSettingsCard({
                         style={[
                             styles.checkbox,
                             settings.notifications && styles.checkboxChecked,
-                            { marginLeft: 16 }
+                            {marginLeft: 16}
                         ]}
                         onPress={handleMasterToggle}
                     >
