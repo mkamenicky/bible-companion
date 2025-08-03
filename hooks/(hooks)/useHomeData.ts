@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { TaskService, progressService } from '@/services';
 import { DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan } from "@/models";
-import { useAchievementContext } from '@/components';
+import { useAchievementContext } from '@/components/progress/AchievementContext';
 
 export function useHomeData() {
     const { addAchievementEvents } = useAchievementContext();

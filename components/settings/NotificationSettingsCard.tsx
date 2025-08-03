@@ -1,6 +1,6 @@
 import React, {useMemo} from 'react';
 import {Alert, TouchableOpacity, View} from 'react-native';
-import {Text} from '@/components';
+import {Text} from '@/components/settings/TextProps';
 import {useTranslation} from '@/hooks';
 import type * as Notifications from 'expo-notifications';
 

@@ -1,5 +1,5 @@
 import {
-    achievementProgressRepository,
+    achievementProgressRepository, bibleBookRepository, bibleChapterRepository,
     bibleVerseProgressRepository,
     bibleVerseRepository,
     readingPreferencesRepository,
@@ -11,7 +11,7 @@ import {
 import {DatabaseMessageError} from '@/errors';
 
 import type {
-    Achievement,
+    Achievement, BibleBook, BibleChapter,
     CreateReadingSessionDto,
     CreateReadingStreakDto,
     PeriodStats,
@@ -97,9 +97,7 @@ export class ProgressService {
     }
 
     /**
-     * Update reading progress after a reading session
-     * This is the main method to call when a user completes reading
-     * Now returns any newly unlocked achievements
+     * Enhanced update reading progress that automatically calculates chapters and books
      */
     async updateReadingProgress(
         userId: number = 1,
@@ -114,14 +112,24 @@ export class ProgressService {
             const today = now.toISOString().split('T')[0];
             const currentTime = now.toTimeString().split(' ')[0];
 
-            // Create or update reading session
+            // Calculate actual chapters completed and books started from verse data
+            const [actualChaptersCompleted, actualBooksStarted] = await Promise.all([
+                this.getCompletedChaptersCount(userId),
+                this.getBooksStartedCount(userId)
+            ]);
+
+            // Use calculated values if not provided explicitly
+            const finalChaptersRead = chaptersRead > 0 ? chaptersRead : actualChaptersCompleted;
+            const finalBooksRead = booksRead.length > 0 ? booksRead : await this.getStartedBookNames();
+
+            // Create or update reading session with calculated data
             await this.recordReadingSession({
                 date: today,
                 startTime: currentTime,
                 endTime: currentTime,
                 versesRead,
-                chaptersRead,
-                booksRead,
+                chaptersRead: finalChaptersRead,
+                booksRead: finalBooksRead,
                 readingPlan,
                 notes
             });
@@ -136,6 +144,145 @@ export class ProgressService {
             throw new DatabaseMessageError('Failed to update reading progress', error);
         }
     }
+
+    /**
+     * Helper method to get names of books that have been started
+     */
+    private async getStartedBookNames(): Promise<string[]> {
+        try {
+            const bookProgress = await this.getBookProgress();
+            return bookProgress.bookDetails
+                .filter(book => book.isStarted)
+                .map(book => book.bookName);
+        } catch (error: any) {
+            console.error('Error getting started book names:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Check if a specific chapter is completed
+     */
+    async isChapterCompleted(chapterId: number): Promise<boolean> {
+        try {
+            const chapter = await bibleChapterRepository.findById(chapterId);
+            if (!chapter || !chapter.FirstVerseId || !chapter.LastVerseId) {
+                return false;
+            }
+
+            const verseProgress = await bibleVerseProgressRepository.findAll();
+            const readVerseIds = new Set(verseProgress.filter(p => p.isRead).map(v => v.bibleVerseId));
+
+            for (let verseId = chapter.FirstVerseId; verseId <= chapter.LastVerseId; verseId++) {
+                if (!readVerseIds.has(verseId)) {
+                    return false;
+                }
+            }
+
+            return true;
+        } catch (error: any) {
+            console.error('Error checking chapter completion:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Check if a specific book is completed
+     */
+    async isBookCompleted(bookNumber: number): Promise<boolean> {
+        try {
+            const [allChapters, verseProgress] = await Promise.all([
+                bibleChapterRepository.findByBookNumber(bookNumber),
+                bibleVerseProgressRepository.findAll()
+            ]);
+
+            if (allChapters.length === 0) {
+                return false;
+            }
+
+            const readVerseIds = new Set(verseProgress.filter(p => p.isRead).map(v => v.bibleVerseId));
+
+            for (const chapter of allChapters) {
+                if (chapter.FirstVerseId && chapter.LastVerseId) {
+                    for (let verseId = chapter.FirstVerseId; verseId <= chapter.LastVerseId; verseId++) {
+                        if (!readVerseIds.has(verseId)) {
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            return true;
+        } catch (error: any) {
+            console.error('Error checking book completion:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Get chapter completion percentage for a specific chapter
+     */
+    async getChapterCompletionPercentage(chapterId: number): Promise<number> {
+        try {
+            const chapter = await bibleChapterRepository.findById(chapterId);
+            if (!chapter || !chapter.FirstVerseId || !chapter.LastVerseId) {
+                return 0;
+            }
+
+            const totalVerses = chapter.LastVerseId - chapter.FirstVerseId + 1;
+            const verseProgress = await bibleVerseProgressRepository.findAll();
+            const readVerseIds = new Set(verseProgress.filter(p => p.isRead).map(v => v.bibleVerseId));
+
+            let readVerses = 0;
+            for (let verseId = chapter.FirstVerseId; verseId <= chapter.LastVerseId; verseId++) {
+                if (readVerseIds.has(verseId)) {
+                    readVerses++;
+                }
+            }
+
+            return totalVerses > 0 ? Math.round((readVerses / totalVerses) * 100) : 0;
+        } catch (error: any) {
+            console.error('Error calculating chapter completion percentage:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Get book completion percentage for a specific book
+     */
+    async getBookCompletionPercentage(bookNumber: number): Promise<number> {
+        try {
+            const [allChapters, verseProgress] = await Promise.all([
+                bibleChapterRepository.findByBookNumber(bookNumber),
+                bibleVerseProgressRepository.findAll()
+            ]);
+
+            if (allChapters.length === 0) {
+                return 0;
+            }
+
+            const readVerseIds = new Set(verseProgress.filter(p => p.isRead).map(v => v.bibleVerseId));
+            let totalVerses = 0;
+            let readVerses = 0;
+
+            for (const chapter of allChapters) {
+                if (chapter.FirstVerseId && chapter.LastVerseId) {
+                    for (let verseId = chapter.FirstVerseId; verseId <= chapter.LastVerseId; verseId++) {
+                        totalVerses++;
+                        if (readVerseIds.has(verseId)) {
+                            readVerses++;
+                        }
+                    }
+                }
+            }
+
+            return totalVerses > 0 ? Math.round((readVerses / totalVerses) * 100) : 0;
+        } catch (error: any) {
+            console.error('Error calculating book completion percentage:', error);
+            return 0;
+        }
+    }
+
 
     /**
      * Record a reading session
@@ -250,7 +397,7 @@ export class ProgressService {
     }
 
     /**
-     * Calculate comprehensive reading statistics
+     * Calculate comprehensive reading statistics with proper chapter and book mapping
      */
     async calculateReadingStats(userId: number = 1): Promise<ReadingStats> {
         try {
@@ -259,16 +406,17 @@ export class ProgressService {
             const readVerses = verseProgress.filter(p => p.isRead);
             const totalVersesRead = readVerses.length;
 
-            // Get reading sessions for more accurate chapter/book counts
-            const sessions = await readingSessionRepository.findAll();
-            const totalChaptersRead = sessions.reduce((sum, session) => sum + session.chaptersRead, 0);
+            // Get all chapters and books for mapping
+            const [allChapters, allBooks] = await Promise.all([
+                bibleChapterRepository.findAll(),
+                bibleBookRepository.findAll()
+            ]);
 
-            // Get unique books from sessions
-            const booksSet = new Set<string>();
-            sessions.forEach(session => {
-                session.booksRead.forEach(book => booksSet.add(book));
-            });
-            const booksStarted = booksSet.size;
+            // Calculate completed chapters
+            const completedChapters = await this.calculateCompletedChapters(readVerses, allChapters);
+
+            // Calculate books started (any verse read from the book)
+            const booksStarted = await this.calculateBooksStarted(readVerses, allChapters, allBooks);
 
             // Calculate reading days
             const readingDates = await this.getAllReadingDates();
@@ -281,7 +429,7 @@ export class ProgressService {
 
             return {
                 totalVersesRead,
-                totalChaptersRead,
+                totalChaptersRead: completedChapters,
                 booksStarted,
                 averageVersesPerDay,
                 totalReadingDays,
@@ -290,6 +438,263 @@ export class ProgressService {
             throw new DatabaseMessageError('Failed to calculate reading statistics', error);
         }
     }
+
+    /**
+     * Calculate how many chapters have been completely read
+     */
+    private async calculateCompletedChapters(
+        readVerses: Array<{bibleVerseId: number, isRead: boolean, dateRead: string}>,
+        allChapters: BibleChapter[]
+    ): Promise<number> {
+        const readVerseIds = new Set(readVerses.map(v => v.bibleVerseId));
+        let completedChapters = 0;
+
+        for (const chapter of allChapters) {
+            if (chapter.FirstVerseId && chapter.LastVerseId) {
+                // Check if all verses in this chapter are read
+                let allVersesRead = true;
+
+                for (let verseId = chapter.FirstVerseId; verseId <= chapter.LastVerseId; verseId++) {
+                    if (!readVerseIds.has(verseId)) {
+                        allVersesRead = false;
+                        break;
+                    }
+                }
+
+                if (allVersesRead) {
+                    completedChapters++;
+                }
+            }
+        }
+
+        return completedChapters;
+    }
+
+    /**
+     * Calculate how many books have been started (at least one verse read)
+     */
+    private async calculateBooksStarted(
+        readVerses: Array<{bibleVerseId: number, isRead: boolean, dateRead: string}>,
+        allChapters: BibleChapter[],
+        allBooks: BibleBook[]
+    ): Promise<number> {
+        const readVerseIds = new Set(readVerses.map(v => v.bibleVerseId));
+        const booksWithReadVerses = new Set<number>();
+
+        // Create a map of book numbers for quick lookup
+        const bookMap = new Map(allBooks.map(book => [book.BibleBookId, book]));
+
+        for (const chapter of allChapters) {
+            if (chapter.BookNumber && chapter.FirstVerseId && chapter.LastVerseId) {
+                // Check if any verse in this chapter has been read
+                for (let verseId = chapter.FirstVerseId; verseId <= chapter.LastVerseId; verseId++) {
+                    if (readVerseIds.has(verseId)) {
+                        booksWithReadVerses.add(chapter.BookNumber);
+                        break; // Found at least one read verse in this chapter
+                    }
+                }
+            }
+        }
+
+        return booksWithReadVerses.size;
+    }
+
+    /**
+     * Enhanced method to calculate completed chapters for achievement tracking
+     */
+    async getCompletedChaptersCount(userId: number = 1): Promise<number> {
+        try {
+            const verseProgress = await bibleVerseProgressRepository.findAll();
+            const readVerses = verseProgress.filter(p => p.isRead);
+            const allChapters = await bibleChapterRepository.findAll();
+
+            return await this.calculateCompletedChapters(readVerses, allChapters);
+        } catch (error: any) {
+            console.error('Error calculating completed chapters:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Enhanced method to calculate books started for achievement tracking
+     */
+    async getBooksStartedCount(userId: number = 1): Promise<number> {
+        try {
+            const verseProgress = await bibleVerseProgressRepository.findAll();
+            const readVerses = verseProgress.filter(p => p.isRead);
+            const [allChapters, allBooks] = await Promise.all([
+                bibleChapterRepository.findAll(),
+                bibleBookRepository.findAll()
+            ]);
+
+            return await this.calculateBooksStarted(readVerses, allChapters, allBooks);
+        } catch (error: any) {
+            console.error('Error calculating books started:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Get detailed chapter progress information
+     */
+    async getChapterProgress(userId: number = 1): Promise<{
+        totalChapters: number;
+        completedChapters: number;
+        progressPercentage: number;
+        chapterDetails: Array<{
+            chapterId: number;
+            bookNumber: number;
+            chapterNumber: number;
+            totalVerses: number;
+            readVerses: number;
+            isCompleted: boolean;
+        }>;
+    }> {
+        try {
+            const verseProgress = await bibleVerseProgressRepository.findAll();
+            const readVerses = verseProgress.filter(p => p.isRead);
+            const readVerseIds = new Set(readVerses.map(v => v.bibleVerseId));
+            const allChapters = await bibleChapterRepository.findAll();
+
+            const chapterDetails = [];
+            let completedChapters = 0;
+
+            for (const chapter of allChapters) {
+                if (chapter.FirstVerseId && chapter.LastVerseId) {
+                    const totalVerses = chapter.LastVerseId - chapter.FirstVerseId + 1;
+                    let readVersesInChapter = 0;
+
+                    for (let verseId = chapter.FirstVerseId; verseId <= chapter.LastVerseId; verseId++) {
+                        if (readVerseIds.has(verseId)) {
+                            readVersesInChapter++;
+                        }
+                    }
+
+                    const isCompleted = readVersesInChapter === totalVerses;
+                    if (isCompleted) {
+                        completedChapters++;
+                    }
+
+                    chapterDetails.push({
+                        chapterId: chapter.BibleChapterId,
+                        bookNumber: chapter.BookNumber || 0,
+                        chapterNumber: chapter.ChapterNumber || 0,
+                        totalVerses,
+                        readVerses: readVersesInChapter,
+                        isCompleted
+                    });
+                }
+            }
+
+            const totalChapters = allChapters.length;
+            const progressPercentage = totalChapters > 0
+                ? Math.round((completedChapters / totalChapters) * 100)
+                : 0;
+
+            return {
+                totalChapters,
+                completedChapters,
+                progressPercentage,
+                chapterDetails
+            };
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get chapter progress', error);
+        }
+    }
+
+    /**
+     * Get detailed book progress information
+     */
+    async getBookProgress(userId: number = 1): Promise<{
+        totalBooks: number;
+        booksStarted: number;
+        booksCompleted: number;
+        progressPercentage: number;
+        bookDetails: Array<{
+            bookId: number;
+            bookName: string;
+            totalVerses: number;
+            readVerses: number;
+            totalChapters: number;
+            completedChapters: number;
+            isStarted: boolean;
+            isCompleted: boolean;
+        }>;
+    }> {
+        try {
+            const verseProgress = await bibleVerseProgressRepository.findAll();
+            const readVerses = verseProgress.filter(p => p.isRead);
+            const readVerseIds = new Set(readVerses.map(v => v.bibleVerseId));
+
+            const [allBooks, allChapters] = await Promise.all([
+                bibleBookRepository.findAll(),
+                bibleChapterRepository.findAll()
+            ]);
+
+            const bookDetails = [];
+            let booksStarted = 0;
+            let booksCompleted = 0;
+
+            for (const book of allBooks) {
+                const bookChapters = allChapters.filter(c => c.BookNumber === book.BibleBookId);
+                let totalVerses = 0;
+                let readVersesInBook = 0;
+                let completedChapters = 0;
+
+                for (const chapter of bookChapters) {
+                    if (chapter.FirstVerseId && chapter.LastVerseId) {
+                        const chapterVerseCount = chapter.LastVerseId - chapter.FirstVerseId + 1;
+                        totalVerses += chapterVerseCount;
+
+                        let readVersesInChapter = 0;
+                        for (let verseId = chapter.FirstVerseId; verseId <= chapter.LastVerseId; verseId++) {
+                            if (readVerseIds.has(verseId)) {
+                                readVersesInChapter++;
+                                readVersesInBook++;
+                            }
+                        }
+
+                        if (readVersesInChapter === chapterVerseCount) {
+                            completedChapters++;
+                        }
+                    }
+                }
+
+                const isStarted = readVersesInBook > 0;
+                const isCompleted = readVersesInBook === totalVerses && totalVerses > 0;
+
+                if (isStarted) booksStarted++;
+                if (isCompleted) booksCompleted++;
+
+                bookDetails.push({
+                    bookId: book.BibleBookId,
+                    bookName: book.ChapterDisplayTitle || `Book ${book.BibleBookId}`,
+                    totalVerses,
+                    readVerses: readVersesInBook,
+                    totalChapters: bookChapters.length,
+                    completedChapters,
+                    isStarted,
+                    isCompleted
+                });
+            }
+
+            const totalBooks = allBooks.length;
+            const progressPercentage = totalBooks > 0
+                ? Math.round((booksStarted / totalBooks) * 100)
+                : 0;
+
+            return {
+                totalBooks,
+                booksStarted,
+                booksCompleted,
+                progressPercentage,
+                bookDetails
+            };
+        } catch (error: any) {
+            throw new DatabaseMessageError('Failed to get book progress', error);
+        }
+    }
+
 
     /**
      * Calculate period-based reading statistics

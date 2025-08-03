@@ -1,7 +1,7 @@
-// components/AchievementNotificationModal.tsx - Auto-fade version with real-time countdown
+// components/AchievementNotificationModal.tsx - Updated to use same translations as AchievementsCard
 import React, { useEffect, useState } from 'react';
 import { View, Text, Modal, Animated } from 'react-native';
-import { useTranslation } from '@/hooks';
+import { useLocalization } from '@/hooks'; // Changed from useTranslation to useLocalization
 import { progressService } from '@/services';
 import type { AchievementUnlockEvent, Achievement } from '@/models';
 
@@ -22,13 +22,13 @@ export default function AchievementNotificationModal({
                                                          styles,
                                                          customColors
                                                      }: Props) {
-    const t = useTranslation();
+    const { t, translateAchievement } = useLocalization(); // Use same hook as AchievementsCard
     const [currentEventIndex, setCurrentEventIndex] = useState(0);
     const [fadeAnim] = useState(new Animated.Value(0));
     const [scaleAnim] = useState(new Animated.Value(0.8));
     const [achievementDetails, setAchievementDetails] = useState<AchievementWithDetails[]>([]);
     const [loading, setLoading] = useState(true);
-    const [countdown, setCountdown] = useState(2); // Add countdown state
+    const [countdown, setCountdown] = useState(2);
 
     const hasMultipleEvents = events.length > 1;
     const currentAchievement = achievementDetails[currentEventIndex];
@@ -184,6 +184,9 @@ export default function AchievementNotificationModal({
 
     const unlockEvent = currentAchievement.unlockEvent;
 
+    // NEW: Use translateAchievement like AchievementsCard does
+    const translatedAchievement = translateAchievement(currentAchievement);
+
     return (
         <Modal
             visible={true}
@@ -258,7 +261,7 @@ export default function AchievementNotificationModal({
                         </Text>
                     </View>
 
-                    {/* Achievement Details */}
+                    {/* Achievement Details - NOW USING TRANSLATED VERSION */}
                     <View style={{
                         alignItems: 'center',
                         marginBottom: 24,
@@ -270,7 +273,7 @@ export default function AchievementNotificationModal({
                             textAlign: 'center',
                             marginBottom: 8,
                         }}>
-                            {currentAchievement.name}
+                            {translatedAchievement.name}
                         </Text>
                         <Text style={{
                             fontSize: 16,
@@ -278,7 +281,7 @@ export default function AchievementNotificationModal({
                             textAlign: 'center',
                             lineHeight: 22,
                         }}>
-                            {currentAchievement.description}
+                            {translatedAchievement.description}
                         </Text>
                     </View>
 

@@ -5,6 +5,7 @@ import {progressService} from '@/services';
 import {useLocalization, useTranslation} from '@/hooks';
 import type {Achievement, AchievementUnlockEvent} from '@/models';
 import {ThemeColors} from "@/services/(services)/theme/ThemeService";
+import {useAchievementContext} from "@/components/progress/AchievementContext";
 
 interface Props {
     currentStreak: number;
@@ -34,6 +35,8 @@ export default function AchievementsCard({
                                              onAchievementUnlocked
                                          }: Props) {
     const { t, translateAchievement } = useLocalization();
+    const { addAchievementEvents } = useAchievementContext(); // NEW: Use context
+
     const [achievements, setAchievements] = useState<Achievement[]>([]);
     const [achievementStats, setAchievementStats] = useState<{
         total: number;
@@ -53,8 +56,14 @@ export default function AchievementsCard({
             // Update progress and get any newly unlocked achievements
             const unlockedEvents = await progressService.updateAchievementProgressFromDatabase(userId);
 
-            if (unlockedEvents.length > 0 && onAchievementUnlocked) {
-                onAchievementUnlocked(unlockedEvents);
+            // NEW: Add events to global context
+            if (unlockedEvents.length > 0) {
+                addAchievementEvents(unlockedEvents);
+
+                // Also call the prop callback if provided (for backwards compatibility)
+                if (onAchievementUnlocked) {
+                    onAchievementUnlocked(unlockedEvents);
+                }
             }
 
             // Fetch updated achievements and stats in parallel
@@ -76,7 +85,7 @@ export default function AchievementsCard({
             setAchievementStats(null);
             setCategorizedAchievements([]);
         }
-    }, [userId, onAchievementUnlocked]);
+    }, [userId, addAchievementEvents, onAchievementUnlocked]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);

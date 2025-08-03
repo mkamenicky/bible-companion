@@ -1,4 +1,4 @@
-// ProgressScreen.tsx
+// ProgressScreen.tsx - Enhanced with achievement context integration
 import React from 'react';
 import {useColorScheme, View} from 'react-native';
 import {Appbar} from 'react-native-paper';
@@ -12,14 +12,25 @@ import {
 } from '@/components';
 import {useProgressData, useTranslation} from '@/hooks';
 import {ThemeService} from '@/services';
+import { useAchievementContext } from '@/components/progress/AchievementContext';
 
 export default function ProgressScreen() {
     const t = useTranslation();
     const {stats, loading, onRefresh} = useProgressData();
 
+    // NEW: Use achievement context
+    const { addAchievementEvents } = useAchievementContext();
+
     const colorScheme = useColorScheme();
     const customColors = ThemeService.getCustomColors(colorScheme);
     const styles = ThemeService.getStyles(customColors);
+
+    // NEW: Handle achievement unlocks from AchievementsCard
+    const handleAchievementUnlocked = (events: any[]) => {
+        if (events.length > 0) {
+            addAchievementEvents(events);
+        }
+    };
 
     if (loading || !stats) {
         return (
@@ -70,6 +81,7 @@ export default function ProgressScreen() {
                     chaptersCompleted={stats.chaptersCompleted}
                     styles={styles}
                     customColors={customColors}
+                    onAchievementUnlocked={handleAchievementUnlocked}
                 />
             </ScreenContainer>
         </View>

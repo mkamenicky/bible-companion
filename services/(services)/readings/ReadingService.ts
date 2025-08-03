@@ -22,7 +22,7 @@ import {
     readingPreferencesRepository,
     readingTopicsRepository
 } from '@/repository'
-import {localizationService, SupportedLanguage} from "@/services";
+import {localizationService, SupportedLanguage} from "@/services/(services)/localization/localization.service";
 
 export type Languages = "english" | "german" | "japanese";
 
