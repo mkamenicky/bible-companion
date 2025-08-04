@@ -206,18 +206,30 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
                 visible={formStates.timePickerVisible}
                 selectedTime={formStates.selectedTime}
                 onTimeChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'daily')}
+                onDismiss={() => {
+                    updateFormState('timePickerVisible', false);
+                }}
+                title="Daily Reminder Time"
             />
 
             <SettingsTimePicker
                 visible={formStates.streakTimePickerVisible}
                 selectedTime={formStates.selectedStreakTime}
                 onTimeChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'streak')}
+                onDismiss={() => {
+                    updateFormState('streakTimePickerVisible', false);
+                }}
+                title="Streak Reminder Time"
             />
 
             <SettingsTimePicker
                 visible={formStates.goalTimePickerVisible}
                 selectedTime={formStates.selectedGoalTime}
                 onTimeChange={(event, selectedDate) => handleTimeChange(event, selectedDate, 'goal')}
+                onDismiss={() => {
+                    updateFormState('goalTimePickerVisible', false);
+                }}
+                title="Goal Reminder Time"
             />
 
             <SettingsDialogs

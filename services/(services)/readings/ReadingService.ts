@@ -53,39 +53,31 @@ export class ReadingService {
     // PUBLIC API METHODS
     // ========================================
 
-    // Add these methods to your existing ReadingService class
-    private async getCachedBooks(): Promise<BibleBook[]> {
-        const now = Date.now();
-        if (!ReadingService.bookCache || (now - ReadingService.cacheTimestamp) > ReadingService.CACHE_DURATION) {
-            ReadingService.bookCache = await bibleBookRepository.findAll();
-            ReadingService.cacheTimestamp = now;
-        }
-        return ReadingService.bookCache;
-    }
-
-    private async getCachedChapters(): Promise<BibleChapter[]> {
-        const now = Date.now();
-        if (!ReadingService.chapterCache || (now - ReadingService.cacheTimestamp) > ReadingService.CACHE_DURATION) {
-            ReadingService.chapterCache = await bibleChapterRepository.findAll();
-            ReadingService.cacheTimestamp = now;
-        }
-        return ReadingService.chapterCache;
-    }
-
     async fetchReadingAssignments(date: Date, language?: SupportedLanguage): Promise<EnhancedDailyReadingAssignment[]> {
         try {
             const dateStr = this.formatDate(date);
-            console.log("ReadingService: Fetching assignments for date:", dateStr);
-
-            // Check existing assignments first
             const existingAssignments = await this.getExistingAssignments(dateStr);
-            if (existingAssignments.length > 0) {
-                console.log("Found existing assignments:", existingAssignments.length);
+            const activePlan = await this.getActiveReadingPlan();
+
+            if (activePlan?.plan_type === 'topical') {
+                const dayOfWeek = date.getDay();
+                const todaysTopic = await this.getTodaysTopic(dayOfWeek);
+
+                if (existingAssignments.length > 0) {
+                    const hasMatchingTopic = existingAssignments.some(assignment => assignment.display_title === todaysTopic?.display_name);
+
+                    if (!hasMatchingTopic) {
+                        const newAssignments = await this.generateAssignmentsByType(activePlan, date);
+                        const savedAssignments = await this.saveAssignments(newAssignments, dateStr, activePlan.plan_name);
+                        return await this.mapToEnhancedReadingAssignments(savedAssignments, language);
+                    }
+
+                    return await this.mapToEnhancedReadingAssignments(existingAssignments, language);
+                }
+            } else if (existingAssignments.length > 0) {
                 return await this.mapToEnhancedReadingAssignments(existingAssignments, language);
             }
 
-            // Generate new assignments
-            const activePlan = await this.getActiveReadingPlan();
             if (!activePlan) {
                 throw new Error('No active reading plan found');
             }
@@ -93,11 +85,9 @@ export class ReadingService {
             const newAssignments = await this.generateAssignmentsByType(activePlan, date);
             const savedAssignments = await this.saveAssignments(newAssignments, dateStr, activePlan.plan_name);
 
-            console.log("Created new assignments:", savedAssignments.length);
             return await this.mapToEnhancedReadingAssignments(savedAssignments, language);
 
         } catch (error: any) {
-            console.error("Error fetching reading assignments:", error);
             throw new DatabaseMessageError(`Failed to fetch reading assignments`, error as Error);
         }
     }
@@ -111,7 +101,6 @@ export class ReadingService {
             }
 
             const existingAssignments = await this.getExistingAssignmentsByDate(dateStr);
-            console.log("Existing assignments:", existingAssignments.length);
 
             // Try to extend incomplete assignments first
             const incompleteAssignments = existingAssignments.filter(a => !a.is_completed);
@@ -120,20 +109,17 @@ export class ReadingService {
                 const extendedAssignment = await this.extendExistingAssignment(assignmentToExtend);
 
                 if (extendedAssignment) {
-                    console.log("Extended existing assignment");
                     return await this.mapToEnhancedReadingAssignments([extendedAssignment]);
                 }
             }
 
             // Create new assignments if all are completed or extension failed
-            console.log("Creating new assignments - all existing are completed");
             const continuationPoint = await this.findContinuationPoint(existingAssignments, activePlan);
-            const currentTopic = activePlan.plan_type === 'topical' ? await this.getTodaysTopic(date.getDay() || 7) : undefined;
+            const currentTopic = activePlan.plan_type === 'topical' ? await this.getTodaysTopic(date.getDay()) : undefined;
 
             const newAssignments = await this.generateNonOverlappingAssignments(activePlan, date, continuationPoint, existingAssignments, currentTopic);
 
             if (newAssignments.length === 0) {
-                console.log("No additional assignments generated");
                 return [];
             }
 
@@ -141,7 +127,6 @@ export class ReadingService {
             return await this.mapToEnhancedReadingAssignments(savedAssignments);
 
         } catch (error: any) {
-            console.error('Error generating additional assignments:', error);
             throw new DatabaseMessageError(`Failed to generate additional assignments`, error as Error);
         }
     }
@@ -185,9 +170,8 @@ export class ReadingService {
                     is_completed: isRead,
                     completed_at: isRead ? dateStr : undefined
                 });
-                console.log(`Updated assignment ${existingAssignment.id} to completed: ${isRead}`);
             } else {
-                const newAssignment = await dailyReadingAssignmentsRepository.create({
+                await dailyReadingAssignmentsRepository.create({
                     date: dateStr,
                     plan_name: dailyReadingAssignment.plan_name || "chronological",
                     chapter_id: dailyReadingAssignment.chapter_id,
@@ -197,10 +181,8 @@ export class ReadingService {
                     is_completed: isRead,
                     completed_at: isRead ? dateStr : undefined
                 });
-                console.log("Created new assignment:", newAssignment.id);
             }
         } catch (error: any) {
-            console.error(`Failed to mark assignment as read:`, error);
             throw new DatabaseMessageError(`Failed to mark dailyReadingAssignment as read`, error as Error);
         }
     }
@@ -238,6 +220,28 @@ export class ReadingService {
     }
 
     // ========================================
+    // PRIVATE CACHE METHODS
+    // ========================================
+
+    private async getCachedBooks(): Promise<BibleBook[]> {
+        const now = Date.now();
+        if (!ReadingService.bookCache || (now - ReadingService.cacheTimestamp) > ReadingService.CACHE_DURATION) {
+            ReadingService.bookCache = await bibleBookRepository.findAll();
+            ReadingService.cacheTimestamp = now;
+        }
+        return ReadingService.bookCache;
+    }
+
+    private async getCachedChapters(): Promise<BibleChapter[]> {
+        const now = Date.now();
+        if (!ReadingService.chapterCache || (now - ReadingService.cacheTimestamp) > ReadingService.CACHE_DURATION) {
+            ReadingService.chapterCache = await bibleChapterRepository.findAll();
+            ReadingService.cacheTimestamp = now;
+        }
+        return ReadingService.chapterCache;
+    }
+
+    // ========================================
     // PRIVATE CORE METHODS
     // ========================================
 
@@ -250,7 +254,6 @@ export class ReadingService {
             const currentChapter = allChapters.find(ch => ch.BibleChapterId === assignment.chapter_id);
 
             if (!currentChapter) {
-                console.error(`Could not find chapter ${assignment.chapter_id}`);
                 return null;
             }
 
@@ -258,11 +261,8 @@ export class ReadingService {
             const newEndVerseId = Math.min(assignment.end_verse_id + additionalVerses, maxVerseInChapter);
 
             if (newEndVerseId <= assignment.end_verse_id) {
-                console.log(`Cannot extend assignment ${assignment.id} - already at end of chapter`);
                 return null;
             }
-
-            console.log(`Extending assignment from verse ${assignment.end_verse_id} to ${newEndVerseId}`);
 
             await dailyReadingAssignmentsRepository.update({
                 id: assignment.id,
@@ -276,7 +276,6 @@ export class ReadingService {
 
             return {...assignment, end_verse_id: newEndVerseId};
         } catch (error: any) {
-            console.error(`Error extending assignment ${assignment.id}:`, error);
             return null;
         }
     }
@@ -352,18 +351,25 @@ export class ReadingService {
     }
 
     private async generateTopicalAssignment(context: AssignmentContext): Promise<DailyReadingAssignment[]> {
-        const {plan, date, progress, preferences, existingAssignments} = context;
-        const dayOfWeek = date.getDay() || 7;
+        try {
+            const {plan, date, preferences} = context;
+            const dayOfWeek = date.getDay();
 
-        const todaysTopic = await this.getTodaysTopic(dayOfWeek);
-        const booksForTopic = await this.getBooksForTopic(todaysTopic.id);
-        const currentPosition = await this.getCurrentReadingPosition(progress, todaysTopic, booksForTopic, existingAssignments);
+            const todaysTopic = await this.getTodaysTopic(dayOfWeek);
+            const booksForTopic = await this.getBooksForTopic(todaysTopic.id);
+            const allBooks = await this.getCachedBooks();
+            const allChapters = await this.getCachedChapters();
 
-        const assignments = await this.generateAssignmentsForGoal(currentPosition, preferences.dailyVerseGoal, plan.plan_name, date, todaysTopic, booksForTopic);
+            const position: ReadingPosition = {
+                bookIndex: 0, chapterId: undefined, verseId: undefined, allBooks, allChapters
+            };
 
-        await this.updateReadingProgress(progress, currentPosition, todaysTopic.id, preferences.dailyVerseGoal);
+            const assignments = await this.generateAssignmentsForGoal(position, preferences.dailyVerseGoal || 10, plan.plan_name, date, todaysTopic, booksForTopic);
 
-        return assignments;
+            return assignments;
+        } catch (error) {
+            throw error;
+        }
     }
 
     private async generateSingleChapterAssignment(context: AssignmentContext, startVerseId: number, versesToRead: number): Promise<DailyReadingAssignment> {
@@ -407,6 +413,7 @@ export class ReadingService {
     // ========================================
     // PRIVATE HELPER METHODS
     // ========================================
+
     private getLocalizedDisplayTitleColumn(language: string): string {
         const columnMap: Record<string, string> = {
             'en': 'ChapterDisplayTitle',
@@ -434,10 +441,8 @@ export class ReadingService {
 
     private async getExistingAssignments(dateStr: string): Promise<DailyReadingAssignment[]> {
         try {
-            // Use targeted query instead of findAll
             return await dailyReadingAssignmentsRepository.findWhere('date = ?', [dateStr]);
         } catch (error: any) {
-            console.error('Error fetching existing assignments:', error);
             return [];
         }
     }
@@ -455,26 +460,20 @@ export class ReadingService {
 
         for (const assignment of assignments) {
             try {
-                // Create the complete localized display title
-
-
                 const calculateVerseNumber = (verseId: number, chapter: BibleChapter): number => {
                     if (!chapter.FirstVerseId) return 1;
-
-                    // Calculate verse number as: (current verse ID - first verse ID of chapter) + 1
                     return (verseId - chapter.FirstVerseId) + 1;
                 };
+
                 const [bibleChapter] = await Promise.all([bibleChapterRepository.findById(assignment.chapter_id)]);
                 // @ts-ignore
                 const [book] = await Promise.all([bibleBookRepository.findById(bibleChapter.BookNumber)])
 
-                // Calculate verse numbers within the chapter
                 const startVerseNumber = bibleChapter ? calculateVerseNumber(assignment.start_verse_id, bibleChapter) : 1;
                 const endVerseNumber = bibleChapter ? calculateVerseNumber(assignment.end_verse_id, bibleChapter) : 1;
 
                 enhanced.push({
-                    ...assignment,
-                    // @ts-ignore
+                    ...assignment, // @ts-ignore
                     localized_title: book?.[titleColumn],
                     chapter_number: bibleChapter?.ChapterNumber,
                     start_verse_title: startVerseNumber.toString(),
@@ -483,8 +482,7 @@ export class ReadingService {
                     estimated_reading_time: Math.ceil((assignment.end_verse_id - assignment.start_verse_id + 1) * 0.5),
                 });
             } catch (error) {
-                console.warn(`Failed to get localized title for assignment ${assignment.id}:`, error);
-                // Fall back to original display title
+                // Fall back to original display title if localization fails
                 enhanced.push({
                     ...assignment,
                     localized_title: assignment.display_title,
@@ -506,7 +504,6 @@ export class ReadingService {
                 const conflictingAssignment = existingAssignments.find(existing => existing.date === dateStr && existing.chapter_id === assignment.chapter_id && this.hasVerseOverlap(assignment, existing));
 
                 if (conflictingAssignment) {
-                    console.log(`Assignment conflicts with existing assignment, skipping`);
                     continue;
                 }
 
@@ -523,8 +520,7 @@ export class ReadingService {
 
                 savedAssignments.push(savedAssignment);
             } catch (error: any) {
-                console.error(`Error saving assignment:`, error);
-
+                // Continue with other assignments if one fails
             }
         }
 
@@ -540,11 +536,7 @@ export class ReadingService {
     // ========================================
 
     private async getCurrentReadingPosition(progress: ReadingPlanProgress, todaysTopic: ReadingTopic, booksForTopic: BibleBookTopic[], existingAssignments?: DailyReadingAssignment[]): Promise<ReadingPosition> {
-        // Use cached data instead of loading everything each time
-        const [allBooks, allChapters] = await Promise.all([
-            this.getCachedBooks(),
-            this.getCachedChapters()
-        ]);
+        const [allBooks, allChapters] = await Promise.all([this.getCachedBooks(), this.getCachedChapters()]);
 
         let bookIndex = 0;
         let chapterId: number | undefined = undefined;
@@ -552,16 +544,13 @@ export class ReadingService {
 
         // First priority: Check existing assignments for TODAY'S TOPIC ONLY
         if (existingAssignments && existingAssignments.length > 0) {
-            // Filter assignments to only those that belong to today's topic books
             const topicBookIds = booksForTopic.map(bt => bt.bible_book_id);
             const relevantAssignments = existingAssignments.filter(assignment => {
-                // Find which book this assignment belongs to
                 const chapter = allChapters.find(ch => ch.BibleChapterId === assignment.chapter_id);
                 return chapter && topicBookIds.includes(<number>chapter.BookNumber);
             });
 
             if (relevantAssignments.length > 0) {
-                // Continue from the last assignment within today's topic
                 const lastAssignment = relevantAssignments.sort((a, b) => b.end_verse_id - a.end_verse_id)[0];
                 const nextVerseId = lastAssignment.end_verse_id + 1;
 
@@ -586,7 +575,6 @@ export class ReadingService {
 
         // Second priority: Check saved progress ONLY if it's the same topic
         if (verseId === undefined && progress.last_topic_id === todaysTopic.id && progress.current_book_id && progress.current_verse_id) {
-            // Verify that the saved book belongs to today's topic
             bookIndex = booksForTopic.findIndex(bt => bt.bible_book_id === progress.current_book_id);
 
             if (bookIndex !== -1) {
@@ -638,7 +626,6 @@ export class ReadingService {
             versesRemaining -= (assignment.end_verse_id + 1) - assignment.start_verse_id;
 
             if (assignments.length > 10) {
-                console.warn("Too many assignments generated, stopping");
                 break;
             }
         }
@@ -648,82 +635,108 @@ export class ReadingService {
 
     private async createSingleAssignment(position: ReadingPosition, versesNeeded: number, planName: string, date: Date, topic: ReadingTopic, booksForTopic: BibleBookTopic[]): Promise<DailyReadingAssignment | null> {
         const currentBookTopic = booksForTopic[position.bookIndex];
+
+        if (!currentBookTopic || !currentBookTopic.bible_book_id) {
+            return null;
+        }
+
         const currentBook = position.allBooks.find(b => b.BibleBookId === currentBookTopic.bible_book_id);
 
-        if (!currentBook) return null;
+        if (!currentBook) {
+            return null;
+        }
 
         const chaptersInBook = position.allChapters
             .filter(ch => ch.BookNumber === currentBookTopic.bible_book_id)
             .sort((a, b) => (a.ChapterNumber || 0) - (b.ChapterNumber || 0));
 
-        if (chaptersInBook.length === 0) return null;
+        if (chaptersInBook.length === 0) {
+            return null;
+        }
 
         const startPosition = this.getStartPosition(position, chaptersInBook);
-        if (!startPosition) return null;
+
+        if (!startPosition) {
+            return null;
+        }
 
         const readingRange = this.calculateReadingRange(startPosition, versesNeeded, chaptersInBook, position);
 
-        const [startVerse, endVerse] = await Promise.all([bibleVerseRepository.findById(readingRange.startVerseId), bibleVerseRepository.findById(readingRange.endVerseId)]);
-
-        if (!startVerse || !endVerse) {
-            throw new Error(`Could not find verses ${readingRange.startVerseId} or ${readingRange.endVerseId}`);
+        if (readingRange.startVerseId <= 0 || readingRange.endVerseId <= 0) {
+            throw new Error(`Invalid verse IDs: start=${readingRange.startVerseId}, end=${readingRange.endVerseId}. Must be positive.`);
         }
 
-        return {
-            id: 0,
-            date: this.formatDate(date),
-            plan_name: planName,
-            chapter_id: startPosition.chapterId,
-            start_verse_id: startVerse.BibleVerseId,
-            end_verse_id: endVerse.BibleVerseId,
-            display_title: topic.display_name,
-            is_completed: false,
-            completed_at: null
-        };
+        try {
+            const [startVerse, endVerse] = await Promise.all([bibleVerseRepository.findById(readingRange.startVerseId), bibleVerseRepository.findById(readingRange.endVerseId)]);
+
+            if (!startVerse || !endVerse) {
+                throw new Error(`Could not find verses ${readingRange.startVerseId} or ${readingRange.endVerseId}`);
+            }
+
+            const assignment = {
+                id: 0,
+                date: this.formatDate(date),
+                plan_name: planName,
+                chapter_id: startPosition.chapterId,
+                start_verse_id: startVerse.BibleVerseId,
+                end_verse_id: endVerse.BibleVerseId,
+                display_title: topic.display_name,
+                is_completed: false,
+                completed_at: null
+            };
+
+            return assignment;
+
+        } catch (error) {
+            throw error;
+        }
     }
 
     private getStartPosition(position: ReadingPosition, chaptersInBook: BibleChapter[]): {
         chapterId: number; verseId: number
     } | null {
-        if (position.chapterId && position.verseId) {
-            return {chapterId: position.chapterId, verseId: position.verseId};
-        } else {
+        // If no current position, start at the beginning of the first chapter
+        if (!position.chapterId && !position.verseId) {
             const firstChapter = chaptersInBook[0];
-            if (!firstChapter) return null;
+            if (!firstChapter || !firstChapter.FirstVerseId) {
+                return null;
+            }
+
             return {
-                chapterId: firstChapter.BibleChapterId as number, verseId: firstChapter.FirstVerseId as number
+                chapterId: firstChapter.BibleChapterId, verseId: firstChapter.FirstVerseId
             };
         }
+
+        // If we have a current position, continue from there
+        if (position.chapterId && position.verseId) {
+            return {
+                chapterId: position.chapterId, verseId: position.verseId
+            };
+        }
+
+        return null;
     }
 
     private calculateReadingRange(startPosition: {
-        chapterId: number; verseId: number
+        chapterId: number;
+        verseId: number
     }, versesNeeded: number, chaptersInBook: BibleChapter[], position: ReadingPosition): {
-        startVerseId: number; endVerseId: number
+        startVerseId: number;
+        endVerseId: number
     } {
         const startChapter = chaptersInBook.find(ch => ch.BibleChapterId === startPosition.chapterId);
-        if (!startChapter) {
-            throw new Error(`Could not find chapter ${startPosition.chapterId}`);
+        if (!startChapter || !startChapter.LastVerseId) {
+            throw new Error(`Invalid start chapter: ${startPosition.chapterId}`);
         }
 
-        let endVerseId = Math.min(startPosition.verseId + versesNeeded - 1, startChapter.LastVerseId as number);
+        const startVerseId = startPosition.verseId;
+        let endVerseId = Math.min(startVerseId + versesNeeded - 1, startChapter.LastVerseId);
 
-        if (endVerseId < (startChapter.LastVerseId as number)) {
-            position.verseId = endVerseId + 1;
-        } else {
-            const currentChapterIndex = chaptersInBook.findIndex(ch => ch.BibleChapterId === startPosition.chapterId);
-            if (currentChapterIndex + 1 < chaptersInBook.length) {
-                const nextChapter = chaptersInBook[currentChapterIndex + 1];
-                position.chapterId = nextChapter.BibleChapterId;
-                position.verseId = nextChapter.FirstVerseId;
-            } else {
-                position.bookIndex++;
-                position.chapterId = undefined;
-                position.verseId = undefined;
-            }
+        if (startVerseId <= 0) {
+            throw new Error(`Invalid startVerseId: ${startVerseId}. Must be positive.`);
         }
 
-        return {startVerseId: startPosition.verseId, endVerseId};
+        return {startVerseId, endVerseId};
     }
 
     private async updateReadingProgress(progress: ReadingPlanProgress, position: ReadingPosition, topicId: number, dailyVerseGoal: number): Promise<void> {
@@ -750,6 +763,10 @@ export class ReadingService {
     }
 
     private async getTodaysTopic(dayOfWeek: number): Promise<ReadingTopic> {
+        if (typeof dayOfWeek !== 'number' || dayOfWeek < 0 || dayOfWeek > 6) {
+            throw new ValidationError(`Invalid dayOfWeek: ${dayOfWeek}. Must be a number between 0-6`);
+        }
+
         const allTopics = await readingTopicsRepository.findAll();
         const todaysTopic = allTopics.find(topic => topic.day_of_week === dayOfWeek && topic.is_active);
 
@@ -761,6 +778,10 @@ export class ReadingService {
     }
 
     private async getBooksForTopic(topicId: number): Promise<BibleBookTopic[]> {
+        if (typeof topicId !== 'number' || topicId <= 0) {
+            throw new ValidationError(`Invalid topicId: ${topicId}. Must be a positive number`);
+        }
+
         const topicBooks = await bibleBookTopicsRepository.findAll();
         const booksForTopic = topicBooks
             .filter(bt => bt.topic_id === topicId)

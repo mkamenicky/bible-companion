@@ -11,6 +11,9 @@ export interface DialogStates {
     fontSize: boolean;
     exportData: boolean;
     resetConfirm: boolean;
+    timePicker: boolean;
+    streakTimePicker: boolean;
+    goalTimePicker: boolean;
 }
 
 export interface FormStates {
@@ -63,7 +66,11 @@ export function useSettingsData() {
         fontSize: false,
         exportData: false,
         resetConfirm: false,
+        timePicker: false,
+        streakTimePicker: false,
+        goalTimePicker: false,
     });
+
     const [formStates, setFormStates] = useState<FormStates>({
         dailyGoalInput: '10',
         timePickerVisible: false,

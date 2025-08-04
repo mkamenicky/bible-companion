@@ -10,6 +10,9 @@ interface DialogStates {
     fontSize: boolean;
     exportData: boolean;
     resetConfirm: boolean;
+    timePicker: boolean;
+    streakTimePicker: boolean;
+    goalTimePicker: boolean;
 }
 
 interface FormStates {

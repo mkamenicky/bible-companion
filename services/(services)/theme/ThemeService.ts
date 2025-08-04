@@ -828,6 +828,56 @@ export class ThemeService {
                 fontSize: 12,
                 fontWeight: '500',
             },
+
+            modalOverlay: {
+                flex: 1,
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                justifyContent: 'flex-end',
+            },
+
+            modalContent: {
+                backgroundColor: colors.surface,
+                borderTopLeftRadius: 16,
+                borderTopRightRadius: 16,
+                paddingBottom: 20,
+            },
+
+            pickerHeader: {
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 16,
+                paddingVertical: 16,
+                borderBottomWidth: 0.5,
+                borderBottomColor: colors.borderColor,
+            },
+
+            pickerTitle: {
+                fontSize: 18,
+                fontWeight: '600',
+                color: colors.text,
+            },
+
+            pickerButton: {
+                paddingVertical: 8,
+                paddingHorizontal: 4,
+            },
+
+            pickerButtonText: {
+                fontSize: 16,
+                color: colors.primary,
+            },
+
+            pickerButtonTextDone: {
+                fontSize: 16,
+                fontWeight: '600',
+                color: colors.primary,
+            },
+
+            picker: {
+                height: 200,
+                marginTop: 16,
+            },
         });
     }
 
