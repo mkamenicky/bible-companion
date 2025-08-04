@@ -3,6 +3,7 @@ import {readingService} from "@/services/(services)/readings/ReadingService";
 import {DatabaseMessageError, ValidationError} from '@/errors';
 import {getMondayOfWeek} from "@/utils";
 import {tasksRepository} from '@/repository'
+import {progressService} from "@/services/(services)/progress/ProgressService";
 
 // Default task templates
 const DEFAULT_WEEKLY_TASKS = [
@@ -274,9 +275,6 @@ export class TaskService {
         }
     }
 
-    /**
-     * Enhanced mark assignment as read with better error handling
-     */
     async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
         console.log('TaskService: Marking daily assignment as read:', {
             id: dailyReadingAssignment.id,
@@ -295,7 +293,18 @@ export class TaskService {
             // Mark the assignment itself as completed
             await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, new Date(), true);
 
-            console.log('Successfully marked assignment as read');
+            // **NEW: Update reading progress to record streak and trigger achievements**
+            const versesRead = dailyReadingAssignment.end_verse_id - dailyReadingAssignment.start_verse_id + 1;
+            await progressService.updateReadingProgress(
+                1,
+                versesRead,
+                0, // chaptersRead - will be calculated automatically
+                [], // booksRead - will be calculated automatically
+                dailyReadingAssignment.plan_name,
+                `Completed assignment: ${dailyReadingAssignment.display_title}`
+            );
+
+            console.log('Successfully marked assignment as read and updated progress');
         } catch (error) {
             console.error('Error marking assignment as read:', error);
             throw error;
