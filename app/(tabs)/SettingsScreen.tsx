@@ -82,8 +82,10 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     }, [handleToggleDialog]);
 
     const handleEditDailyGoal = useCallback(() => {
+        // Sync form input with current daily goal when opening dialog
+        updateFormState('dailyGoalInput', dailyVerseGoal.toString());
         handleToggleDialog('dailyGoal', true);
-    }, [handleToggleDialog]);
+    }, [dailyVerseGoal, updateFormState, handleToggleDialog]);
 
     const handleExportData = useCallback(() => {
         handleToggleDialog('exportData', true);
@@ -127,11 +129,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
                         color: customColors.color,
                         fontWeight: '600'
                     }}
-                />
-                <Appbar.Action
-                    icon="refresh"
-                    onPress={handleRefresh}
-                    iconColor={customColors.color}
                 />
             </Appbar.Header>
 

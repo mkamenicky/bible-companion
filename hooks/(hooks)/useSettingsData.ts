@@ -150,6 +150,19 @@ export function useSettingsData() {
         }
     }, []);
 
+    const loadScheduledNotifications = useCallback(async () => {
+        try {
+            const notifications = await notificationService.getScheduledNotifications();
+            setScheduledNotifications(notifications);
+            updateNotificationState({
+                scheduledCount: notifications.length,
+                lastRefresh: new Date(),
+            });
+        } catch (error) {
+            updateNotificationState({ error: 'Failed to load notifications' });
+        }
+    }, [updateNotificationState]);
+
     // Data loaders
     const loadSettings = useCallback(async (): Promise<void> => {
         try {
@@ -164,6 +177,8 @@ export function useSettingsData() {
 
             console.log('📋 Settings loaded:', baseSettings);
             setDailyVerseGoal(goal);
+            // Update form state with the loaded daily goal
+            setFormStates(prev => ({ ...prev, dailyGoalInput: goal.toString() }));
             const extendedSettings: ExtendedAppSettings = {
                 ...baseSettings,
                 // Ensure new time fields have defaults if not present
@@ -211,6 +226,26 @@ export function useSettingsData() {
         }
     }, [updateNotificationState]);
 
+    // Schedule notifications based on current settings
+    const scheduleNotificationsFromSettings = useCallback(async (currentSettings: ExtendedAppSettings) => {
+        if (!notificationState.initialized || !currentSettings.notifications) {
+            console.log('⏭️ Skipping notification scheduling - not initialized or notifications disabled');
+            return;
+        }
+
+        try {
+            console.log('📅 Scheduling notifications from current settings...');
+            const userdata = await getUserDataForNotifications();
+            await notificationService.scheduleSmartReminders(currentSettings, userdata);
+
+            // Load scheduled notifications after scheduling
+            await loadScheduledNotifications();
+            console.log('✅ Notifications scheduled and loaded');
+        } catch (error) {
+            console.error('❌ Error scheduling notifications:', error);
+        }
+    }, [notificationState.initialized, getUserDataForNotifications, loadScheduledNotifications]);
+
     // Auto-load settings on mount
     useEffect(() => {
         console.log('🚀 useSettingsData mounted, loading settings...');
@@ -222,18 +257,13 @@ export function useSettingsData() {
         initializeNotifications();
     }, [initializeNotifications]);
 
-    const loadScheduledNotifications = useCallback(async () => {
-        try {
-            const notifications = await notificationService.getScheduledNotifications();
-            setScheduledNotifications(notifications);
-            updateNotificationState({
-                scheduledCount: notifications.length,
-                lastRefresh: new Date(),
-            });
-        } catch (error) {
-            updateNotificationState({ error: 'Failed to load notifications' });
+    // Schedule notifications when settings and notification service are ready
+    useEffect(() => {
+        if (settings && notificationState.initialized && !loading) {
+            console.log('🔄 Settings and notifications ready, scheduling notifications...');
+            scheduleNotificationsFromSettings(settings);
         }
-    }, [updateNotificationState]);
+    }, [settings, notificationState.initialized, loading, scheduleNotificationsFromSettings]);
 
     // Settings updaters
     const updateSetting = useCallback(async <K extends keyof AppSettings>(
@@ -334,8 +364,8 @@ export function useSettingsData() {
 
         if (selectedDate && settings) {
             const timeString = selectedDate.toTimeString().slice(0, 5);
-            const timeField = timeType === 'daily' ? 'reminderTime' : 
-                             timeType === 'streak' ? 'streakReminderTime' : 'goalReminderTime';
+            const timeField = timeType === 'daily' ? 'reminderTime' :
+                timeType === 'streak' ? 'streakReminderTime' : 'goalReminderTime';
 
             const stateUpdate: Partial<FormStates> = {};
             if (timeType === 'daily') stateUpdate.selectedTime = selectedDate;
@@ -387,31 +417,27 @@ export function useSettingsData() {
         try {
             const result = await databaseBackupService.createDatabaseBackup();
             if (result.success) {
-                const sizeText = result.size ? ` (${(result.size / 1024).toFixed(1)} KB)` : '';
-                Alert.alert('Backup Created', `Database backup created successfully${sizeText}. What would you like to do?`, [
-                    { text: 'Nothing', style: 'cancel' },
-                    {
-                        text: 'Download',
-                        onPress: async () => {
-                            if (result.filePath) {
-                                const downloadResult = await databaseBackupService.copyToDownloads(result.filePath);
-                                Alert.alert(downloadResult.success ? 'Downloaded' : 'Download Error',
-                                    downloadResult.success ? 'Backup saved to Downloads folder' : downloadResult.error);
-                            }
-                        }
-                    },
-                    {
-                        text: 'Share',
-                        onPress: async () => {
-                            if (result.filePath) {
-                                const shareResult = await databaseBackupService.shareBackup(result.filePath);
-                                if (!shareResult.success) {
-                                    Alert.alert('Share Error', shareResult.error);
+                const sizeText = result.size ? ` (${(result.size / 1024 / 1024).toFixed(1)} MB)` : '';
+
+                Alert.alert(
+                    'Backup Created',
+                    `Database backup created successfully${sizeText}.`,
+                    [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                            text: 'Share Backup',
+                            onPress: async () => {
+                                if (result.filePath) {
+                                    const shareResult = await databaseBackupService.shareBackup(result.filePath);
+                                    if (!shareResult.success) {
+                                        Alert.alert('Share Error', shareResult.error || 'Failed to share backup file');
+                                    }
                                 }
                             }
                         }
-                    }
-                ]);
+                    ]
+                );
+
                 await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } else {
                 Alert.alert('Backup Failed', result.error || 'Failed to create database backup');
@@ -507,14 +533,16 @@ export function useSettingsData() {
     const handleDailyGoalSave = useCallback(async () => {
         try {
             const goal = parseInt(formStates.dailyGoalInput, 10);
-            if (isNaN(goal) || goal <= 0 || goal > 100) {
-                Alert.alert('Invalid Goal', 'Please enter a number between 1 and 100');
+            if (isNaN(goal) || goal <= 0 || goal > 1000) {
+                Alert.alert('Invalid Goal', 'Please enter a number between 1 and 1000 verses');
                 return;
             }
 
             const result = await settingsService.updateDailyVerseGoal(goal);
             if (result.success) {
                 setDailyVerseGoal(goal);
+                // Keep form state in sync
+                setFormStates(prev => ({ ...prev, dailyGoalInput: goal.toString() }));
                 handleToggleDialog('dailyGoal', false);
                 await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             } else {
@@ -528,8 +556,8 @@ export function useSettingsData() {
     const showTimePicker = useCallback((type: 'daily' | 'streak' | 'goal' = 'daily') => {
         console.log('🕐 showTimePicker called with type:', type, 'settings:', settings);
         if (settings) {
-            const timeField = type === 'daily' ? 'reminderTime' : 
-                             type === 'streak' ? 'streakReminderTime' : 'goalReminderTime';
+            const timeField = type === 'daily' ? 'reminderTime' :
+                type === 'streak' ? 'streakReminderTime' : 'goalReminderTime';
             const timeValue = settings[timeField as keyof typeof settings];
             console.log('🕐 timeField:', timeField, 'timeValue:', timeValue);
 
