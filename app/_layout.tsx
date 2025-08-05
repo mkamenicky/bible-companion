@@ -1,22 +1,28 @@
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useMemo } from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import {PaperProvider, MD3LightTheme, MD3DarkTheme, Card} from 'react-native-paper';
-import { useFonts } from 'expo-font';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {MD3DarkTheme, MD3LightTheme, PaperProvider} from 'react-native-paper';
+import {useFonts} from 'expo-font';
 
 // @ts-ignore
-import { initDatabase } from '@/services/db';
+import {initDatabase} from '@/services/(services)/database/db';
 import {useColorScheme} from "react-native";
+import {ThemeService} from "@/services/(services)/theme/ThemeService";
+import {useThemeInitializer} from "@/components/theme/ThemeSelector";
+import { localizationService } from '@/services';
+import {SplashScreen, Stack} from "expo-router";
+import FontAwesome from "@expo/vector-icons/FontAwesome";
+import {useCallback, useEffect, useMemo, useState} from "react";
 
-export { ErrorBoundary } from 'expo-router';
+// NEW: Import AchievementProvider and GlobalAchievementModal
+import { AchievementProvider } from '@/components/progress/AchievementContext';
+import { GlobalAchievementModal } from '@/components';
+
+export {ErrorBoundary} from 'expo-router';
 
 export const unstable_settings = {
     initialRouteName: '(tabs)',
 };
 
-// Prevent auto-hiding the splash screen before fonts and DB are ready
+// Prevent auto-hiding the splash screen before fonts, DB, and localization are ready
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -25,56 +31,71 @@ export default function RootLayout() {
         ...FontAwesome.font,
     });
 
+    const [dbReady, setDbReady] = useState(false);
+    const [localizationReady, setLocalizationReady] = useState(false);
+
     useEffect(() => {
         if (error) throw error;
     }, [error]);
 
-    // Prepare DB and hide splash screen
     const prepare = useCallback(async () => {
         try {
+            // Initialize database
             await initDatabase();
             console.log('✅ Database initialized successfully');
+            setDbReady(true);
+
+            // Initialize localization
+            await localizationService.initialize();
+            console.log('✅ Localization initialized successfully');
+            setLocalizationReady(true);
         } catch (err) {
-            console.error('❌ Error initializing database:', err);
-        }
-        finally {
+            console.error('❌ Error during initialization:', err);
+            // Set to true anyway to prevent infinite loading
+            setDbReady(true);
+            setLocalizationReady(true);
+        } finally {
             if (loaded) await SplashScreen.hideAsync();
         }
     }, [loaded]);
 
     useEffect(() => {
-        if (loaded) {
+        if (loaded && (!dbReady || !localizationReady)) {
             prepare();
         }
-    }, [loaded, prepare]);
+    }, [loaded, dbReady, localizationReady, prepare]);
 
-    if (!loaded) return null;
+    // ❗ Don't render anything until everything is ready
+    if (!loaded || !dbReady || !localizationReady) return null;
 
-    return <RootLayoutNav />;
+    return <RootLayoutNav/>;
 }
 
 function RootLayoutNav() {
     const colorScheme = useColorScheme();
+    useThemeInitializer();
 
     const theme = useMemo(() => {
         const baseTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
-        const background = colorScheme === 'dark' ? '#121212' : '#f1f1f1';
+        const colors = ThemeService.getCustomColors(colorScheme);
+        const styles = ThemeService.getStyles(colors);
         return {
             ...baseTheme,
-            colors: {
-                ...baseTheme.colors,
-                primary: '#6200ee',
-                secondary: '#03dac6',
-                background: background,
-                surface: baseTheme.colors.surface,
-            },
+            ...styles,
+            colors,
         };
     }, [colorScheme]);
 
     return (
         <SafeAreaProvider>
             <PaperProvider theme={theme}>
-                <Stack screenOptions={{ headerShown: false }} />
+                {/* NEW: Wrap everything in AchievementProvider */}
+                <AchievementProvider>
+                    <Stack screenOptions={{headerShown: false}}/>
+
+                    {/* NEW: Add global achievement modal */}
+                    <GlobalAchievementModal />
+                </AchievementProvider>
             </PaperProvider>
         </SafeAreaProvider>
     );

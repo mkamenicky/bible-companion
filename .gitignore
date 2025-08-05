@@ -8,6 +8,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+.idea/*
 
 # Native
 .kotlin/
@@ -35,3 +36,5 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+/assets/bible_de.db
+/assets/bible_jp.db

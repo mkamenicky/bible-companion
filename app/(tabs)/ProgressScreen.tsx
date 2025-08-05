@@ -1,69 +1,89 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import {StyleSheet, View} from 'react-native';
-import {Appbar, Text, ProgressBar, Card, useTheme} from 'react-native-paper';
-import { readingRepo } from '@/services/repository/reading.repository';
-import ScreenContainer from '@/components/ScreenContainer';
-import {useFocusEffect} from "expo-router";
+// ProgressScreen.tsx - Enhanced with achievement context integration
+import React from 'react';
+import {useColorScheme, View} from 'react-native';
+import {Appbar} from 'react-native-paper';
+import {
+    AchievementsCard,
+    LoadingScreen,
+    PeriodStatsCard,
+    ReadingStatsCard,
+    ScreenContainer,
+    StreakCard
+} from '@/components';
+import {useProgressData, useTranslation} from '@/hooks';
+import {ThemeService} from '@/services';
+import { useAchievementContext } from '@/components/progress/AchievementContext';
 
 export default function ProgressScreen() {
-    const { colors } = useTheme();
-    const [totalProgress, setTotalProgress] = useState<{ read: number, total: number }>({read: 10, total: 1000});
-    const [refreshing, setRefreshing] = useState(false);
+    const t = useTranslation();
+    const {stats, loading, onRefresh} = useProgressData();
 
-    const fetchProgress = async () => {
-        const progress = await readingRepo.getProgressSummary();
-        setTotalProgress(progress);
+    // NEW: Use achievement context
+    const { addAchievementEvents } = useAchievementContext();
+
+    const colorScheme = useColorScheme();
+    const customColors = ThemeService.getCustomColors(colorScheme);
+    const styles = ThemeService.getStyles(customColors);
+
+    // NEW: Handle achievement unlocks from AchievementsCard
+    const handleAchievementUnlocked = (events: any[]) => {
+        if (events.length > 0) {
+            addAchievementEvents(events);
+        }
     };
 
-    const onRefresh = useCallback(async () => {
-        setRefreshing(true);
-        await fetchProgress();
-        setRefreshing(false);
-    }, []);
-
-
-    useFocusEffect(
-        useCallback(() => {
-            fetchProgress();
-        }, [])
-    );
-
-    const progress = totalProgress ? (totalProgress.read / totalProgress.total) : 1;
+    if (loading || !stats) {
+        return (
+            <LoadingScreen
+                message={t('progress.loadingMessage')}
+                styles={styles}
+                customColors={customColors}
+            />
+        );
+    }
 
     return (
-        <View style={{backgroundColor: colors.background}}>
+        <View style={styles.container}>
             <Appbar.Header style={styles.appbar}>
-                <Appbar.Content title="Your Progress" />
+                <Appbar.Content
+                    title={t('progress.title')}
+                    titleStyle={{color: customColors.color, fontWeight: '600'}}
+                />
             </Appbar.Header>
 
             <ScreenContainer onRefresh={onRefresh}>
-                <Card style={styles.progressCard}>
-                    <Card.Title title="📊 Reading Progress" />
-                    <Card.Content>
-                        <Text variant="titleMedium" style={{ marginBottom: 8 }}>
-                            {totalProgress.read ?? 0} chapters of {totalProgress.total ?? 0} chapters read
-                        </Text>
-                        <ProgressBar progress={progress} style={styles.progressBar} />
-                        <Text style={{ marginTop: 8 }}>
-                            {Math.round(progress * 100)}% of goal
-                        </Text>
-                    </Card.Content>
-                </Card>
+                <StreakCard
+                    currentStreak={stats.currentStreak}
+                    longestStreak={stats.longestStreak}
+                    totalReadingDays={stats.totalReadingDays}
+                    styles={styles}
+                    customColors={customColors}
+                />
+
+                <ReadingStatsCard
+                    totalVersesRead={stats.totalVersesRead}
+                    chaptersCompleted={stats.chaptersCompleted}
+                    bibleProgressPercentage={stats.bibleProgressPercentage}
+                    styles={styles}
+                    customColors={customColors}
+                />
+
+                <PeriodStatsCard
+                    weeklyVersesRead={stats.weeklyVersesRead}
+                    monthlyVersesRead={stats.monthlyVersesRead}
+                    styles={styles}
+                    customColors={customColors}
+                />
+
+                <AchievementsCard
+                    currentStreak={stats.currentStreak}
+                    totalVersesRead={stats.totalVersesRead}
+                    chaptersCompleted={stats.chaptersCompleted}
+                    styles={styles}
+                    customColors={customColors}
+                    onAchievementUnlocked={handleAchievementUnlocked}
+                />
             </ScreenContainer>
         </View>
     );
 }
-
-const styles = StyleSheet.create({
-    appbar: {
-        backgroundColor: '#e0e0e0', // light gray; adjust as needed
-    },
-    progressCard: {
-        borderRadius: 12,
-        elevation: 2,
-    },
-    progressBar: {
-        height: 10,
-        borderRadius: 5,
-    },
-});
