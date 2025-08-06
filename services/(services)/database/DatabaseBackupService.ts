@@ -38,7 +38,7 @@ export class DatabaseBackupService {
 
     async createDatabaseBackup(): Promise<DatabaseBackupResult> {
         try {
-            console.log('📦 Creating database backup...');
+            console.debug('📦 Creating database backup...');
 
             const dbInfo = await FileSystem.getInfoAsync(this.databasePath);
             if (!dbInfo.exists) {
@@ -61,7 +61,7 @@ export class DatabaseBackupService {
             const backupInfo = await FileSystem.getInfoAsync(backupPath);
             const fileSize = backupInfo.exists ? backupInfo.size : 0;
 
-            console.log(`✅ Database backup created: ${backupPath} (${this.formatBytes(fileSize)})`);
+            console.debug(`✅ Database backup created: ${backupPath} (${this.formatBytes(fileSize)})`);
 
             return {
                 success: true, filePath: backupPath, size: fileSize,
@@ -77,7 +77,7 @@ export class DatabaseBackupService {
 
     async restoreDatabaseBackup(backupPath?: string): Promise<DatabaseRestoreResult> {
         try {
-            console.log('📥 Starting database restore...');
+            console.debug('📥 Starting database restore...');
 
             let sourceFile: string;
 
@@ -123,7 +123,7 @@ export class DatabaseBackupService {
                 from: sourceFile, to: this.databasePath,
             });
 
-            console.log('✅ Database restored successfully');
+            console.debug('✅ Database restored successfully');
             return {
                 success: true, warnings: warnings.length > 0 ? warnings : undefined,
             };
@@ -205,7 +205,7 @@ export class DatabaseBackupService {
                 throw new Error(`File copy verification failed. Source: ${sourceInfo.exists ? sourceInfo.size : 0}, Copy: ${copyInfo.exists ? copyInfo.size : 0}`);
             }
 
-            console.log(`✅ File copied successfully: ${this.formatBytes(copyInfo.size || 0)}`);
+            console.debug(`✅ File copied successfully: ${this.formatBytes(copyInfo.size || 0)}`);
 
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(cachePath, {
@@ -219,7 +219,7 @@ export class DatabaseBackupService {
                     try {
                         await FileSystem.deleteAsync(cachePath, {idempotent: true});
                     } catch (e) {
-                        console.log('Could not clean up cache file:', e);
+                        console.debug('Could not clean up cache file:', e);
                     }
                 }, 10000); // Longer delay for large files
 

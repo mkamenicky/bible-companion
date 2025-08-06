@@ -79,12 +79,12 @@ class MockDatabase {
     }
 
     async execAsync(query: string): Promise<any> {
-        console.log(`[MockDB] Executing query: ${query}`);
+        console.debug(`[MockDB] Executing query: ${query}`);
         return { changes: 0, insertId: 0 };
     }
 
     async getFirstAsync(query: string): Promise<any> {
-        console.log(`[MockDB] Getting first result for: ${query}`);
+        console.debug(`[MockDB] Getting first result for: ${query}`);
 
         // Simple mock for table check
         if (query.includes('sqlite_master')) {
@@ -95,12 +95,12 @@ class MockDatabase {
     }
 
     async getAllAsync(query: string): Promise<any[]> {
-        console.log(`[MockDB] Getting all results for: ${query}`);
+        console.debug(`[MockDB] Getting all results for: ${query}`);
         return Array.from(this.mockData.values()).flat();
     }
 
     async closeAsync(): Promise<void> {
-        console.log('[MockDB] Closing mock database');
+        console.debug('[MockDB] Closing mock database');
         this.isOpen = false;
     }
 

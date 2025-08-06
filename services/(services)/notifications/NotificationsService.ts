@@ -330,7 +330,7 @@ export class NotificationService {
 
     openNotificationSettings(): void {
         // Platform-specific implementation would go here
-        console.log('Opening notification settings...');
+        console.debug('Opening notification settings...');
     }
 }
 

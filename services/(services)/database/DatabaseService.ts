@@ -161,7 +161,7 @@ export abstract class DatabaseService {
 
         switch (level) {
             case 'info':
-                console.log(`${prefix} INFO: ${message}`);
+                console.debug(`${prefix} INFO: ${message}`);
                 break;
             case 'warn':
                 console.warn(`${prefix} WARN: ${message}`, error || '');

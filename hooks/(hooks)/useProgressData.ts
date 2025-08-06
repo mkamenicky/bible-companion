@@ -113,7 +113,7 @@ export function useProgressData(userId: number = 1) {
 
     // Method to handle external achievement events (from other hooks)
     const handleExternalAchievementEvents = useCallback((events: AchievementUnlockEvent[]) => {
-        console.log('🏆 useProgressData received external achievement events:', events);
+        console.debug('🏆 useProgressData received external achievement events:', events);
         addAchievementEvents(events);
         setRecentUnlocks(prev => [...events, ...prev].slice(0, 5));
 
@@ -124,11 +124,11 @@ export function useProgressData(userId: number = 1) {
     // Method to manually trigger achievement check
     const triggerAchievementCheck = useCallback(async (): Promise<AchievementUnlockEvent[]> => {
         try {
-            console.log('🏆 Manually triggering achievement check...');
+            console.debug('🏆 Manually triggering achievement check...');
             const unlockedEvents = await progressService.updateAchievementProgressFromDatabase(userId);
 
             if (unlockedEvents.length > 0) {
-                console.log('🎉 New achievements found:', unlockedEvents.map(e => e.achievementName));
+                console.debug('🎉 New achievements found:', unlockedEvents.map(e => e.achievementName));
                 addAchievementEvents(unlockedEvents);
                 setRecentUnlocks(prev => [...unlockedEvents, ...prev].slice(0, 5));
 

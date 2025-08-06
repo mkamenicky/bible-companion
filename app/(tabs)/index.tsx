@@ -75,7 +75,7 @@ export default function Index() {
 
                 {dailyReadingAssignments && Array.from(dailyReadingAssignments.entries()).map(
                     ([assignmentTitle, assignments]) => {
-                        console.log(`Rendering assignments for ${assignmentTitle}:`, assignments.length, 'assignments');
+                        console.debug(`Rendering assignments for ${assignmentTitle}:`, assignments.length, 'assignments');
 
                         return (
                             <DailyAssignmentsCard

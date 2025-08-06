@@ -249,7 +249,7 @@ export class TaskService {
      */
     async fetchReadingAssignments(date: Date = new Date()): Promise<EnhancedDailyReadingAssignment[]> {
         const dateStr = this.formatDate(date);
-        console.log("TaskService: Fetching reading assignments for date:", dateStr);
+        console.debug("TaskService: Fetching reading assignments for date:", dateStr);
 
         return await readingService.fetchReadingAssignments(date);
     }
@@ -261,12 +261,12 @@ export class TaskService {
     async generateAdditionalAssignments(date: Date): Promise<EnhancedDailyReadingAssignment[]> {
         try {
             const dateStr = this.formatDate(date);
-            console.log("TaskService: Generating additional assignments for date:", dateStr);
+            console.debug("TaskService: Generating additional assignments for date:", dateStr);
 
             // Delegate to ReadingService to generate additional assignments for the EXACT date provided
             const additionalAssignments = await readingService.generateAdditionalAssignments(date);
 
-            console.log("TaskService: Generated additional assignments:", additionalAssignments);
+            console.debug("TaskService: Generated additional assignments:", additionalAssignments);
             return additionalAssignments;
 
         } catch (error: any) {
@@ -274,37 +274,56 @@ export class TaskService {
             throw new DatabaseMessageError(`Failed to generate additional assignments`, error as Error);
         }
     }
-
     async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<AchievementUnlockEvent[]> {
-        console.log('TaskService: Marking daily assignment as read:', {
+        const currentDate = new Date();
+        console.debug('TaskService: Marking daily assignment as read:', {
             id: dailyReadingAssignment.id,
             verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
             chapter: dailyReadingAssignment.chapter_id,
-            display_title: dailyReadingAssignment.display_title
+            display_title: dailyReadingAssignment.display_title,
+            date: currentDate.toISOString().split('T')[0]
         });
 
         try {
+            const dateStr = this.formatDate(currentDate);
             // Mark individual verses as read
             for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-                console.log('Marking verse as read:', verseId);
-                await readingService.markVerseAsRead(verseId, new Date());
+                console.debug('Marking verse as read:', verseId);
+                await readingService.markVerseAsRead(verseId, currentDate);
             }
 
             // Mark the assignment itself as completed
-            await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, new Date(), true);
+            await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, currentDate, true);
 
-            // **NEW: Update reading progress to record streak and trigger achievements**
+            // **CRITICAL: Update reading progress to record streak and trigger achievements**
             const versesRead = dailyReadingAssignment.end_verse_id - dailyReadingAssignment.start_verse_id + 1;
+            console.debug('Updating reading progress with:', {
+                versesRead,
+                date: dateStr,
+                planName: dailyReadingAssignment.plan_name
+            });
+
             const achievementUnlockEvents = await progressService.updateReadingProgress(
                 1,
                 versesRead,
-                0, // chaptersRead - will be calculated automatically
-                [], // booksRead - will be calculated automatically
+                0,
+                [],
                 dailyReadingAssignment.plan_name,
                 `Completed assignment: ${dailyReadingAssignment.display_title}`
             );
 
-            console.log('Successfully marked assignment as read and updated progress');
+            const streakResult = await progressService.updateReadingStreak(1, dateStr);
+            console.debug('Streak updated:', {
+                currentStreak: streakResult.currentStreak,
+                longestStreak: streakResult.longestStreak,
+                lastReadingDate: streakResult.lastReadingDate
+            });
+
+            if (streakResult.currentStreak > streakResult.longestStreak) {
+                await progressService.fixStreakRecord(1, streakResult.currentStreak, dateStr);
+            }
+            
+            console.debug('Successfully marked assignment as read and updated progress');
             return achievementUnlockEvents;
         } catch (error) {
             console.error('Error marking assignment as read:', error);
@@ -316,7 +335,7 @@ export class TaskService {
      * Enhanced unmark assignment as read with better error handling
      */
     async unmarkDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
-        console.log('TaskService: Unmarking daily assignment as read:', {
+        console.debug('TaskService: Unmarking daily assignment as read:', {
             id: dailyReadingAssignment.id,
             verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
             chapter: dailyReadingAssignment.chapter_id,
@@ -326,14 +345,14 @@ export class TaskService {
         try {
             // Unmark individual verses
             for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-                console.log('Unmarking verse:', verseId);
+                console.debug('Unmarking verse:', verseId);
                 await readingService.unmarkVerseAsRead(verseId);
             }
 
             // Mark the assignment itself as not completed
             await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, undefined, false);
 
-            console.log('Successfully unmarked assignment as read');
+            console.debug('Successfully unmarked assignment as read');
         } catch (error) {
             console.error('Error unmarking assignment as read:', error);
             throw error;

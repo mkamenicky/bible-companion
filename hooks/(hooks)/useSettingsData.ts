@@ -166,7 +166,7 @@ export function useSettingsData() {
     // Data loaders
     const loadSettings = useCallback(async (): Promise<void> => {
         try {
-            console.log('🔄 Loading settings...');
+            console.debug('🔄 Loading settings...');
             setLoading(true);
 
             const [baseSettings, goal, cachedNotificationPrefs] = await Promise.all([
@@ -175,7 +175,7 @@ export function useSettingsData() {
                 loadNotificationPreferencesFromCache(),
             ]);
 
-            console.log('📋 Settings loaded:', baseSettings);
+            console.debug('📋 Settings loaded:', baseSettings);
             setDailyVerseGoal(goal);
             // Update form state with the loaded daily goal
             setFormStates(prev => ({ ...prev, dailyGoalInput: goal.toString() }));
@@ -190,14 +190,14 @@ export function useSettingsData() {
                 achievementNotifications: cachedNotificationPrefs?.achievementNotifications ?? false,
             };
             setSettings(extendedSettings);
-            console.log('✅ Settings state updated');
+            console.debug('✅ Settings state updated');
         } catch (error) {
             console.error('❌ Error loading settings:', error);
             const defaultSettings = getDefaultExtendedSettings();
             setSettings(defaultSettings);
             Alert.alert('Error', 'Failed to load settings, using defaults');
         } finally {
-            console.log('🏁 Setting loading to false');
+            console.debug('🏁 Setting loading to false');
             setLoading(false);
         }
     }, [settingsService, getDefaultExtendedSettings, loadNotificationPreferencesFromCache]);
@@ -229,18 +229,18 @@ export function useSettingsData() {
     // Schedule notifications based on current settings
     const scheduleNotificationsFromSettings = useCallback(async (currentSettings: ExtendedAppSettings) => {
         if (!notificationState.initialized || !currentSettings.notifications) {
-            console.log('⏭️ Skipping notification scheduling - not initialized or notifications disabled');
+            console.debug('⏭️ Skipping notification scheduling - not initialized or notifications disabled');
             return;
         }
 
         try {
-            console.log('📅 Scheduling notifications from current settings...');
+            console.debug('📅 Scheduling notifications from current settings...');
             const userdata = await getUserDataForNotifications();
             await notificationService.scheduleSmartReminders(currentSettings, userdata);
 
             // Load scheduled notifications after scheduling
             await loadScheduledNotifications();
-            console.log('✅ Notifications scheduled and loaded');
+            console.debug('✅ Notifications scheduled and loaded');
         } catch (error) {
             console.error('❌ Error scheduling notifications:', error);
         }
@@ -248,7 +248,7 @@ export function useSettingsData() {
 
     // Auto-load settings on mount
     useEffect(() => {
-        console.log('🚀 useSettingsData mounted, loading settings...');
+        console.debug('🚀 useSettingsData mounted, loading settings...');
         loadSettings();
     }, []); // Empty dependency array means this runs once on mount
 
@@ -260,7 +260,7 @@ export function useSettingsData() {
     // Schedule notifications when settings and notification service are ready
     useEffect(() => {
         if (settings && notificationState.initialized && !loading) {
-            console.log('🔄 Settings and notifications ready, scheduling notifications...');
+            console.debug('🔄 Settings and notifications ready, scheduling notifications...');
             scheduleNotificationsFromSettings(settings);
         }
     }, [settings, notificationState.initialized, loading, scheduleNotificationsFromSettings]);
@@ -554,16 +554,16 @@ export function useSettingsData() {
     }, [formStates.dailyGoalInput, settingsService, handleToggleDialog]);
 
     const showTimePicker = useCallback((type: 'daily' | 'streak' | 'goal' = 'daily') => {
-        console.log('🕐 showTimePicker called with type:', type, 'settings:', settings);
+        console.debug('🕐 showTimePicker called with type:', type, 'settings:', settings);
         if (settings) {
             const timeField = type === 'daily' ? 'reminderTime' :
                 type === 'streak' ? 'streakReminderTime' : 'goalReminderTime';
             const timeValue = settings[timeField as keyof typeof settings];
-            console.log('🕐 timeField:', timeField, 'timeValue:', timeValue);
+            console.debug('🕐 timeField:', timeField, 'timeValue:', timeValue);
 
             // Use default time if timeValue is not available
             const finalTimeValue = <string> timeValue || (type === 'daily' ? '08:00' : type === 'streak' ? '20:00' : '18:00');
-            console.log('🕐 finalTimeValue:', finalTimeValue);
+            console.debug('🕐 finalTimeValue:', finalTimeValue);
 
             const [hours, minutes] = finalTimeValue.split(':').map(Number);
             const date = new Date();
@@ -584,7 +584,7 @@ export function useSettingsData() {
                 stateUpdate.goalTimePickerVisible = true;
             }
 
-            console.log('🕐 Setting state update:', stateUpdate);
+            console.debug('🕐 Setting state update:', stateUpdate);
             setFormStates(prev => ({ ...prev, ...stateUpdate }));
         }
     }, [settings]);
@@ -593,7 +593,7 @@ export function useSettingsData() {
     const showGoalTimePicker = useCallback(() => showTimePicker('goal'), [showTimePicker]);
 
     const onRefresh = useCallback(async () => {
-        console.log('🔄 Refreshing settings...');
+        console.debug('🔄 Refreshing settings...');
         setFormStates(prev => ({ ...prev, refreshing: true }));
         try {
             await Promise.all([loadSettings(), loadScheduledNotifications()]);

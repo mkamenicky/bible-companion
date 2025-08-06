@@ -94,7 +94,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     // Empty cancel all notifications handler (can be implemented later)
     const handleCancelAllNotifications = useCallback(async (): Promise<void> => {
         // Implementation can be added when needed
-        console.log('Cancel all notifications requested');
+        console.debug('Cancel all notifications requested');
     }, []);
 
     // Loading state

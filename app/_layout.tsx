@@ -40,14 +40,12 @@ export default function RootLayout() {
 
     const prepare = useCallback(async () => {
         try {
-            // Initialize database
             await initDatabase();
-            console.log('✅ Database initialized successfully');
+            console.debug('✅ Database initialized successfully');
             setDbReady(true);
 
-            // Initialize localization
             await localizationService.initialize();
-            console.log('✅ Localization initialized successfully');
+            console.debug('✅ Localization initialized successfully');
             setLocalizationReady(true);
         } catch (err) {
             console.error('❌ Error during initialization:', err);

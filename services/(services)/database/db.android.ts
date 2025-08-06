@@ -43,7 +43,7 @@ export class AndroidDatabaseService extends DatabaseService {
             const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
 
             if (dbInfo.exists) {
-                console.log("Database already exists, skip copying asset...");
+                console.debug("Database already exists, skip copying asset...");
                 return;
             }
 
@@ -72,7 +72,7 @@ export class AndroidDatabaseService extends DatabaseService {
 
             const dbTest = await openDatabaseAsync('bible.db'); // <- This line fails
             const testRow = await dbTest.getFirstAsync("SELECT name FROM sqlite_master LIMIT 1");
-            console.log("✅ DB opened manually. Tables:", testRow);
+            console.debug("✅ DB opened manually. Tables:", testRow);
 
             this.log('info', 'Database file copied successfully');
         } catch (error) {

@@ -139,7 +139,7 @@ export function useThemeInitializer() {
                     ThemeService.setThemeVariant(savedTheme);
                 }
             } catch (error) {
-                console.log('Failed to load theme preference:', error);
+                console.error('Failed to load theme preference:', error);
             }
         };
 

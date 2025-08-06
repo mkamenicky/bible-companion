@@ -381,7 +381,7 @@ export class MigrationManager {
         if (error) {
             console.error(`${prefix} ERROR: ${message}`, error);
         } else {
-            console.log(`${prefix} INFO: ${message}`);
+            console.debug(`${prefix} INFO: ${message}`);
         }
     }
 }

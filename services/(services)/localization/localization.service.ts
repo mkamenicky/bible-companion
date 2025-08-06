@@ -84,7 +84,7 @@ class LocalizationService {
 
       await i18n.changeLanguage(this.currentLanguage);
       this.initialized = true;
-      console.log(`🌐 Localization initialized with language: ${this.currentLanguage}`);
+      console.debug(`🌐 Localization initialized with language: ${this.currentLanguage}`);
     } catch (error) {
       console.error('❌ Error initializing localization:', error);
       this.currentLanguage = 'en';
@@ -112,7 +112,7 @@ class LocalizationService {
       // Notify listeners
       this.notifyLanguageChange(languageCode);
 
-      console.log(`🌐 Language changed to: ${languageCode}`);
+      console.debug(`🌐 Language changed to: ${languageCode}`);
     } catch (error) {
       console.error('❌ Error saving language preference:', error);
     }

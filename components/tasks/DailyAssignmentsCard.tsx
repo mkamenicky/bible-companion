@@ -68,7 +68,7 @@ export default function DailyAssignmentsCard({
                                     item.is_completed && { opacity: 0.6 }
                                 ]}
                                 onPress={() => {
-                                    console.log('Assignment clicked:', {
+                                    console.debug('Assignment clicked:', {
                                         id: item.id,
                                         verses: `${item.start_verse_id}-${item.end_verse_id}`,
                                         current_status: item.is_completed,

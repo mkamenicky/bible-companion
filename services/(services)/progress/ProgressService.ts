@@ -366,6 +366,27 @@ export class ProgressService {
     }
 
     /**
+     * Fix streak record when current streak is higher than longest
+     */
+    async fixStreakRecord(userId: number = 1, currentStreak: number, currentDate: string): Promise<void> {
+        try {
+            const streakRecord = await readingStreakRepository.findByUserId(userId);
+            if (streakRecord && currentStreak > streakRecord.longestStreak) {
+                await readingStreakRepository.update({
+                    id: streakRecord.id,
+                    longestStreak: currentStreak,
+                    longestStreakEndDate: currentDate,
+                    longestStreakStartDate: streakRecord.longestStreakStartDate || currentDate
+                });
+                console.debug('Fixed streak record:', { currentStreak, newLongestStreak: currentStreak });
+            }
+        } catch (error) {
+            console.error('Error fixing streak record:', error);
+        }
+    }
+
+
+    /**
      * Calculate detailed streak information from database
      */
     async calculateDetailedStreak(userId: number = 1): Promise<StreakInfo> {

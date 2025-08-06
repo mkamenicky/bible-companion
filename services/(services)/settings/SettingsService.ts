@@ -57,11 +57,11 @@ export class SettingsService {
     };
 
     async getSettings(): Promise<AppSettings> {
-        console.log('📋 SettingsService.getSettings() called');
+        console.debug('📋 SettingsService.getSettings() called');
 
         // Prevent concurrent loading
         if (this.isLoading) {
-            console.log('⏳ Settings already loading, waiting...');
+            console.debug('⏳ Settings already loading, waiting...');
             // Wait for existing load to complete
             await new Promise(resolve => setTimeout(resolve, 100));
             if (this.cache) return this.cache;
@@ -72,20 +72,20 @@ export class SettingsService {
 
             // Return cached settings if valid
             if (this.isCacheValid()) {
-                console.log('✅ Using cached settings');
+                console.debug('✅ Using cached settings');
                 return this.cache!;
             }
 
-            console.log('💾 Loading settings from AsyncStorage cache...');
+            console.debug('💾 Loading settings from AsyncStorage cache...');
             // Try to load from AsyncStorage cache first
             const cachedSettings = await this.loadFromCache();
             if (cachedSettings) {
-                console.log('✅ Loaded from AsyncStorage cache');
+                console.debug('✅ Loaded from AsyncStorage cache');
                 this.updateCacheInMemory(cachedSettings); // Fixed: don't call getSettings() again
                 return cachedSettings;
             }
 
-            console.log('🗄️ Loading settings from database...');
+            console.debug('🗄️ Loading settings from database...');
             // Load from database with timeout
             const settings = await Promise.race([
                 this.loadFromDatabase(),
@@ -94,7 +94,7 @@ export class SettingsService {
                 )
             ]);
 
-            console.log('✅ Settings loaded from database');
+            console.debug('✅ Settings loaded from database');
             this.updateCacheInMemory(settings);
             await this.saveToCache(settings); // Save to AsyncStorage
             return settings;
@@ -114,7 +114,7 @@ export class SettingsService {
             let preferences = await readingPreferencesRepository.findByUserId(DEFAULT_USER_ID);
 
             if (!preferences) {
-                console.log('🆕 Creating default preferences');
+                console.debug('🆕 Creating default preferences');
                 const defaultPrefs: CreateReadingPreferencesDto = {
                     userId: DEFAULT_USER_ID,
                     preferredReadingTime: 'morning',

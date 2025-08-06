@@ -32,7 +32,7 @@ export function AchievementProvider({ children, onProgressRefresh }: Achievement
 
     const addAchievementEvents = useCallback((events: AchievementUnlockEvent[]) => {
         if (events.length > 0) {
-            console.log('🏆 AchievementContext: Adding achievement events:', events.map(e => e.achievementName));
+            console.debug('🏆 AchievementContext: Adding achievement events:', events.map(e => e.achievementName));
             setAchievementEvents(prev => {
                 // Avoid duplicates by checking achievement IDs
                 const existingIds = new Set(prev.map(e => e.achievementId));
@@ -43,17 +43,17 @@ export function AchievementProvider({ children, onProgressRefresh }: Achievement
     }, []);
 
     const clearAchievementEvents = useCallback(() => {
-        console.log('🏆 AchievementContext: Clearing all achievement events');
+        console.debug('🏆 AchievementContext: Clearing all achievement events');
         setAchievementEvents([]);
     }, []);
 
     const dismissAchievementEvent = useCallback((achievementId: string) => {
-        console.log('🏆 AchievementContext: Dismissing achievement event:', achievementId);
+        console.debug('🏆 AchievementContext: Dismissing achievement event:', achievementId);
         setAchievementEvents(prev => prev.filter(event => event.achievementId !== achievementId));
     }, []);
 
     const triggerProgressRefresh = useCallback(() => {
-        console.log('🔄 AchievementContext: Triggering progress refresh');
+        console.debug('🔄 AchievementContext: Triggering progress refresh');
         if (onProgressRefresh) {
             onProgressRefresh();
         }
@@ -63,7 +63,7 @@ export function AchievementProvider({ children, onProgressRefresh }: Achievement
     useEffect(() => {
         if (achievementEvents.length > 0) {
             const timer = setTimeout(() => {
-                console.log('🏆 AchievementContext: Auto-clearing old achievement events');
+                console.debug('🏆 AchievementContext: Auto-clearing old achievement events');
                 setAchievementEvents(prev => prev.slice(-3)); // Keep only last 3 events
             }, 30000); // 30 seconds
 
