@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import {DailyReadingAssignment, EnhancedDailyReadingAssignment} from '@/models';
 import {useLocalization, useTranslation} from '@/hooks';
+import { logger } from "@/utils/(utils)/logger";
 
 interface Props {
     dailyReadingAssignments: EnhancedDailyReadingAssignment[];
@@ -33,7 +34,7 @@ export default function DailyAssignmentsCard({
         try {
             await onReadMore();
         } catch (error) {
-            console.error('Error loading more assignments:', error);
+            logger.error('Error loading more assignments:', error);
         } finally {
             setIsLoadingMore(false);
         }
@@ -68,7 +69,7 @@ export default function DailyAssignmentsCard({
                                     item.is_completed && { opacity: 0.6 }
                                 ]}
                                 onPress={() => {
-                                    console.debug('Assignment clicked:', {
+                                    logger.debug('Assignment clicked:', {
                                         id: item.id,
                                         verses: `${item.start_verse_id}-${item.end_verse_id}`,
                                         current_status: item.is_completed,

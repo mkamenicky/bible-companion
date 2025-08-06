@@ -3,6 +3,7 @@ import {SQLiteDatabase} from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 import {Asset} from 'expo-asset';
 import {migrationProvider} from "@/services/(services)/database/MigrationProvider";
+import {logger} from "@/utils/(utils)/logger";
 
 export interface Migration {
     version: string;
@@ -379,9 +380,9 @@ export class MigrationManager {
         const prefix = `[MigrationManager] ${timestamp}`;
 
         if (error) {
-            console.error(`${prefix} ERROR: ${message}`, error);
+            logger.error(`${prefix} ERROR: ${message}`, error);
         } else {
-            console.debug(`${prefix} INFO: ${message}`);
+            logger.debug(`${prefix} INFO: ${message}`);
         }
     }
 }

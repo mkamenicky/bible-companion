@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ProgressService } from '@/services';
+import {logger} from "@/utils/(utils)/logger";
 
 const progressService = new ProgressService();
 
@@ -22,7 +23,7 @@ export const useCalendarData = () => {
             const activity = await progressService.getReadingActivity(year);
             setReadingDays(activity);
         } catch (error) {
-            console.error('Error loading reading activity:', error);
+            logger.error('Error loading reading activity:', error);
             setReadingDays(new Map());
         } finally {
             setLoading(false);

@@ -15,6 +15,7 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 // NEW: Import AchievementProvider and GlobalAchievementModal
 import { AchievementProvider } from '@/components/progress/AchievementContext';
 import { GlobalAchievementModal } from '@/components';
+import { logger } from "@/utils/(utils)/logger";
 
 export {ErrorBoundary} from 'expo-router';
 
@@ -41,14 +42,14 @@ export default function RootLayout() {
     const prepare = useCallback(async () => {
         try {
             await initDatabase();
-            console.debug('✅ Database initialized successfully');
+            logger.debug('✅ Database initialized successfully');
             setDbReady(true);
 
             await localizationService.initialize();
-            console.debug('✅ Localization initialized successfully');
+            logger.debug('✅ Localization initialized successfully');
             setLocalizationReady(true);
         } catch (err) {
-            console.error('❌ Error during initialization:', err);
+            logger.error('❌ Error during initialization:', err);
             // Set to true anyway to prevent infinite loading
             setDbReady(true);
             setLocalizationReady(true);

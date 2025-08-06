@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { readingPreferencesRepository } from '@/repository';
 import type { AppSettings, CreateReadingPreferencesDto, ReadingPreferences } from '@/models';
+import { logger } from "@/utils/(utils)/logger";
 
 const DEFAULT_USER_ID = 1;
 const SETTINGS_CACHE_KEY = '@app_settings_cache';
@@ -57,11 +58,11 @@ export class SettingsService {
     };
 
     async getSettings(): Promise<AppSettings> {
-        console.debug('📋 SettingsService.getSettings() called');
+        logger.debug('📋 SettingsService.getSettings() called');
 
         // Prevent concurrent loading
         if (this.isLoading) {
-            console.debug('⏳ Settings already loading, waiting...');
+            logger.debug('⏳ Settings already loading, waiting...');
             // Wait for existing load to complete
             await new Promise(resolve => setTimeout(resolve, 100));
             if (this.cache) return this.cache;
@@ -72,20 +73,20 @@ export class SettingsService {
 
             // Return cached settings if valid
             if (this.isCacheValid()) {
-                console.debug('✅ Using cached settings');
+                logger.debug('✅ Using cached settings');
                 return this.cache!;
             }
 
-            console.debug('💾 Loading settings from AsyncStorage cache...');
+            logger.debug('💾 Loading settings from AsyncStorage cache...');
             // Try to load from AsyncStorage cache first
             const cachedSettings = await this.loadFromCache();
             if (cachedSettings) {
-                console.debug('✅ Loaded from AsyncStorage cache');
+                logger.debug('✅ Loaded from AsyncStorage cache');
                 this.updateCacheInMemory(cachedSettings); // Fixed: don't call getSettings() again
                 return cachedSettings;
             }
 
-            console.debug('🗄️ Loading settings from database...');
+            logger.debug('🗄️ Loading settings from database...');
             // Load from database with timeout
             const settings = await Promise.race([
                 this.loadFromDatabase(),
@@ -94,13 +95,13 @@ export class SettingsService {
                 )
             ]);
 
-            console.debug('✅ Settings loaded from database');
+            logger.debug('✅ Settings loaded from database');
             this.updateCacheInMemory(settings);
             await this.saveToCache(settings); // Save to AsyncStorage
             return settings;
 
         } catch (error) {
-            console.error('❌ Error loading settings:', error);
+            logger.error('❌ Error loading settings:', error);
             const defaultSettings = this.getDefaultSettings();
             this.updateCacheInMemory(defaultSettings);
             return defaultSettings;
@@ -114,7 +115,7 @@ export class SettingsService {
             let preferences = await readingPreferencesRepository.findByUserId(DEFAULT_USER_ID);
 
             if (!preferences) {
-                console.debug('🆕 Creating default preferences');
+                logger.debug('🆕 Creating default preferences');
                 const defaultPrefs: CreateReadingPreferencesDto = {
                     userId: DEFAULT_USER_ID,
                     preferredReadingTime: 'morning',
@@ -132,7 +133,7 @@ export class SettingsService {
 
             return preferences ? this.mapPreferencesToSettings(preferences) : this.getDefaultSettings();
         } catch (error) {
-            console.error('❌ Database load failed:', error);
+            logger.error('❌ Database load failed:', error);
             throw error;
         }
     }
@@ -184,7 +185,7 @@ export class SettingsService {
 
             return { success: true };
         } catch (error) {
-            console.error('Error updating setting:', error);
+            logger.error('Error updating setting:', error);
             return {
                 success: false,
                 errors: [{ field: key, message: 'Failed to save setting', value }]
@@ -197,7 +198,7 @@ export class SettingsService {
             const preferences = await readingPreferencesRepository.findByUserId(DEFAULT_USER_ID);
             return preferences?.dailyVerseGoal ?? 10;
         } catch (error) {
-            console.error('Error getting daily verse goal:', error);
+            logger.error('Error getting daily verse goal:', error);
             return 10;
         }
     }
@@ -231,7 +232,7 @@ export class SettingsService {
 
             return { success: true };
         } catch (error) {
-            console.error('Error updating daily verse goal:', error);
+            logger.error('Error updating daily verse goal:', error);
             return { success: false, error: 'Failed to update daily verse goal' };
         }
     }
@@ -255,7 +256,7 @@ export class SettingsService {
             const exportData = JSON.stringify(backup, null, 2);
             return { success: true, data: exportData };
         } catch (error) {
-            console.error('Error exporting settings:', error);
+            logger.error('Error exporting settings:', error);
             return { success: false, error: 'Failed to export settings' };
         }
     }
@@ -284,7 +285,7 @@ export class SettingsService {
 
             return { success: true };
         } catch (error) {
-            console.error('Error resetting settings:', error);
+            logger.error('Error resetting settings:', error);
             return { success: false, error: 'Failed to reset settings' };
         }
     }
@@ -314,7 +315,7 @@ export class SettingsService {
                 }
             }
         } catch (error) {
-            console.warn('Failed to load from cache:', error);
+            logger.warn('Failed to load from cache:', error);
         }
         return null;
     }
@@ -327,7 +328,7 @@ export class SettingsService {
             };
             await AsyncStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(cacheData));
         } catch (error) {
-            console.warn('Failed to save to cache:', error);
+            logger.warn('Failed to save to cache:', error);
         }
     }
 

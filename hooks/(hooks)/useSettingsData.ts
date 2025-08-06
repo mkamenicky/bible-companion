@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 import Notifications from 'expo-notifications';
 import { SettingsService, databaseBackupService, notificationService, progressService } from '@/services';
 import { AppSettings } from '@/models';
+import { logger } from "@/utils/(utils)/logger";
 
 export interface DialogStates {
     changeTheme: boolean;
@@ -98,7 +99,7 @@ export function useSettingsData() {
                 todayProgress: periodStats.today, // Use actual today's progress
             };
         } catch (error) {
-            console.warn('Failed to get progress data for notifications, using defaults:', error);
+            logger.warn('Failed to get progress data for notifications, using defaults:', error);
             return {
                 currentStreak: 0,
                 dailyGoal: dailyVerseGoal,
@@ -135,7 +136,7 @@ export function useSettingsData() {
             const updatedPrefs = { ...existingPrefs, ...prefs };
             await AsyncStorage.setItem('@notification_preferences', JSON.stringify(updatedPrefs));
         } catch (error) {
-            console.warn('Failed to save notification preferences to cache:', error);
+            logger.warn('Failed to save notification preferences to cache:', error);
         }
     }, []);
 
@@ -145,7 +146,7 @@ export function useSettingsData() {
             const cached = await AsyncStorage.getItem('@notification_preferences');
             return cached ? JSON.parse(cached) : null;
         } catch (error) {
-            console.warn('Failed to load notification preferences from cache:', error);
+            logger.warn('Failed to load notification preferences from cache:', error);
             return null;
         }
     }, []);
@@ -166,7 +167,7 @@ export function useSettingsData() {
     // Data loaders
     const loadSettings = useCallback(async (): Promise<void> => {
         try {
-            console.debug('🔄 Loading settings...');
+            logger.debug('🔄 Loading settings...');
             setLoading(true);
 
             const [baseSettings, goal, cachedNotificationPrefs] = await Promise.all([
@@ -175,7 +176,7 @@ export function useSettingsData() {
                 loadNotificationPreferencesFromCache(),
             ]);
 
-            console.debug('📋 Settings loaded:', baseSettings);
+            logger.debug('📋 Settings loaded:', baseSettings);
             setDailyVerseGoal(goal);
             // Update form state with the loaded daily goal
             setFormStates(prev => ({ ...prev, dailyGoalInput: goal.toString() }));
@@ -190,14 +191,14 @@ export function useSettingsData() {
                 achievementNotifications: cachedNotificationPrefs?.achievementNotifications ?? false,
             };
             setSettings(extendedSettings);
-            console.debug('✅ Settings state updated');
+            logger.debug('✅ Settings state updated');
         } catch (error) {
-            console.error('❌ Error loading settings:', error);
+            logger.error('❌ Error loading settings:', error);
             const defaultSettings = getDefaultExtendedSettings();
             setSettings(defaultSettings);
             Alert.alert('Error', 'Failed to load settings, using defaults');
         } finally {
-            console.debug('🏁 Setting loading to false');
+            logger.debug('🏁 Setting loading to false');
             setLoading(false);
         }
     }, [settingsService, getDefaultExtendedSettings, loadNotificationPreferencesFromCache]);
@@ -229,26 +230,26 @@ export function useSettingsData() {
     // Schedule notifications based on current settings
     const scheduleNotificationsFromSettings = useCallback(async (currentSettings: ExtendedAppSettings) => {
         if (!notificationState.initialized || !currentSettings.notifications) {
-            console.debug('⏭️ Skipping notification scheduling - not initialized or notifications disabled');
+            logger.debug('⏭️ Skipping notification scheduling - not initialized or notifications disabled');
             return;
         }
 
         try {
-            console.debug('📅 Scheduling notifications from current settings...');
+            logger.debug('📅 Scheduling notifications from current settings...');
             const userdata = await getUserDataForNotifications();
             await notificationService.scheduleSmartReminders(currentSettings, userdata);
 
             // Load scheduled notifications after scheduling
             await loadScheduledNotifications();
-            console.debug('✅ Notifications scheduled and loaded');
+            logger.debug('✅ Notifications scheduled and loaded');
         } catch (error) {
-            console.error('❌ Error scheduling notifications:', error);
+            logger.error('❌ Error scheduling notifications:', error);
         }
     }, [notificationState.initialized, getUserDataForNotifications, loadScheduledNotifications]);
 
     // Auto-load settings on mount
     useEffect(() => {
-        console.debug('🚀 useSettingsData mounted, loading settings...');
+        logger.debug('🚀 useSettingsData mounted, loading settings...');
         loadSettings();
     }, []); // Empty dependency array means this runs once on mount
 
@@ -260,7 +261,7 @@ export function useSettingsData() {
     // Schedule notifications when settings and notification service are ready
     useEffect(() => {
         if (settings && notificationState.initialized && !loading) {
-            console.debug('🔄 Settings and notifications ready, scheduling notifications...');
+            logger.debug('🔄 Settings and notifications ready, scheduling notifications...');
             scheduleNotificationsFromSettings(settings);
         }
     }, [settings, notificationState.initialized, loading, scheduleNotificationsFromSettings]);
@@ -326,7 +327,7 @@ export function useSettingsData() {
                 await loadScheduledNotifications();
             }
         } catch (error) {
-            console.error('Failed to toggle master notifications:', error);
+            logger.error('Failed to toggle master notifications:', error);
         }
     }, [updateSetting, getUserDataForNotifications, loadScheduledNotifications]);
 
@@ -444,7 +445,7 @@ export function useSettingsData() {
                 await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             }
         } catch (error) {
-            console.error('Database backup error:', error);
+            logger.error('Database backup error:', error);
             Alert.alert('Backup Error', 'An unexpected error occurred while creating the backup');
             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         }
@@ -467,7 +468,7 @@ export function useSettingsData() {
                             await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                         }
                     } catch (error) {
-                        console.error('Database restore error:', error);
+                        logger.error('Database restore error:', error);
                         Alert.alert('Restore Error', 'An unexpected error occurred while restoring the backup');
                         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
                     }
@@ -491,7 +492,7 @@ export function useSettingsData() {
                 Alert.alert('Export Failed', result.error || 'Failed to export settings');
             }
         } catch (error) {
-            console.error('Settings export error:', error);
+            logger.error('Settings export error:', error);
             Alert.alert('Export Error', 'An unexpected error occurred while exporting settings');
         }
     }, []);
@@ -513,7 +514,7 @@ export function useSettingsData() {
                             Alert.alert('Reset Failed', result.error || 'Failed to reset settings');
                         }
                     } catch (error) {
-                        console.error('Settings reset error:', error);
+                        logger.error('Settings reset error:', error);
                         Alert.alert('Reset Error', 'An unexpected error occurred while resetting settings');
                     }
                 }
@@ -554,16 +555,16 @@ export function useSettingsData() {
     }, [formStates.dailyGoalInput, settingsService, handleToggleDialog]);
 
     const showTimePicker = useCallback((type: 'daily' | 'streak' | 'goal' = 'daily') => {
-        console.debug('🕐 showTimePicker called with type:', type, 'settings:', settings);
+        logger.debug('🕐 showTimePicker called with type:', type, 'settings:', settings);
         if (settings) {
             const timeField = type === 'daily' ? 'reminderTime' :
                 type === 'streak' ? 'streakReminderTime' : 'goalReminderTime';
             const timeValue = settings[timeField as keyof typeof settings];
-            console.debug('🕐 timeField:', timeField, 'timeValue:', timeValue);
+            logger.debug('🕐 timeField:', timeField, 'timeValue:', timeValue);
 
             // Use default time if timeValue is not available
             const finalTimeValue = <string> timeValue || (type === 'daily' ? '08:00' : type === 'streak' ? '20:00' : '18:00');
-            console.debug('🕐 finalTimeValue:', finalTimeValue);
+            logger.debug('🕐 finalTimeValue:', finalTimeValue);
 
             const [hours, minutes] = finalTimeValue.split(':').map(Number);
             const date = new Date();
@@ -584,7 +585,7 @@ export function useSettingsData() {
                 stateUpdate.goalTimePickerVisible = true;
             }
 
-            console.debug('🕐 Setting state update:', stateUpdate);
+            logger.debug('🕐 Setting state update:', stateUpdate);
             setFormStates(prev => ({ ...prev, ...stateUpdate }));
         }
     }, [settings]);
@@ -593,7 +594,7 @@ export function useSettingsData() {
     const showGoalTimePicker = useCallback(() => showTimePicker('goal'), [showTimePicker]);
 
     const onRefresh = useCallback(async () => {
-        console.debug('🔄 Refreshing settings...');
+        logger.debug('🔄 Refreshing settings...');
         setFormStates(prev => ({ ...prev, refreshing: true }));
         try {
             await Promise.all([loadSettings(), loadScheduledNotifications()]);

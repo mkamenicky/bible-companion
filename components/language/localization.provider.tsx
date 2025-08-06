@@ -2,6 +2,7 @@
 import React, {useEffect, useState} from 'react';
 import {I18nextProvider} from 'react-i18next';
 import {localizationService} from '@/services';
+import { logger } from "@/utils/(utils)/logger";
 
 interface LocalizationProviderProps {
     children: React.ReactNode;
@@ -20,7 +21,7 @@ export function LocalizationProvider({children}: LocalizationProviderProps) {
                 await localizationService.initialize();
                 setIsReady(true);
             } catch (error) {
-                console.error('❌ Failed to initialize localization:', error);
+                logger.error('❌ Failed to initialize localization:', error);
                 setIsReady(true); // Set ready anyway to prevent infinite loading
             }
         };

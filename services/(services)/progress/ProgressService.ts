@@ -22,6 +22,7 @@ import type {
     StreakInfo,
     UpdateReadingStreakDto
 } from '@/models';
+import { logger } from "@/utils/(utils)/logger";
 
 // Define achievement unlock event interface
 export interface AchievementUnlockEvent {
@@ -155,7 +156,7 @@ export class ProgressService {
                 .filter(book => book.isStarted)
                 .map(book => book.bookName);
         } catch (error: any) {
-            console.error('Error getting started book names:', error);
+            logger.error('Error getting started book names:', error);
             return [];
         }
     }
@@ -181,7 +182,7 @@ export class ProgressService {
 
             return true;
         } catch (error: any) {
-            console.error('Error checking chapter completion:', error);
+            logger.error('Error checking chapter completion:', error);
             return false;
         }
     }
@@ -214,7 +215,7 @@ export class ProgressService {
 
             return true;
         } catch (error: any) {
-            console.error('Error checking book completion:', error);
+            logger.error('Error checking book completion:', error);
             return false;
         }
     }
@@ -242,7 +243,7 @@ export class ProgressService {
 
             return totalVerses > 0 ? Math.round((readVerses / totalVerses) * 100) : 0;
         } catch (error: any) {
-            console.error('Error calculating chapter completion percentage:', error);
+            logger.error('Error calculating chapter completion percentage:', error);
             return 0;
         }
     }
@@ -278,7 +279,7 @@ export class ProgressService {
 
             return totalVerses > 0 ? Math.round((readVerses / totalVerses) * 100) : 0;
         } catch (error: any) {
-            console.error('Error calculating book completion percentage:', error);
+            logger.error('Error calculating book completion percentage:', error);
             return 0;
         }
     }
@@ -356,7 +357,7 @@ export class ProgressService {
             } else {
                 // Reading date is in the past - this shouldn't normally happen
                 // but we'll handle it gracefully
-                console.warn(`Reading date ${readingDate} is before last reading date ${streakRecord.lastReadingDate}`);
+                logger.warn(`Reading date ${readingDate} is before last reading date ${streakRecord.lastReadingDate}`);
             }
 
             return await readingStreakRepository.update(updatedStreak);
@@ -378,10 +379,10 @@ export class ProgressService {
                     longestStreakEndDate: currentDate,
                     longestStreakStartDate: streakRecord.longestStreakStartDate || currentDate
                 });
-                console.debug('Fixed streak record:', { currentStreak, newLongestStreak: currentStreak });
+                logger.debug('Fixed streak record:', { currentStreak, newLongestStreak: currentStreak });
             }
         } catch (error) {
-            console.error('Error fixing streak record:', error);
+            logger.error('Error fixing streak record:', error);
         }
     }
 
@@ -531,7 +532,7 @@ export class ProgressService {
 
             return await this.calculateCompletedChapters(readVerses, allChapters);
         } catch (error: any) {
-            console.error('Error calculating completed chapters:', error);
+            logger.error('Error calculating completed chapters:', error);
             return 0;
         }
     }
@@ -550,7 +551,7 @@ export class ProgressService {
 
             return await this.calculateBooksStarted(readVerses, allChapters, allBooks);
         } catch (error: any) {
-            console.error('Error calculating books started:', error);
+            logger.error('Error calculating books started:', error);
             return 0;
         }
     }
@@ -1018,7 +1019,7 @@ export class ProgressService {
                                 const customResult = await achievementProgressRepository.executeQuery(rule.calculation_query, []);
                                 progress = customResult[0] ? Object.values(customResult[0])[0] as number : 0;
                             } catch (error) {
-                                console.warn(`Failed to execute custom calculation for achievement ${achievementId}:`, error);
+                                logger.warn(`Failed to execute custom calculation for achievement ${achievementId}:`, error);
                                 progress = 0;
                             }
                         }
@@ -1038,7 +1039,7 @@ export class ProgressService {
             return maxProgress;
 
         } catch (error: any) {
-            console.warn(`Failed to calculate progress for achievement ${achievementId}, using legacy method:`, error);
+            logger.warn(`Failed to calculate progress for achievement ${achievementId}, using legacy method:`, error);
             return this.calculateLegacyProgress(achievementId, context);
         }
     }
@@ -1104,7 +1105,7 @@ export class ProgressService {
                 }
             }
         } catch (error: any) {
-            console.warn('Failed to initialize achievements from database, using legacy method:', error);
+            logger.warn('Failed to initialize achievements from database, using legacy method:', error);
             // Fallback to legacy initialization
             await this.initializeAchievements(userId);
         }

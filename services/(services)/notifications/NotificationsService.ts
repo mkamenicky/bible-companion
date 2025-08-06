@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import {logger} from "@/utils/(utils)/logger";
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -74,7 +75,7 @@ export class NotificationService {
             }
             return false;
         } catch (error) {
-            console.error('Failed to initialize notifications:', error);
+            logger.error('Failed to initialize notifications:', error);
             return false;
         }
     }
@@ -330,7 +331,7 @@ export class NotificationService {
 
     openNotificationSettings(): void {
         // Platform-specific implementation would go here
-        console.debug('Opening notification settings...');
+        logger.debug('Opening notification settings...');
     }
 }
 

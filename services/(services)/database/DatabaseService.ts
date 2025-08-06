@@ -2,6 +2,7 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import type { DatabaseConfig, DatabaseHealth } from '@/models';
 import { DatabaseError } from "@/errors";
 import { MigrationManager } from './MigrationManager';
+import { logger } from "@/utils/(utils)/logger";
 
 export abstract class DatabaseService {
     database: SQLiteDatabase | null = null;
@@ -161,13 +162,13 @@ export abstract class DatabaseService {
 
         switch (level) {
             case 'info':
-                console.debug(`${prefix} INFO: ${message}`);
+                logger.debug(`${prefix} INFO: ${message}`);
                 break;
             case 'warn':
-                console.warn(`${prefix} WARN: ${message}`, error || '');
+                logger.warn(`${prefix} WARN: ${message}`, error || '');
                 break;
             case 'error':
-                console.error(`${prefix} ERROR: ${message}`, error || '');
+                logger.error(`${prefix} ERROR: ${message}`, error || '');
                 break;
         }
     }

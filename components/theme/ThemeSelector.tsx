@@ -4,6 +4,7 @@ import {RadioButton} from 'react-native-paper';
 import {ThemeService} from '@/services';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {ThemeVariant} from "@/services/(services)/theme/ThemeService";
+import {logger} from "@/utils/(utils)/logger";
 
 interface ThemeSelectorProps {
     onThemeChange?: (theme: ThemeVariant) => void;
@@ -139,7 +140,7 @@ export function useThemeInitializer() {
                     ThemeService.setThemeVariant(savedTheme);
                 }
             } catch (error) {
-                console.error('Failed to load theme preference:', error);
+                logger.error('Failed to load theme preference:', error);
             }
         };
 

@@ -4,6 +4,7 @@ import {useFocusEffect} from 'expo-router';
 import {progressService, TaskService} from '@/services';
 import {AchievementUnlockEvent, DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
 import {useAchievementContext} from '@/components/progress/AchievementContext';
+import {logger} from "@/utils/(utils)/logger";
 
 export function useHomeData() {
     const {addAchievementEvents} = useAchievementContext();
@@ -34,7 +35,7 @@ export function useHomeData() {
             }
             return unlockedEvents;
         } catch (error) {
-            console.error('Error checking achievements:', error);
+            logger.error('Error checking achievements:', error);
             return [];
         }
     }, [addAchievementEvents]);
@@ -65,7 +66,7 @@ export function useHomeData() {
 
             setDailyReadingAssignments(assignmentMap);
         } catch (error) {
-            console.error('Error fetching assignments:', error);
+            logger.error('Error fetching assignments:', error);
             setDailyReadingAssignments(new Map());
         }
     }, [taskService, today]);
@@ -150,7 +151,7 @@ export function useHomeData() {
             setTaskStatus(states);
 
         } catch (error) {
-            console.error('Error toggling verse completion:', error);
+            logger.error('Error toggling verse completion:', error);
             // Revert on error
             await fetchAssignments();
             throw error;
@@ -191,7 +192,7 @@ export function useHomeData() {
             setTimeout(() => checkForAchievementUnlocks(), 100);
 
         } catch (error) {
-            console.error('Error generating additional assignments:', error);
+            logger.error('Error generating additional assignments:', error);
             throw error;
         }
     }, [taskService, today, fetchAssignments, checkForAchievementUnlocks]);

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation as useReactI18nextTranslation } from 'react-i18next';
 import { localizationService, SupportedLanguage, LanguageOption } from '@/services';
 import type { EnhancedDailyReadingAssignment, Achievement } from '@/models';
+import {logger} from "@/utils/(utils)/logger";
 
 export interface UseLocalizationReturn {
     // Core localization functionality
@@ -53,7 +54,7 @@ export function useLocalization(): UseLocalizationReturn {
                 const bundle = i18nInstance.getResourceBundle(localizationService.getCurrentLanguage(), 'translation');
                 setResourceBundle(bundle);
             } catch (error) {
-                console.error('❌ Error initializing localization in hook:', error);
+                logger.error('❌ Error initializing localization in hook:', error);
                 setInitialized(true);
             }
         };

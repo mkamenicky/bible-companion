@@ -15,6 +15,7 @@ import {
 // Service and utility imports
 import { useHomeData, useTranslation } from '@/hooks';
 import { DateFormattingService, ThemeService } from '@/services';
+import {logger} from "@/utils/(utils)/logger";
 
 export default function Index() {
     const t = useTranslation();
@@ -75,7 +76,7 @@ export default function Index() {
 
                 {dailyReadingAssignments && Array.from(dailyReadingAssignments.entries()).map(
                     ([assignmentTitle, assignments]) => {
-                        console.debug(`Rendering assignments for ${assignmentTitle}:`, assignments.length, 'assignments');
+                        logger.debug(`Rendering assignments for ${assignmentTitle}:`, assignments.length, 'assignments');
 
                         return (
                             <DailyAssignmentsCard

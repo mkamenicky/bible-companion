@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { progressService } from '@/services';
 import { ProgressStats, Achievement, AchievementUnlockEvent } from "@/models";
 import { useAchievementContext } from '@/components/progress/AchievementContext';
+import { logger } from "@/utils/(utils)/logger";
 
 export function useProgressData(userId: number = 1) {
     const [stats, setStats] = useState<ProgressStats | null>(null);
@@ -45,7 +46,7 @@ export function useProgressData(userId: number = 1) {
             setAchievementStats(achievementStatsData);
 
         } catch (error) {
-            console.error('Error loading progress data:', error);
+            logger.error('Error loading progress data:', error);
             // Set default values on error
             setStats({
                 currentStreak: 0,
@@ -106,14 +107,14 @@ export function useProgressData(userId: number = 1) {
 
             return unlockedEvents;
         } catch (error) {
-            console.error('Error marking reading progress:', error);
+            logger.error('Error marking reading progress:', error);
             return [];
         }
     }, [userId, loadProgressData, addAchievementEvents]);
 
     // Method to handle external achievement events (from other hooks)
     const handleExternalAchievementEvents = useCallback((events: AchievementUnlockEvent[]) => {
-        console.debug('🏆 useProgressData received external achievement events:', events);
+        logger.debug('🏆 useProgressData received external achievement events:', events);
         addAchievementEvents(events);
         setRecentUnlocks(prev => [...events, ...prev].slice(0, 5));
 
@@ -124,11 +125,11 @@ export function useProgressData(userId: number = 1) {
     // Method to manually trigger achievement check
     const triggerAchievementCheck = useCallback(async (): Promise<AchievementUnlockEvent[]> => {
         try {
-            console.debug('🏆 Manually triggering achievement check...');
+            logger.debug('🏆 Manually triggering achievement check...');
             const unlockedEvents = await progressService.updateAchievementProgressFromDatabase(userId);
 
             if (unlockedEvents.length > 0) {
-                console.debug('🎉 New achievements found:', unlockedEvents.map(e => e.achievementName));
+                logger.debug('🎉 New achievements found:', unlockedEvents.map(e => e.achievementName));
                 addAchievementEvents(unlockedEvents);
                 setRecentUnlocks(prev => [...unlockedEvents, ...prev].slice(0, 5));
 
@@ -138,7 +139,7 @@ export function useProgressData(userId: number = 1) {
 
             return unlockedEvents;
         } catch (error) {
-            console.error('❌ Error checking achievements:', error);
+            logger.error('❌ Error checking achievements:', error);
             return [];
         }
     }, [userId, loadProgressData, addAchievementEvents]);
@@ -156,7 +157,7 @@ export function useProgressData(userId: number = 1) {
         try {
             return await progressService.getAchievementsByCategory(category, userId);
         } catch (error) {
-            console.error('Error getting achievements by category:', error);
+            logger.error('Error getting achievements by category:', error);
             return [];
         }
     }, [userId]);
@@ -166,7 +167,7 @@ export function useProgressData(userId: number = 1) {
         try {
             return await progressService.getAvailableAchievements(userId);
         } catch (error) {
-            console.error('Error getting available achievements:', error);
+            logger.error('Error getting available achievements:', error);
             return [];
         }
     }, [userId]);

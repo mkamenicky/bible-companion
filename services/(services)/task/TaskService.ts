@@ -4,6 +4,7 @@ import {DatabaseMessageError, ValidationError} from '@/errors';
 import {getMondayOfWeek} from "@/utils";
 import {tasksRepository} from '@/repository'
 import {progressService} from "@/services/(services)/progress/ProgressService";
+import { logger } from "@/utils/(utils)/logger";
 
 // Default task templates
 const DEFAULT_WEEKLY_TASKS = [
@@ -249,7 +250,7 @@ export class TaskService {
      */
     async fetchReadingAssignments(date: Date = new Date()): Promise<EnhancedDailyReadingAssignment[]> {
         const dateStr = this.formatDate(date);
-        console.debug("TaskService: Fetching reading assignments for date:", dateStr);
+        logger.debug("TaskService: Fetching reading assignments for date:", dateStr);
 
         return await readingService.fetchReadingAssignments(date);
     }
@@ -261,22 +262,22 @@ export class TaskService {
     async generateAdditionalAssignments(date: Date): Promise<EnhancedDailyReadingAssignment[]> {
         try {
             const dateStr = this.formatDate(date);
-            console.debug("TaskService: Generating additional assignments for date:", dateStr);
+            logger.debug("TaskService: Generating additional assignments for date:", dateStr);
 
             // Delegate to ReadingService to generate additional assignments for the EXACT date provided
             const additionalAssignments = await readingService.generateAdditionalAssignments(date);
 
-            console.debug("TaskService: Generated additional assignments:", additionalAssignments);
+            logger.debug("TaskService: Generated additional assignments:", additionalAssignments);
             return additionalAssignments;
 
         } catch (error: any) {
-            console.error('TaskService: Error generating additional assignments:', error);
+            logger.error('TaskService: Error generating additional assignments:', error);
             throw new DatabaseMessageError(`Failed to generate additional assignments`, error as Error);
         }
     }
     async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<AchievementUnlockEvent[]> {
         const currentDate = new Date();
-        console.debug('TaskService: Marking daily assignment as read:', {
+        logger.debug('TaskService: Marking daily assignment as read:', {
             id: dailyReadingAssignment.id,
             verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
             chapter: dailyReadingAssignment.chapter_id,
@@ -288,7 +289,7 @@ export class TaskService {
             const dateStr = this.formatDate(currentDate);
             // Mark individual verses as read
             for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-                console.debug('Marking verse as read:', verseId);
+                logger.debug('Marking verse as read:', verseId);
                 await readingService.markVerseAsRead(verseId, currentDate);
             }
 
@@ -297,7 +298,7 @@ export class TaskService {
 
             // **CRITICAL: Update reading progress to record streak and trigger achievements**
             const versesRead = dailyReadingAssignment.end_verse_id - dailyReadingAssignment.start_verse_id + 1;
-            console.debug('Updating reading progress with:', {
+            logger.debug('Updating reading progress with:', {
                 versesRead,
                 date: dateStr,
                 planName: dailyReadingAssignment.plan_name
@@ -313,7 +314,7 @@ export class TaskService {
             );
 
             const streakResult = await progressService.updateReadingStreak(1, dateStr);
-            console.debug('Streak updated:', {
+            logger.debug('Streak updated:', {
                 currentStreak: streakResult.currentStreak,
                 longestStreak: streakResult.longestStreak,
                 lastReadingDate: streakResult.lastReadingDate
@@ -323,10 +324,10 @@ export class TaskService {
                 await progressService.fixStreakRecord(1, streakResult.currentStreak, dateStr);
             }
             
-            console.debug('Successfully marked assignment as read and updated progress');
+            logger.debug('Successfully marked assignment as read and updated progress');
             return achievementUnlockEvents;
         } catch (error) {
-            console.error('Error marking assignment as read:', error);
+            logger.error('Error marking assignment as read:', error);
             throw error;
         }
     }
@@ -335,7 +336,7 @@ export class TaskService {
      * Enhanced unmark assignment as read with better error handling
      */
     async unmarkDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
-        console.debug('TaskService: Unmarking daily assignment as read:', {
+        logger.debug('TaskService: Unmarking daily assignment as read:', {
             id: dailyReadingAssignment.id,
             verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
             chapter: dailyReadingAssignment.chapter_id,
@@ -345,16 +346,16 @@ export class TaskService {
         try {
             // Unmark individual verses
             for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-                console.debug('Unmarking verse:', verseId);
+                logger.debug('Unmarking verse:', verseId);
                 await readingService.unmarkVerseAsRead(verseId);
             }
 
             // Mark the assignment itself as not completed
             await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, undefined, false);
 
-            console.debug('Successfully unmarked assignment as read');
+            logger.debug('Successfully unmarked assignment as read');
         } catch (error) {
-            console.error('Error unmarking assignment as read:', error);
+            logger.error('Error unmarking assignment as read:', error);
             throw error;
         }
     }

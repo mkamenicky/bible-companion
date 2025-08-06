@@ -1,6 +1,7 @@
 // AchievementContext.tsx - Enhanced global achievement event management
 import React, { createContext, useContext, useCallback, useState, ReactNode, useEffect } from 'react';
 import { AchievementUnlockEvent } from '@/models';
+import { logger } from "@/utils/(utils)/logger";
 
 interface AchievementContextType {
     // Achievement events from any source
@@ -32,7 +33,7 @@ export function AchievementProvider({ children, onProgressRefresh }: Achievement
 
     const addAchievementEvents = useCallback((events: AchievementUnlockEvent[]) => {
         if (events.length > 0) {
-            console.debug('🏆 AchievementContext: Adding achievement events:', events.map(e => e.achievementName));
+            logger.debug('🏆 AchievementContext: Adding achievement events:', events.map(e => e.achievementName));
             setAchievementEvents(prev => {
                 // Avoid duplicates by checking achievement IDs
                 const existingIds = new Set(prev.map(e => e.achievementId));
@@ -43,17 +44,17 @@ export function AchievementProvider({ children, onProgressRefresh }: Achievement
     }, []);
 
     const clearAchievementEvents = useCallback(() => {
-        console.debug('🏆 AchievementContext: Clearing all achievement events');
+        logger.debug('🏆 AchievementContext: Clearing all achievement events');
         setAchievementEvents([]);
     }, []);
 
     const dismissAchievementEvent = useCallback((achievementId: string) => {
-        console.debug('🏆 AchievementContext: Dismissing achievement event:', achievementId);
+        logger.debug('🏆 AchievementContext: Dismissing achievement event:', achievementId);
         setAchievementEvents(prev => prev.filter(event => event.achievementId !== achievementId));
     }, []);
 
     const triggerProgressRefresh = useCallback(() => {
-        console.debug('🔄 AchievementContext: Triggering progress refresh');
+        logger.debug('🔄 AchievementContext: Triggering progress refresh');
         if (onProgressRefresh) {
             onProgressRefresh();
         }
@@ -63,7 +64,7 @@ export function AchievementProvider({ children, onProgressRefresh }: Achievement
     useEffect(() => {
         if (achievementEvents.length > 0) {
             const timer = setTimeout(() => {
-                console.debug('🏆 AchievementContext: Auto-clearing old achievement events');
+                logger.debug('🏆 AchievementContext: Auto-clearing old achievement events');
                 setAchievementEvents(prev => prev.slice(-3)); // Keep only last 3 events
             }, 30000); // 30 seconds
 
@@ -109,7 +110,7 @@ export function useAchievementReporter() {
             }
             return unlockedEvents;
         } catch (error) {
-            console.error('Error reporting achievement progress:', error);
+            logger.error('Error reporting achievement progress:', error);
             return [];
         }
     }, [addAchievementEvents]);

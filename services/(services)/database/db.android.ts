@@ -4,6 +4,7 @@ import {openDatabaseAsync, SQLiteDatabase} from 'expo-sqlite';
 import {DatabaseService} from '@/services/(services)/database/DatabaseService';
 import {DatabaseError } from '@/errors'
 import type {DatabaseConfig} from '@/models';
+import {logger} from "@/utils/(utils)/logger";
 
 export class AndroidDatabaseService extends DatabaseService {
     private dbPath: string;
@@ -43,7 +44,7 @@ export class AndroidDatabaseService extends DatabaseService {
             const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
 
             if (dbInfo.exists) {
-                console.debug("Database already exists, skip copying asset...");
+                logger.debug("Database already exists, skip copying asset...");
                 return;
             }
 
@@ -72,7 +73,7 @@ export class AndroidDatabaseService extends DatabaseService {
 
             const dbTest = await openDatabaseAsync('bible.db'); // <- This line fails
             const testRow = await dbTest.getFirstAsync("SELECT name FROM sqlite_master LIMIT 1");
-            console.debug("✅ DB opened manually. Tables:", testRow);
+            logger.debug("✅ DB opened manually. Tables:", testRow);
 
             this.log('info', 'Database file copied successfully');
         } catch (error) {

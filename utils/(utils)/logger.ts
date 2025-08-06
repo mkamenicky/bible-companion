@@ -25,7 +25,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 
 // Global configuration - modify this to control logging behavior
 const DEFAULT_CONFIG: LoggerConfig = {
-    level: 'info', // Global log level: 'debug', 'info', 'warn', 'error', 'none'
+    level: 'error', // Global log level: 'debug', 'info', 'warn', 'error', 'none'
     enabled: true,
     showTimestamp: true,
     showContext: true,
@@ -59,9 +59,9 @@ export class Logger {
     private getConsoleMethod(level: LogLevel): (...args: any[]) => void {
         switch (level) {
             case 'error':
-                return console.error;
+                return logger.error;
             case 'warn':
-                return console.warn;
+                return logger.warn;
             case 'info':
                 return console.info;
             case 'debug':
@@ -73,44 +73,44 @@ export class Logger {
     /**
      * Log an informational message
      */
-    info(message: string, meta?: Record<string, any>): void {
-        this.log('info', message, meta);
+    info(message: string, ...args: any[]): void {
+        this.log('info', message, args);
     }
 
     /**
      * Log a warning message
      */
-    warn(message: string, meta?: Record<string, any>): void {
-        this.log('warn', message, meta);
+    warn(message: string, ...args: any[]): void {
+        this.log('warn', message, args);
     }
 
     /**
      * Log an error message
      */
-    error(message: string, meta?: Record<string, any>): void {
-        this.log('error', message, meta);
+    error(message: string, ...args: any[]): void {
+        this.log('error', message, args);
     }
 
     /**
      * Log a debug message
      */
-    debug(message: string, meta?: Record<string, any>): void {
-        this.log('debug', message, meta);
+    debug(message: string, ...args: any[]): void {
+        this.log('debug', message, args);
     }
 
     /**
      * Log a trace message (lowest level, only shown when level is debug)
      */
-    trace(message: string, meta?: Record<string, any>): void {
+    trace(message: string, ...args: any[]): void {
         if (this.shouldLog('debug')) {
-            this.log('debug', `[TRACE] ${message}`, meta);
+            this.log('debug', `[TRACE] ${message}`, args);
         }
     }
 
     /**
      * Internal logging method with level filtering
      */
-    private log(level: LogLevel, message: string, meta?: Record<string, any>): void {
+    private log(level: LogLevel, message: string, ...args: any[]): void {
         if (!this.shouldLog(level)) return;
 
         let logMessage = '';
@@ -130,14 +130,15 @@ export class Logger {
 
         logMessage += ` ${message}`;
 
-        // Use appropriate console method and include meta if provided
+        // Use appropriate console method and pass all additional arguments
         const consoleMethod = this.getConsoleMethod(level);
-        if (meta) {
-            consoleMethod(logMessage, meta);
+        if (args.length > 0) {
+            consoleMethod(logMessage, ...args);
         } else {
             consoleMethod(logMessage);
         }
     }
+
 
     /**
      * Create a child logger with the same config but different context
@@ -211,8 +212,4 @@ export const LoggerConfig = {
 };
 
 // Convenience loggers for common contexts
-export const taskLogger = new Logger('TaskService');
-export const progressLogger = new Logger('ProgressService');
-export const dbLogger = new Logger('Database');
-export const streakLogger = new Logger('Streak');
-export const achievementLogger = new Logger('Achievement');
+export const logger = new Logger('TaskService');

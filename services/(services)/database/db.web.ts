@@ -2,6 +2,7 @@ import { SQLiteDatabase } from 'expo-sqlite';
 import { DatabaseService} from '@/services/(services)/database/DatabaseService';
 import { DatabaseError } from '@/errors';
 import type { DatabaseConfig } from '@/models';
+import { logger } from "@/utils/(utils)/logger";
 
 export class WebDatabaseService extends DatabaseService {
     private mockDatabase: MockDatabase | null = null;
@@ -79,12 +80,12 @@ class MockDatabase {
     }
 
     async execAsync(query: string): Promise<any> {
-        console.debug(`[MockDB] Executing query: ${query}`);
+        logger.debug(`[MockDB] Executing query: ${query}`);
         return { changes: 0, insertId: 0 };
     }
 
     async getFirstAsync(query: string): Promise<any> {
-        console.debug(`[MockDB] Getting first result for: ${query}`);
+        logger.debug(`[MockDB] Getting first result for: ${query}`);
 
         // Simple mock for table check
         if (query.includes('sqlite_master')) {
@@ -95,12 +96,12 @@ class MockDatabase {
     }
 
     async getAllAsync(query: string): Promise<any[]> {
-        console.debug(`[MockDB] Getting all results for: ${query}`);
+        logger.debug(`[MockDB] Getting all results for: ${query}`);
         return Array.from(this.mockData.values()).flat();
     }
 
     async closeAsync(): Promise<void> {
-        console.debug('[MockDB] Closing mock database');
+        logger.debug('[MockDB] Closing mock database');
         this.isOpen = false;
     }
 
@@ -140,7 +141,7 @@ export const initDatabase = async (): Promise<SQLiteDatabase> => {
     try {
         return await service.initialize();
     } catch (error) {
-        console.warn('SQLite not available on web, consider using alternative storage methods');
+        logger.warn('SQLite not available on web, consider using alternative storage methods');
         throw error;
     }
 };
@@ -153,7 +154,7 @@ export const getDatabase = (): SQLiteDatabase => {
     }
 
     if (!service.isSupported()) {
-        console.warn('Using mock database on web platform');
+        logger.warn('Using mock database on web platform');
     }
 
     return service.database!;

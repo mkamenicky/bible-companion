@@ -4,6 +4,7 @@ import { View, Text, Modal, Animated } from 'react-native';
 import { useLocalization } from '@/hooks'; // Changed from useTranslation to useLocalization
 import { progressService } from '@/services';
 import type { AchievementUnlockEvent, Achievement } from '@/models';
+import {logger} from "@/utils/(utils)/logger";
 
 interface Props {
     events: AchievementUnlockEvent[];
@@ -68,7 +69,7 @@ export default function AchievementNotificationModal({
                             } as AchievementWithDetails);
                         }
                     } catch (error) {
-                        console.error('Error loading achievement details for', event.achievementId, error);
+                        logger.error('Error loading achievement details for', event.achievementId, error);
                         // Fallback achievement
                         details.push({
                             id: event.achievementId,
@@ -88,7 +89,7 @@ export default function AchievementNotificationModal({
 
                 setAchievementDetails(details);
             } catch (error) {
-                console.error('Error loading achievement details:', error);
+                logger.error('Error loading achievement details:', error);
             } finally {
                 setLoading(false);
             }

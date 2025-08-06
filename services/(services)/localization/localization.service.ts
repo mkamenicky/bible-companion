@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Import translation files
 import {en, es, fr, de} from '@/localization';
+import { logger } from "@/utils/(utils)/logger";
 
 export type SupportedLanguage = 'en' | 'es' | 'fr' | 'de' | 'ja' | 'zh';
 
@@ -84,9 +85,9 @@ class LocalizationService {
 
       await i18n.changeLanguage(this.currentLanguage);
       this.initialized = true;
-      console.debug(`🌐 Localization initialized with language: ${this.currentLanguage}`);
+      logger.debug(`🌐 Localization initialized with language: ${this.currentLanguage}`);
     } catch (error) {
-      console.error('❌ Error initializing localization:', error);
+      logger.error('❌ Error initializing localization:', error);
       this.currentLanguage = 'en';
       await i18n.changeLanguage('en');
       this.initialized = true;
@@ -98,7 +99,7 @@ class LocalizationService {
    */
   async setLanguage(languageCode: SupportedLanguage): Promise<void> {
     if (!this.isValidLanguage(languageCode)) {
-      console.warn(`⚠️ Invalid language code: ${languageCode}`);
+      logger.warn(`⚠️ Invalid language code: ${languageCode}`);
       return;
     }
 
@@ -112,9 +113,9 @@ class LocalizationService {
       // Notify listeners
       this.notifyLanguageChange(languageCode);
 
-      console.debug(`🌐 Language changed to: ${languageCode}`);
+      logger.debug(`🌐 Language changed to: ${languageCode}`);
     } catch (error) {
-      console.error('❌ Error saving language preference:', error);
+      logger.error('❌ Error saving language preference:', error);
     }
   }
 
@@ -148,7 +149,7 @@ class LocalizationService {
     try {
       return i18n.t(key, options);
     } catch (error) {
-      console.warn(`⚠️ Translation missing for key: ${key}`);
+      logger.warn(`⚠️ Translation missing for key: ${key}`);
       return key; // Return the key itself as fallback
     }
   }
@@ -234,7 +235,7 @@ class LocalizationService {
       try {
         callback(language);
       } catch (error) {
-        console.error('❌ Error in language change listener:', error);
+        logger.error('❌ Error in language change listener:', error);
       }
     });
   }

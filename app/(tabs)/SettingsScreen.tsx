@@ -15,6 +15,7 @@ import {
 } from '@/components';
 import { useSettingsData, useTranslation, useProgressData, ExtendedAppSettings, NotificationState } from '@/hooks';
 import { ThemeService } from '@/services';
+import {logger} from "@/utils/(utils)/logger";
 
 interface SettingsScreenProps {}
 
@@ -94,7 +95,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     // Empty cancel all notifications handler (can be implemented later)
     const handleCancelAllNotifications = useCallback(async (): Promise<void> => {
         // Implementation can be added when needed
-        console.debug('Cancel all notifications requested');
+        logger.debug('Cancel all notifications requested');
     }, []);
 
     // Loading state

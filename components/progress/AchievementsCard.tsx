@@ -6,6 +6,7 @@ import {useLocalization, useTranslation} from '@/hooks';
 import type {Achievement, AchievementUnlockEvent} from '@/models';
 import {ThemeColors} from "@/services/(services)/theme/ThemeService";
 import {useAchievementContext} from "@/components/progress/AchievementContext";
+import {logger} from "@/utils/(utils)/logger";
 
 interface Props {
     currentStreak: number;
@@ -80,7 +81,7 @@ export default function AchievementsCard({
             setCategorizedAchievements(categories);
 
         } catch (error) {
-            console.error('Error loading achievements:', error);
+            logger.error('Error loading achievements:', error);
             setAchievements([]);
             setAchievementStats(null);
             setCategorizedAchievements([]);

@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import {Platform} from 'react-native';
+import { logger } from "@/utils/(utils)/logger";
 
 const BACKUP_FILE_PREFIX = 'bible_app_database_backup';
 const DATABASE_NAME = 'bible.db';
@@ -38,7 +39,7 @@ export class DatabaseBackupService {
 
     async createDatabaseBackup(): Promise<DatabaseBackupResult> {
         try {
-            console.debug('📦 Creating database backup...');
+            logger.debug('📦 Creating database backup...');
 
             const dbInfo = await FileSystem.getInfoAsync(this.databasePath);
             if (!dbInfo.exists) {
@@ -61,14 +62,14 @@ export class DatabaseBackupService {
             const backupInfo = await FileSystem.getInfoAsync(backupPath);
             const fileSize = backupInfo.exists ? backupInfo.size : 0;
 
-            console.debug(`✅ Database backup created: ${backupPath} (${this.formatBytes(fileSize)})`);
+            logger.debug(`✅ Database backup created: ${backupPath} (${this.formatBytes(fileSize)})`);
 
             return {
                 success: true, filePath: backupPath, size: fileSize,
             };
 
         } catch (error) {
-            console.error('❌ Database backup failed:', error);
+            logger.error('❌ Database backup failed:', error);
             return {
                 success: false, error: error instanceof Error ? error.message : 'Unknown backup error',
             };
@@ -77,7 +78,7 @@ export class DatabaseBackupService {
 
     async restoreDatabaseBackup(backupPath?: string): Promise<DatabaseRestoreResult> {
         try {
-            console.debug('📥 Starting database restore...');
+            logger.debug('📥 Starting database restore...');
 
             let sourceFile: string;
 
@@ -123,13 +124,13 @@ export class DatabaseBackupService {
                 from: sourceFile, to: this.databasePath,
             });
 
-            console.debug('✅ Database restored successfully');
+            logger.debug('✅ Database restored successfully');
             return {
                 success: true, warnings: warnings.length > 0 ? warnings : undefined,
             };
 
         } catch (error) {
-            console.error('❌ Database restore failed:', error);
+            logger.error('❌ Database restore failed:', error);
             return {
                 success: false, error: error instanceof Error ? error.message : 'Unknown restore error',
             };
@@ -205,7 +206,7 @@ export class DatabaseBackupService {
                 throw new Error(`File copy verification failed. Source: ${sourceInfo.exists ? sourceInfo.size : 0}, Copy: ${copyInfo.exists ? copyInfo.size : 0}`);
             }
 
-            console.debug(`✅ File copied successfully: ${this.formatBytes(copyInfo.size || 0)}`);
+            logger.debug(`✅ File copied successfully: ${this.formatBytes(copyInfo.size || 0)}`);
 
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(cachePath, {
@@ -219,7 +220,7 @@ export class DatabaseBackupService {
                     try {
                         await FileSystem.deleteAsync(cachePath, {idempotent: true});
                     } catch (e) {
-                        console.debug('Could not clean up cache file:', e);
+                        logger.debug('Could not clean up cache file:', e);
                     }
                 }, 10000); // Longer delay for large files
 
@@ -234,7 +235,7 @@ export class DatabaseBackupService {
             }
 
         } catch (error) {
-            console.error('❌ Failed to prepare file for saving:', error);
+            logger.error('❌ Failed to prepare file for saving:', error);
             return {
                 success: false, error: error instanceof Error ? error.message : 'Failed to prepare file for saving',
             };
@@ -267,7 +268,7 @@ export class DatabaseBackupService {
             return backupInfo.sort((a, b) => b.created.getTime() - a.created.getTime());
 
         } catch (error) {
-            console.error('Failed to list backups:', error);
+            logger.error('Failed to list backups:', error);
             return [];
         }
     }

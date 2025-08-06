@@ -5,6 +5,7 @@ import {DatabaseService} from '@/services/(services)/database/DatabaseService';
 import {IOSDatabaseService} from '@/services/(services)/database/db.ios';
 import {WebDatabaseService} from '@/services/(services)/database/db.web';
 import type {DatabaseConfig} from '@/models';
+import {logger} from "@/utils/(utils)/logger";
 
 export class DatabaseManager {
     private static instance: DatabaseManager | null = null;
@@ -48,7 +49,7 @@ export class DatabaseManager {
         }
 
         if (!this.databaseService.isSupported()) {
-            console.warn(`Database not supported on platform: ${Platform.OS}`);
+            logger.warn(`Database not supported on platform: ${Platform.OS}`);
         }
 
         return await this.databaseService.initialize();
