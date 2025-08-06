@@ -1,4 +1,4 @@
-import {DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
+import {AchievementUnlockEvent, DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
 import {readingService} from "@/services/(services)/readings/ReadingService";
 import {DatabaseMessageError, ValidationError} from '@/errors';
 import {getMondayOfWeek} from "@/utils";
@@ -275,7 +275,7 @@ export class TaskService {
         }
     }
 
-    async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
+    async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<AchievementUnlockEvent[]> {
         console.log('TaskService: Marking daily assignment as read:', {
             id: dailyReadingAssignment.id,
             verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
@@ -295,7 +295,7 @@ export class TaskService {
 
             // **NEW: Update reading progress to record streak and trigger achievements**
             const versesRead = dailyReadingAssignment.end_verse_id - dailyReadingAssignment.start_verse_id + 1;
-            await progressService.updateReadingProgress(
+            const achievementUnlockEvents = await progressService.updateReadingProgress(
                 1,
                 versesRead,
                 0, // chaptersRead - will be calculated automatically
@@ -305,6 +305,7 @@ export class TaskService {
             );
 
             console.log('Successfully marked assignment as read and updated progress');
+            return achievementUnlockEvents;
         } catch (error) {
             console.error('Error marking assignment as read:', error);
             throw error;

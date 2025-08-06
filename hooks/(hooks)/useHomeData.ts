@@ -1,13 +1,12 @@
-
 // Optimized useHomeData.ts
-import { useCallback, useMemo, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
-import { TaskService, progressService } from '@/services';
-import { DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan } from "@/models";
-import { useAchievementContext } from '@/components/progress/AchievementContext';
+import {useCallback, useMemo, useState} from 'react';
+import {useFocusEffect} from 'expo-router';
+import {progressService, TaskService} from '@/services';
+import {AchievementUnlockEvent, DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
+import {useAchievementContext} from '@/components/progress/AchievementContext';
 
 export function useHomeData() {
-    const { addAchievementEvents } = useAchievementContext();
+    const {addAchievementEvents} = useAchievementContext();
 
     // State management
     const [loading, setLoading] = useState(true);
@@ -27,9 +26,9 @@ export function useHomeData() {
     const taskService = useMemo(() => new TaskService(), []);
 
     // Debounced achievement checking to avoid excessive calls
-    const checkForAchievementUnlocks = useCallback(async (userId: number = 1) => {
+    const checkForAchievementUnlocks = useCallback(async (userId: number = 1, achievementUnlockEvents: AchievementUnlockEvent[] = []) => {
+        let unlockedEvents = achievementUnlockEvents.length > 0 ? achievementUnlockEvents : await progressService.updateAchievementProgressFromDatabase(userId);
         try {
-            const unlockedEvents = await progressService.updateAchievementProgressFromDatabase(userId);
             if (unlockedEvents.length > 0) {
                 addAchievementEvents(unlockedEvents);
             }
@@ -78,7 +77,7 @@ export function useHomeData() {
             // Load all data in parallel
             await Promise.all([
                 (async () => {
-                    const { weeklyTasks, dailyTasks } = await taskService.getTaskLists(today);
+                    const {weeklyTasks, dailyTasks} = await taskService.getTaskLists(today);
                     setWeeklyChecklistItems(weeklyTasks);
                     setDailyChecklistItems(dailyTasks);
                 })(),
@@ -98,7 +97,7 @@ export function useHomeData() {
         try {
             await Promise.all([
                 (async () => {
-                    const { weeklyTasks, dailyTasks } = await taskService.getTaskLists(today);
+                    const {weeklyTasks, dailyTasks} = await taskService.getTaskLists(today);
                     setWeeklyChecklistItems(weeklyTasks);
                     setDailyChecklistItems(dailyTasks);
                 })(),
@@ -141,9 +140,9 @@ export function useHomeData() {
             if (wasCompleted) {
                 await taskService.unmarkDailyAssignmentAsRead(item);
             } else {
-                await taskService.markDailyAssignmentAsRead(item);
+                const achievementUnlockEvents = await taskService.markDailyAssignmentAsRead(item);
                 // Only check achievements on completion, not on every toggle
-                setTimeout(() => checkForAchievementUnlocks(), 100); // Debounced
+                setTimeout(() => checkForAchievementUnlocks(1, achievementUnlockEvents), 100); // Debounced
             }
 
             // Only refresh task states, not all assignments
@@ -166,7 +165,7 @@ export function useHomeData() {
         }
 
         await taskService.toggleTaskCompletion(task, status, today);
-        setTaskStatus(prev => ({ ...prev, [task]: status }));
+        setTaskStatus(prev => ({...prev, [task]: status}));
         setConfirmationTask(null);
 
         // Only check achievements when completing tasks, with debounce
