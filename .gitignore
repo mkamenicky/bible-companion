@@ -38,3 +38,7 @@ yarn-error.*
 *.tsbuildinfo
 /assets/bible_de.db
 /assets/bible_jp.db
+/google-service-account.json
+/backup.db
+/assets/images/favicon-16x16.png
+/assets/images/icon.psd
