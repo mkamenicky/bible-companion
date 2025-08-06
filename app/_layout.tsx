@@ -92,8 +92,6 @@ function RootLayoutNav() {
                 {/* NEW: Wrap everything in AchievementProvider */}
                 <AchievementProvider>
                     <Stack screenOptions={{headerShown: false}}/>
-
-                    {/* NEW: Add global achievement modal */}
                     <GlobalAchievementModal />
                 </AchievementProvider>
             </PaperProvider>
