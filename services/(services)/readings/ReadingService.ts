@@ -23,6 +23,7 @@ import {
     readingTopicsRepository
 } from '@/repository'
 import {localizationService, SupportedLanguage} from "@/services/(services)/localization/localization.service";
+import {logger} from "@/utils/(utils)/logger";
 
 export type Languages = "english" | "german" | "japanese";
 
@@ -58,11 +59,11 @@ export class ReadingService {
             const dateStr = this.formatDate(date);
             const existingAssignments = await this.getExistingAssignments(dateStr);
             const activePlan = await this.getActiveReadingPlan();
-
+            console.info("active:", date, existingAssignments, activePlan);
             if (activePlan?.plan_type === 'topical') {
-                const dayOfWeek = date.getDay();
+                const dayOfWeek = this.getDayOfWeek(date);
                 const todaysTopic = await this.getTodaysTopic(dayOfWeek);
-
+                console.info("todaysTopic:", todaysTopic);
                 if (existingAssignments.length > 0) {
                     const hasMatchingTopic = existingAssignments.some(assignment => assignment.display_title === todaysTopic?.display_name);
 
@@ -88,6 +89,7 @@ export class ReadingService {
             return await this.mapToEnhancedReadingAssignments(savedAssignments, language);
 
         } catch (error: any) {
+            console.error(error);
             throw new DatabaseMessageError(`Failed to fetch reading assignments`, error as Error);
         }
     }
@@ -115,7 +117,7 @@ export class ReadingService {
 
             // Create new assignments if all are completed or extension failed
             const continuationPoint = await this.findContinuationPoint(existingAssignments, activePlan);
-            const currentTopic = activePlan.plan_type === 'topical' ? await this.getTodaysTopic(date.getDay()) : undefined;
+            const currentTopic = activePlan.plan_type === 'topical' ? await this.getTodaysTopic(this.getDayOfWeek(date)) : undefined;
 
             const newAssignments = await this.generateNonOverlappingAssignments(activePlan, date, continuationPoint, existingAssignments, currentTopic);
 
@@ -129,6 +131,10 @@ export class ReadingService {
         } catch (error: any) {
             throw new DatabaseMessageError(`Failed to generate additional assignments`, error as Error);
         }
+    }
+
+    private getDayOfWeek(date: Date) {
+        return date.getDay() + 1;
     }
 
     async markVerseAsRead(bibleVerseId: number, date: Date = new Date()): Promise<void> {
@@ -353,7 +359,7 @@ export class ReadingService {
     private async generateTopicalAssignment(context: AssignmentContext): Promise<DailyReadingAssignment[]> {
         try {
             const {plan, date, preferences} = context;
-            const dayOfWeek = date.getDay();
+            const dayOfWeek = this.getDayOfWeek(date);
 
             const todaysTopic = await this.getTodaysTopic(dayOfWeek);
             const booksForTopic = await this.getBooksForTopic(todaysTopic.id);
