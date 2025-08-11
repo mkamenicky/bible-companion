@@ -30,6 +30,9 @@ export interface BackupFileInfo {
 
 export class DatabaseBackupService {
     private get databasePath(): string {
+        if (Platform.OS === 'ios') {
+            return `${FileSystem.documentDirectory}SQLite/${DATABASE_NAME}`;
+        }
         return `${FileSystem.documentDirectory}${DATABASE_NAME}`;
     }
 

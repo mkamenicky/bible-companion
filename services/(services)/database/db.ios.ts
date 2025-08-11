@@ -4,6 +4,7 @@ import {openDatabaseAsync, SQLiteDatabase} from 'expo-sqlite';
 import {DatabaseError} from '@/errors';
 import {DatabaseService} from '@/services/(services)/database/DatabaseService';
 import type {DatabaseConfig} from '@/models';
+import {logger} from "@/utils/(utils)/logger";
 
 export class IOSDatabaseService extends DatabaseService {
     private dbPath: string;
@@ -35,10 +36,15 @@ export class IOSDatabaseService extends DatabaseService {
             await this.runMigrations();
 
             this.initialized = true;
-            this.log('info', `Database initialized successfully at: ${this.dbPath}`);
+            logger.info(`Database initialized successfully at: ${this.dbPath}`);
 
             return this.database!;
         }, 'Database initialization');
+    }
+
+    async cleanup(): Promise<void> {
+        await super.cleanup();
+        logger.info('IOS database cleanup completed');
     }
 
     private async setupDatabase(): Promise<void> {
@@ -47,31 +53,36 @@ export class IOSDatabaseService extends DatabaseService {
             const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
 
             if (dbInfo.exists) {
-                await FileSystem.deleteAsync(this.dbPath, { idempotent: true });
+                logger.debug("Database already exists, skip copying asset...");
+                return;
             }
 
-            // Ensure SQLite directory exists
-            await FileSystem.makeDirectoryAsync(this.sqlDir, { intermediates: true });
-
             // Load and download the asset
-            this.log('info', 'Loading database asset...');
+            logger.info('Loading database asset...');
             const bibleDbAsset = Asset.fromModule(require('../../../assets/bible.db'));
 
             await bibleDbAsset.downloadAsync();
-            this.log('info', 'Database asset downloaded');
+            logger.info('Database asset downloaded');
 
             if (!bibleDbAsset.localUri) {
                 throw new Error('Failed to get local URI for database asset');
             }
 
-            this.log('info', `Copying database from ${bibleDbAsset.localUri} to ${this.dbPath}`);
+            // Copy the database file
+            logger.info(`Copying database from ${bibleDbAsset.localUri} to ${this.dbPath}`);
             await FileSystem.copyAsync({
                 from: bibleDbAsset.localUri,
                 to: this.dbPath,
             });
 
             const copiedDbInfo = await FileSystem.getInfoAsync(this.dbPath);
-            this.log('info', `Database file copied successfully. Size: ${copiedDbInfo.exists ? copiedDbInfo.size : 0} bytes`);
+            logger.info(`Copied DB exists: ${copiedDbInfo.exists}, size: ${copiedDbInfo.exists ? copiedDbInfo.size : 0} bytes`);
+
+            const dbTest = await openDatabaseAsync(this.dbPath); // <- This line fails
+            const testRow = await dbTest.getFirstAsync("SELECT name FROM sqlite_master LIMIT 1");
+            logger.debug("✅ DB opened manually. Tables:", testRow);
+
+            logger.info('Database file copied successfully');
         } catch (error) {
             throw new DatabaseError('Failed to setup database file', error instanceof Error ? error : new Error(String(error)));
         }
@@ -79,14 +90,14 @@ export class IOSDatabaseService extends DatabaseService {
 
     private async openDatabase(): Promise<void> {
         try {
-            this.log('info', `Opening database: ${this.dbName}`);
+            logger.info(`Opening database: ${this.dbName}`);
             this.database = await openDatabaseAsync(this.dbName);
 
             if (!this.database) {
                 throw new Error('Failed to open database - null returned');
             }
 
-            this.log('info', 'Database opened successfully');
+            logger.info('Database opened successfully');
         } catch (error) {
             throw new DatabaseError('Failed to open database', error instanceof Error ? error : new Error(String(error)));
         }
@@ -105,41 +116,9 @@ export class IOSDatabaseService extends DatabaseService {
                 throw new Error('Database appears to be empty or corrupted');
             }
 
-            this.log('info', 'Database verification passed');
+            logger.info('Database verification passed');
         } catch (error) {
             throw new DatabaseError('Database verification failed', error instanceof Error ? error : new Error(String(error)));
-        }
-    }
-
-    async cleanup(): Promise<void> {
-        await super.cleanup();
-        this.log('info', 'IOS database cleanup completed');
-    }
-
-    // Utility methods for database management
-    async getDatabaseSize(): Promise<number> {
-        try {
-            const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
-            return dbInfo.exists ? dbInfo.size || 0 : 0;
-        } catch (error) {
-            this.log('warn', 'Failed to get database size:', error);
-            return 0;
-        }
-    }
-
-    async backupDatabase(backupPath?: string): Promise<string> {
-        const targetPath = backupPath || `${this.dbPath}.backup.${Date.now()}`;
-
-        try {
-            await FileSystem.copyAsync({
-                from: this.dbPath,
-                to: targetPath,
-            });
-
-            this.log('info', `Database backed up to: ${targetPath}`);
-            return targetPath;
-        } catch (error) {
-            throw new DatabaseError('Failed to backup database', error instanceof Error ? error : new Error(String(error)));
         }
     }
 }

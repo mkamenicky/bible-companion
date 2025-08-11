@@ -32,7 +32,7 @@ export class AndroidDatabaseService extends DatabaseService {
             await this.runMigrations();
 
             this.initialized = true;
-            this.log('info', `Database initialized successfully at: ${this.dbPath}`);
+            logger.info(`Database initialized successfully at: ${this.dbPath}`);
 
             return this.database!;
         }, 'Database initialization');
@@ -49,12 +49,12 @@ export class AndroidDatabaseService extends DatabaseService {
             }
 
             // Load and download the asset
-            this.log('info', 'Loading database asset...');
+            logger.info('Loading database asset...');
             const bibleDbAsset = Asset.fromModule(require('../../../assets/bible.db'));
 
             if (!bibleDbAsset.downloaded) {
                 await bibleDbAsset.downloadAsync();
-                this.log('info', 'Database asset downloaded');
+                logger.info('Database asset downloaded');
             }
 
             if (!bibleDbAsset.localUri) {
@@ -62,20 +62,20 @@ export class AndroidDatabaseService extends DatabaseService {
             }
 
             // Copy the database file
-            this.log('info', `Copying database from ${bibleDbAsset.localUri} to ${this.dbPath}`);
+            logger.info(`Copying database from ${bibleDbAsset.localUri} to ${this.dbPath}`);
             await FileSystem.copyAsync({
                 from: bibleDbAsset.localUri,
                 to: this.dbPath,
             });
 
             const copiedDbInfo = await FileSystem.getInfoAsync('bible.db');
-            this.log('info', `Copied DB exists: ${copiedDbInfo.exists}, size: ${copiedDbInfo.exists ? copiedDbInfo.size : 0} bytes`);
+            logger.info(`Copied DB exists: ${copiedDbInfo.exists}, size: ${copiedDbInfo.exists ? copiedDbInfo.size : 0} bytes`);
 
             const dbTest = await openDatabaseAsync('bible.db'); // <- This line fails
             const testRow = await dbTest.getFirstAsync("SELECT name FROM sqlite_master LIMIT 1");
             logger.debug("✅ DB opened manually. Tables:", testRow);
 
-            this.log('info', 'Database file copied successfully');
+            logger.info('Database file copied successfully');
         } catch (error) {
             throw new DatabaseError('Failed to setup database file', error instanceof Error ? error : new Error(String(error)));
         }
@@ -83,14 +83,14 @@ export class AndroidDatabaseService extends DatabaseService {
 
     private async openDatabase(): Promise<void> {
         try {
-            this.log('info', `Opening database at: ${this.dbPath}`);
+            logger.info(`Opening database at: ${this.dbPath}`);
             this.database = await openDatabaseAsync(this.dbPath);
 
             if (!this.database) {
                 throw new Error('Failed to open database - null returned');
             }
 
-            this.log('info', 'Database opened successfully');
+            logger.info('Database opened successfully');
         } catch (error) {
             throw new DatabaseError('Failed to open database', error instanceof Error ? error : new Error(String(error)));
         }
@@ -109,7 +109,7 @@ export class AndroidDatabaseService extends DatabaseService {
                 throw new Error('Database appears to be empty or corrupted');
             }
 
-            this.log('info', 'Database verification passed');
+            logger.info('Database verification passed');
         } catch (error) {
             throw new DatabaseError('Database verification failed', error instanceof Error ? error : new Error(String(error)));
         }
@@ -117,7 +117,7 @@ export class AndroidDatabaseService extends DatabaseService {
 
     async cleanup(): Promise<void> {
         await super.cleanup();
-        this.log('info', 'Android database cleanup completed');
+        logger.info('Android database cleanup completed');
     }
 
     // Utility methods for database management
@@ -126,7 +126,7 @@ export class AndroidDatabaseService extends DatabaseService {
             const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
             return dbInfo.exists ? dbInfo.size || 0 : 0;
         } catch (error) {
-            this.log('warn', 'Failed to get database size:', error);
+            logger.warn( 'Failed to get database size:', error);
             return 0;
         }
     }
@@ -140,7 +140,7 @@ export class AndroidDatabaseService extends DatabaseService {
                 to: targetPath,
             });
 
-            this.log('info', `Database backed up to: ${targetPath}`);
+            logger.info(`Database backed up to: ${targetPath}`);
             return targetPath;
         } catch (error) {
             throw new DatabaseError('Failed to backup database', error instanceof Error ? error : new Error(String(error)));
