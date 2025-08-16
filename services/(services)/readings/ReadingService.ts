@@ -134,6 +134,7 @@ export class ReadingService {
     }
 
     private getDayOfWeek(date: Date) {
+        console.log(date)
         return date.getDay() + 1;
     }
 
@@ -769,8 +770,9 @@ export class ReadingService {
     }
 
     private async getTodaysTopic(dayOfWeek: number): Promise<ReadingTopic> {
-        if (typeof dayOfWeek !== 'number' || dayOfWeek < 0 || dayOfWeek > 6) {
-            throw new ValidationError(`Invalid dayOfWeek: ${dayOfWeek}. Must be a number between 0-6`);
+        console.log(dayOfWeek)
+        if (typeof dayOfWeek !== 'number' || dayOfWeek < 1 || dayOfWeek > 7) {
+            throw new ValidationError(`Invalid dayOfWeek: ${dayOfWeek}. Must be a number between 1-7`);
         }
 
         const allTopics = await readingTopicsRepository.findAll();

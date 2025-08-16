@@ -22,7 +22,7 @@ export function useHomeData() {
     const today = useMemo(() => {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    }, [new Date().toDateString()]);
+    }, [Math.floor(Date.now() / (1000 * 60 * 60 * 24))]);
 
     const taskService = useMemo(() => new TaskService(), []);
 
