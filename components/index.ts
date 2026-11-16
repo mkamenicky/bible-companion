@@ -7,10 +7,8 @@ export { default as DailyAssignmentsCard } from './tasks/DailyAssignmentsCard';
 export { default as TaskConfirmationModal } from './tasks/TaskConfirmationModal';
 export { default as WeeklyChecklistCard } from './tasks/WeeklyChecklistCard';
 
-export { default as PeriodStatsCard } from './progress/PeriodStatsCard';
 export { default as AchievementsCard } from './progress/AchievementsCard';
 export { default as ReadingStatsCard } from './progress/ReadingStatsCard';
-export { default as StreakCard } from './progress/StreakCard';
 export { default as ConsistencyCard } from './progress/ConsistencyCard';
 export { useAchievementContext, AchievementProvider, useAchievementReporter } from './progress/AchievementContext';
 export { GlobalAchievementModal} from './progress/GlobalAchievementModal';

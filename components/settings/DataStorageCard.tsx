@@ -1,11 +1,8 @@
-// DataStorageCard.tsx (Fixed - Two Separate Cards)
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useTranslation } from '@/hooks';
 
 interface DataStorageCardProps {
-    settings: any;
-    onOfflineModeToggle: (value: boolean) => void;
     onExportSettings: () => void;
     onResetSettings: () => void;
     onDatabaseBackup: () => void;
@@ -15,8 +12,6 @@ interface DataStorageCardProps {
 }
 
 export default function DataStorageCard({
-                                            settings,
-                                            onOfflineModeToggle,
                                             onExportSettings,
                                             onResetSettings,
                                             onDatabaseBackup,
@@ -111,41 +106,8 @@ export default function DataStorageCard({
                 {/* Section header */}
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>{t('settings.appSettings')}</Text>
-                    <Text style={styles.sectionSubtitle}>{t('settings.appSettingsSubtitle')}</Text>
+                    <Text style={styles.sectionSubtitle}>{t('settings.dataStorageSubtitle')}</Text>
                 </View>
-
-                {/* Offline mode toggle */}
-                <TouchableOpacity
-                    style={styles.listItem}
-                    onPress={() => onOfflineModeToggle(!settings.offlineMode)}
-                >
-                    <View style={[
-                        styles.itemIcon,
-                        { backgroundColor: settings.offlineMode ? '#e8f5e8' : '#fff3e0' }
-                    ]}>
-                        <Text style={{ fontSize: 18 }}>
-                            {settings.offlineMode ? '📱' : '🌐'}
-                        </Text>
-                    </View>
-
-                    <View style={styles.itemContent}>
-                        <Text style={styles.itemTitle}>{t('settings.offlineMode')}</Text>
-                        <Text style={styles.itemSubtitle}>
-                            {settings.offlineMode
-                                ? t('settings.offlineModeEnabled')
-                                : t('settings.offlineModeDisabled')}
-                        </Text>
-                    </View>
-
-                    <View style={[
-                        styles.checkbox,
-                        settings.offlineMode && styles.checkboxChecked
-                    ]}>
-                        {settings.offlineMode && (
-                            <Text style={styles.checkboxIcon}>✓</Text>
-                        )}
-                    </View>
-                </TouchableOpacity>
 
                 {/* Export settings */}
                 <TouchableOpacity
@@ -200,16 +162,6 @@ export default function DataStorageCard({
                         </Text>
                     </View>
                 </TouchableOpacity>
-
-                {/* Storage info */}
-                <View style={styles.progressContainer}>
-                    <View style={styles.progressHeader}>
-                        <Text style={styles.progressLabel}>{t('settings.storageStatus')}</Text>
-                        <Text style={styles.progressValue}>
-                            {settings.offlineMode ? t('settings.offlineReady') : t('settings.onlineOnly')}
-                        </Text>
-                    </View>
-                </View>
 
                 {/* Warning message for reset */}
                 <View style={{

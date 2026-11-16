@@ -21,69 +21,77 @@ const HABITS: Record<HabitId, { icon: string; labelKey: string }> = {
 };
 
 /**
- * How regularly each routine is kept: current and best streak, the share of
- * recent days/weeks it was done, and a dot per recent day/week.
+ * How regularly each routine is kept. One compact row per routine: name and
+ * current streak, below it a dot per recent day/week and the share of recent
+ * days/weeks it was done. Daily and weekly routines are listed separately,
+ * so the unit (days or weeks) is stated once per group instead of per row.
  */
 export default function ConsistencyCard({overview, styles, customColors}: Props) {
     const t = useTranslation();
     const {done, total} = overview.thisWeek;
     const weekPercentage = total > 0 ? Math.round((done / total) * 100) : 0;
 
-    const renderHabit = (habit: HabitConsistency) => {
+    const renderHabit = (habit: HabitConsistency, isLast: boolean) => {
         const {icon, labelKey} = HABITS[habit.id];
         const isDaily = habit.cadence === 'daily';
         const streakAlive = habit.currentStreak > 0;
 
         return (
-            <View key={habit.id} style={[local.row, {backgroundColor: customColors.lightGray}]}>
-                <View style={local.rowHeader}>
-                    <Text style={local.icon}>{icon}</Text>
-                    <View style={local.titleBlock}>
+            <View
+                key={habit.id}
+                style={[local.row, !isLast && {borderBottomWidth: 0.5, borderBottomColor: customColors.borderColor}]}
+            >
+                <Text style={local.icon}>{icon}</Text>
+
+                <View style={local.body}>
+                    <View style={local.line}>
                         <Text style={[local.name, {color: customColors.text}]} numberOfLines={1}>{t(labelKey)}</Text>
-                        <Text style={[local.caption, {color: customColors.subtleGray}]}>
-                            {t(isDaily ? 'progress.consistency.daily' : 'progress.consistency.weekly')}
-                        </Text>
-                    </View>
-                    <View style={local.streakBlock}>
                         <Text style={[local.streak, {color: streakAlive ? customColors.text : customColors.subtleGray}]}>
                             {streakAlive ? '🔥 ' : ''}{habit.currentStreak}
                         </Text>
-                        <Text style={[local.caption, {color: customColors.subtleGray}]}>
-                            {t('progress.consistency.best', {count: habit.bestStreak})}
+                    </View>
+
+                    <View style={[local.line, local.secondLine]}>
+                        <View style={local.dots}>
+                            {habit.recent.map((wasDone, index) => {
+                                const isCurrent = index === habit.recent.length - 1;
+                                return (
+                                    <View
+                                        key={index}
+                                        style={[
+                                            local.dot,
+                                            !isDaily && local.weekDot,
+                                            {
+                                                backgroundColor: wasDone ? customColors.completedGreen : 'transparent',
+                                                borderColor: wasDone
+                                                    ? customColors.completedGreen
+                                                    : isCurrent ? customColors.primary : customColors.borderColor,
+                                            },
+                                        ]}
+                                    />
+                                );
+                            })}
+                        </View>
+                        <Text style={[local.rate, {color: customColors.subtleGray}]}>
+                            {habit.recentWindow > 0
+                                ? t('progress.consistency.rate', {
+                                    percentage: Math.round(habit.recentRate * 100),
+                                    best: habit.bestStreak,
+                                })
+                                : t('progress.consistency.notStarted')}
                         </Text>
                     </View>
                 </View>
+            </View>
+        );
+    };
 
-                <View style={local.rowFooter}>
-                    <View style={local.dots}>
-                        {habit.recent.map((wasDone, index) => {
-                            const isCurrent = index === habit.recent.length - 1;
-                            return (
-                                <View
-                                    key={index}
-                                    style={[
-                                        local.dot,
-                                        !isDaily && local.weekDot,
-                                        {
-                                            backgroundColor: wasDone ? customColors.completedGreen : 'transparent',
-                                            borderColor: wasDone
-                                                ? customColors.completedGreen
-                                                : isCurrent ? customColors.primary : customColors.borderColor,
-                                        },
-                                    ]}
-                                />
-                            );
-                        })}
-                    </View>
-                    <Text style={[local.rate, {color: customColors.subtleGray}]}>
-                        {habit.recentWindow > 0
-                            ? t(isDaily ? 'progress.consistency.rateDays' : 'progress.consistency.rateWeeks', {
-                                percentage: Math.round(habit.recentRate * 100),
-                                count: habit.recentWindow,
-                            })
-                            : t('progress.consistency.notStarted')}
-                    </Text>
-                </View>
+    const renderGroup = (cadence: 'daily' | 'weekly', headerKey: string) => {
+        const habits = overview.habits.filter(habit => habit.cadence === cadence);
+        return (
+            <View>
+                <Text style={[local.groupHeader, {color: customColors.subtleGray}]}>{t(headerKey)}</Text>
+                {habits.map((habit, index) => renderHabit(habit, index === habits.length - 1))}
             </View>
         );
     };
@@ -108,10 +116,8 @@ export default function ConsistencyCard({overview, styles, customColors}: Props)
             </View>
 
             <View style={local.list}>
-                {overview.habits.map(renderHabit)}
-                <Text style={[local.legend, {color: customColors.subtleGray}]}>
-                    {t('progress.consistency.legend')}
-                </Text>
+                {renderGroup('daily', 'progress.consistency.dailyHeader')}
+                {renderGroup('weekly', 'progress.consistency.weeklyHeader')}
             </View>
         </View>
     );
@@ -120,66 +126,60 @@ export default function ConsistencyCard({overview, styles, customColors}: Props)
 const local = StyleSheet.create({
     list: {
         paddingHorizontal: 20,
-        paddingTop: 4,
-        paddingBottom: 16,
+        paddingBottom: 12,
+    },
+    groupHeader: {
+        fontSize: 12,
+        fontWeight: '600',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginTop: 12,
+        marginBottom: 2,
     },
     row: {
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 8,
-    },
-    rowHeader: {
         flexDirection: 'row',
         alignItems: 'center',
+        paddingVertical: 10,
     },
     icon: {
-        fontSize: 22,
-        width: 34,
+        fontSize: 20,
+        width: 32,
     },
-    titleBlock: {
+    body: {
         flex: 1,
-        marginRight: 8,
     },
-    name: {
-        fontSize: 15,
-        fontWeight: '600',
-    },
-    caption: {
-        fontSize: 12,
-        marginTop: 1,
-    },
-    streakBlock: {
-        alignItems: 'flex-end',
-    },
-    streak: {
-        fontSize: 18,
-        fontWeight: '700',
-    },
-    rowFooter: {
+    line: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: 10,
-        marginLeft: 34,
+    },
+    secondLine: {
+        marginTop: 6,
+    },
+    name: {
+        flex: 1,
+        fontSize: 15,
+        fontWeight: '600',
+        marginRight: 8,
+    },
+    streak: {
+        fontSize: 15,
+        fontWeight: '700',
     },
     dots: {
         flexDirection: 'row',
     },
     dot: {
-        width: 14,
-        height: 14,
-        borderRadius: 7,
+        width: 12,
+        height: 12,
+        borderRadius: 6,
         borderWidth: 1.5,
-        marginRight: 5,
+        marginRight: 4,
     },
     weekDot: {
-        borderRadius: 4,
+        borderRadius: 3,
     },
     rate: {
         fontSize: 12,
-    },
-    legend: {
-        fontSize: 12,
-        marginTop: 4,
     },
 });

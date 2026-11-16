@@ -64,10 +64,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
         updateSetting('fontSize', size);
     }, [updateSetting]);
 
-    const handleOfflineModeToggle = useCallback((value: boolean) => {
-        updateSetting('offlineMode', value);
-    }, [updateSetting]);
-
     const handleThemeChange = useCallback(() => {
         handleToggleDialog('changeTheme', true);
     }, [handleToggleDialog]);
@@ -171,8 +167,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
 
                 {/* Data Storage Settings */}
                 <DataStorageCard
-                    settings={settings}
-                    onOfflineModeToggle={handleOfflineModeToggle}
                     onExportSettings={handleExportData}
                     onResetSettings={resetSettings}
                     onDatabaseBackup={handleDatabaseBackup}

@@ -16,5 +16,4 @@ export interface AppSettings {
     // App preferences
     theme: 'light' | 'dark' | 'auto';
     fontSize: 'small' | 'medium' | 'large';
-    offlineMode: boolean;
 }

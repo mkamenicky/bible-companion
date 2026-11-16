@@ -35,7 +35,6 @@ const DEFAULT_SETTINGS: AppSettings = {
     reminderTime: '08:00',
     theme: 'auto',
     fontSize: 'medium',
-    offlineMode: false,
     ...DEFAULT_REMINDER_PREFERENCES,
 };
 
@@ -72,7 +71,6 @@ const VALIDATORS: Record<keyof AppSettings, (value: unknown) => boolean> = {
     goalReminderTime: isTime,
     theme: value => ['light', 'dark', 'auto'].includes(value as string),
     fontSize: value => ['small', 'medium', 'large'].includes(value as string),
-    offlineMode: isBoolean,
 };
 
 /**
@@ -124,7 +122,7 @@ export class SettingsService {
 
             if ((REMINDER_KEYS as string[]).includes(key)) {
                 await this.saveReminderPreferences(updated);
-            } else if (key !== 'offlineMode') { // offlineMode is not persisted (nothing uses it yet)
+            } else {
                 const preferences = await this.getOrCreatePreferences();
                 await readingPreferencesRepository.update({
                     id: preferences.id,

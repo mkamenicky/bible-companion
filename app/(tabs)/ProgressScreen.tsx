@@ -5,14 +5,16 @@ import {
     AchievementsCard,
     ConsistencyCard,
     LoadingScreen,
-    PeriodStatsCard,
     ReadingStatsCard,
     ScreenContainer,
-    StreakCard
 } from '@/components';
 import {useProgressData, useTranslation} from '@/hooks';
 import {ThemeService} from '@/services';
 
+/**
+ * Progress overview: Bible reading totals, then how regular the routines
+ * are, then the achievements.
+ */
 export default function ProgressScreen() {
     const t = useTranslation();
     const {stats, consistency, loading, onRefresh} = useProgressData();
@@ -41,10 +43,8 @@ export default function ProgressScreen() {
             </Appbar.Header>
 
             <ScreenContainer onRefresh={onRefresh}>
-                <StreakCard
-                    currentStreak={stats.currentStreak}
-                    longestStreak={stats.longestStreak}
-                    totalReadingDays={stats.totalReadingDays}
+                <ReadingStatsCard
+                    stats={stats}
                     styles={styles}
                     customColors={customColors}
                 />
@@ -56,21 +56,6 @@ export default function ProgressScreen() {
                         customColors={customColors}
                     />
                 )}
-
-                <ReadingStatsCard
-                    totalVersesRead={stats.totalVersesRead}
-                    chaptersCompleted={stats.chaptersCompleted}
-                    bibleProgressPercentage={stats.bibleProgressPercentage}
-                    styles={styles}
-                    customColors={customColors}
-                />
-
-                <PeriodStatsCard
-                    weeklyVersesRead={stats.weeklyVersesRead}
-                    monthlyVersesRead={stats.monthlyVersesRead}
-                    styles={styles}
-                    customColors={customColors}
-                />
 
                 <AchievementsCard
                     currentStreak={stats.currentStreak}
