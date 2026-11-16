@@ -1,229 +1,134 @@
-// @ts-ignore
-import { getDatabase } from '@/services/(services)/database/db';
-import { DatabaseMessageError, ValidationError } from '@/errors';
+import type {SQLiteBindValue} from 'expo-sqlite';
+import {getDatabase} from '@/services/(services)/database/Database';
+import {DatabaseError, ValidationError} from '@/errors';
+
+export type SqlParams = SQLiteBindValue[];
+
+/** undefined is not bindable; in the COALESCE-style updates it means "keep". */
+const toBindable = (params: unknown[]): SqlParams =>
+    params.map(value => (value === undefined ? null : value)) as SqlParams;
 
 /**
- * Abstract base repository class providing common CRUD operations
+ * Base class for table repositories: CRUD plus small query helpers.
+ * Subclasses describe their table and how rows map to entities.
  */
 export abstract class BaseRepository<T, CreateDto, UpdateDto> {
     protected abstract tableName: string;
     protected abstract primaryKeyColumn: string;
 
-    /**
-     * Formats date to ISO string (YYYY-MM-DD)
-     */
-    protected formatDate(date: Date): string {
-        return date.toISOString().split('T')[0];
-    }
+    protected abstract mapRowToEntity(row: any): T;
+
+    protected abstract getCreateSql(dto: CreateDto): { sql: string; params: unknown[] };
+
+    protected abstract getUpdateSql(dto: UpdateDto): { sql: string; params: unknown[] };
 
     /**
-     * Validates that an ID is a positive number
+     * Validates a numeric id. Zero is valid: Bible verse ids start at 0.
      */
     protected validateId(id: number, fieldName: string = 'ID'): void {
-        if (typeof id !== 'number' || id <= 0) {
-            throw new ValidationError(`${fieldName} must be a positive number`);
+        if (typeof id !== 'number' || !Number.isInteger(id) || id < 0) {
+            throw new ValidationError(`${fieldName} must be a non-negative integer`);
         }
     }
 
-    /**
-     * Validates that a string is non-empty
-     */
     protected validateString(value: string, fieldName: string): void {
         if (!value || typeof value !== 'string') {
             throw new ValidationError(`${fieldName} must be a non-empty string`);
         }
     }
 
-    /**
-     * Abstract method to map database row to entity
-     */
-    protected abstract mapRowToEntity(row: any): T;
-
-    /**
-     * Abstract method to get create SQL and parameters
-     */
-    protected abstract getCreateSql(dto: CreateDto): { sql: string; params: any[] };
-
-    /**
-     * Abstract method to get update SQL and parameters
-     */
-    protected abstract getUpdateSql(dto: UpdateDto): { sql: string; params: any[] };
-
-    /**
-     * Execute custom SQL query - exposed for complex queries in derived repositories
-     */
-    protected async executeQuery(sql: string, params: any[] = []): Promise<any[]> {
-        const db = getDatabase();
+    /** Runs a SELECT and returns all rows. */
+    protected async query<Row = any>(sql: string, params: unknown[] = []): Promise<Row[]> {
         try {
-            return await db.getAllAsync(sql, params);
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to execute query: ${sql}`, error as Error);
+            return await getDatabase().getAllAsync<Row>(sql, toBindable(params));
+        } catch (error) {
+            throw new DatabaseError(`Query failed on ${this.tableName}`, error);
         }
     }
 
-    /**
-     * Execute custom SQL query that returns a single row
-     */
-    protected async executeQueryFirst(sql: string, params: any[] = []): Promise<any | null> {
-        const db = getDatabase();
+    /** Runs a SELECT and returns the first row or null. */
+    protected async queryFirst<Row = any>(sql: string, params: unknown[] = []): Promise<Row | null> {
         try {
-            return await db.getFirstAsync(sql, params);
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to execute query: ${sql}`, error as Error);
+            return await getDatabase().getFirstAsync<Row>(sql, toBindable(params));
+        } catch (error) {
+            throw new DatabaseError(`Query failed on ${this.tableName}`, error);
         }
     }
 
-    /**
-     * Creates a new entity
-     */
+    /** Runs an INSERT/UPDATE/DELETE and returns the number of changed rows. */
+    protected async execute(sql: string, params: unknown[] = []): Promise<number> {
+        try {
+            const result = await getDatabase().runAsync(sql, toBindable(params));
+            return result.changes;
+        } catch (error) {
+            throw new DatabaseError(`Statement failed on ${this.tableName}`, error);
+        }
+    }
+
     async create(dto: CreateDto): Promise<T> {
-        const db = getDatabase();
+        const {sql, params} = this.getCreateSql(dto);
 
         try {
-            const { sql, params } = this.getCreateSql(dto);
-            const result = await db.runAsync(sql, params);
-
-            return await this.findById(result.lastInsertRowId!) as T;
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to create ${this.tableName} record`, error as Error);
+            const result = await getDatabase().runAsync(sql, toBindable(params));
+            return await this.findById(result.lastInsertRowId) as T;
+        } catch (error) {
+            if (error instanceof ValidationError) throw error;
+            throw new DatabaseError(`Failed to create ${this.tableName} record`, error);
         }
     }
 
-    /**
-     * Finds an entity by ID
-     */
     async findById(id: number): Promise<T | null> {
         this.validateId(id);
-
-        const db = getDatabase();
-
-        try {
-            const result = await db.getFirstAsync<any>(
-                `SELECT * FROM ${this.tableName} WHERE ${this.primaryKeyColumn} = ?`,
-                [id]
-            );
-
-            return result ? this.mapRowToEntity(result) : null;
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to find ${this.tableName} with ID: ${id}`, error as Error);
-        }
+        const row = await this.queryFirst(
+            `SELECT * FROM ${this.tableName} WHERE ${this.primaryKeyColumn} = ?`,
+            [id]
+        );
+        return row ? this.mapRowToEntity(row) : null;
     }
 
-    /**
-     * Finds all entities
-     */
     async findAll(orderBy?: string): Promise<T[]> {
-        const db = getDatabase();
-
-        try {
-            const orderClause = orderBy || this.primaryKeyColumn;
-            const results = await db.getAllAsync<any>(`SELECT * FROM ${this.tableName} ORDER BY ${orderClause}`);
-
-            return results.map((row: any) => this.mapRowToEntity(row));
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to retrieve all ${this.tableName} records`, error as Error);
-        }
+        const rows = await this.query(
+            `SELECT * FROM ${this.tableName} ORDER BY ${orderBy || this.primaryKeyColumn}`
+        );
+        return rows.map(row => this.mapRowToEntity(row));
     }
 
-    /**
-     * Updates an existing entity
-     */
-    async update(dto: UpdateDto): Promise<T> {
-        const db = getDatabase();
-
-        try {
-            const { sql, params } = this.getUpdateSql(dto);
-            await db.runAsync(sql, params);
-
-            // Extract ID from the update DTO - this assumes the DTO has an id property
-            const id = (dto as any).id || (dto as any)[this.primaryKeyColumn];
-            return await this.findById(id) as T;
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to update ${this.tableName} record`, error as Error);
-        }
+    /** Updates a record. The DTO must carry the primary key as `id`. */
+    async update(dto: UpdateDto & { id: number }): Promise<T> {
+        const {sql, params} = this.getUpdateSql(dto);
+        await this.execute(sql, params);
+        return await this.findById(dto.id) as T;
     }
 
-    /**
-     * Deletes an entity by ID
-     */
     async deleteById(id: number): Promise<boolean> {
         this.validateId(id);
-
-        const db = getDatabase();
-
-        try {
-            const result = await db.runAsync(`DELETE FROM ${this.tableName} WHERE ${this.primaryKeyColumn} = ?`, [id]);
-            return result.changes > 0;
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to delete ${this.tableName} with ID: ${id}`, error as Error);
-        }
+        const changes = await this.execute(
+            `DELETE FROM ${this.tableName} WHERE ${this.primaryKeyColumn} = ?`,
+            [id]
+        );
+        return changes > 0;
     }
 
-    /**
-     * Checks if an entity exists by ID
-     */
-    async existsById(id: number): Promise<boolean> {
-        this.validateId(id);
-
-        const db = getDatabase();
-
-        try {
-            const result = await db.getFirstAsync<{ count: number }>(
-                `SELECT COUNT(*) as count FROM ${this.tableName} WHERE ${this.primaryKeyColumn} = ?`,
-                [id]
-            );
-            return (result?.count ?? 0) > 0;
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to check ${this.tableName} existence with ID: ${id}`, error as Error);
-        }
-    }
-
-    /**
-     * Counts total records in the table
-     */
     async count(): Promise<number> {
-        const db = getDatabase();
-
-        try {
-            const result = await db.getFirstAsync<{ count: number }>(
-                `SELECT COUNT(*) as count FROM ${this.tableName}`
-            );
-            return result?.count ?? 0;
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to count ${this.tableName} records`, error as Error);
-        }
+        const row = await this.queryFirst<{ count: number }>(`SELECT COUNT(*) AS count FROM ${this.tableName}`);
+        return row?.count ?? 0;
     }
 
-    /**
-     * Generic find method with custom WHERE clause
-     */
-    async findWhere(whereClause: string, params: any[], orderBy?: string): Promise<T[]> {
-        const db = getDatabase();
-
-        try {
-            const orderClause = orderBy || this.primaryKeyColumn;
-            const sql = `SELECT * FROM ${this.tableName} WHERE ${whereClause} ORDER BY ${orderClause}`;
-            const results = await db.getAllAsync<any>(sql, params);
-
-            return results.map((row: any) => this.mapRowToEntity(row));
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to find ${this.tableName} records with custom WHERE clause`, error as Error);
-        }
+    /** SELECT * with a custom WHERE clause. */
+    async findWhere(whereClause: string, params: unknown[], orderBy?: string): Promise<T[]> {
+        const rows = await this.query(
+            `SELECT * FROM ${this.tableName} WHERE ${whereClause} ORDER BY ${orderBy || this.primaryKeyColumn}`,
+            params
+        );
+        return rows.map(row => this.mapRowToEntity(row));
     }
 
-    /**
-     * Generic find first method with custom WHERE clause
-     */
-    protected async findFirstWhere(whereClause: string, params: any[]): Promise<T | null> {
-        const db = getDatabase();
-
-        try {
-            const sql = `SELECT * FROM ${this.tableName} WHERE ${whereClause} LIMIT 1`;
-            const result = await db.getFirstAsync<any>(sql, params);
-
-            return result ? this.mapRowToEntity(result) : null;
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to find first ${this.tableName} record with custom WHERE clause`, error as Error);
-        }
+    /** First row matching a custom WHERE clause, or null. */
+    async findFirstWhere(whereClause: string, params: unknown[], orderBy?: string): Promise<T | null> {
+        const row = await this.queryFirst(
+            `SELECT * FROM ${this.tableName} WHERE ${whereClause} ORDER BY ${orderBy || this.primaryKeyColumn} LIMIT 1`,
+            params
+        );
+        return row ? this.mapRowToEntity(row) : null;
     }
 }

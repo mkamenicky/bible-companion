@@ -1,26 +1,26 @@
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
-import {logger} from "@/utils/(utils)/logger";
+import {Linking, Platform} from 'react-native';
+import {localizationService} from '@/services/(services)/localization/localization.service';
+import {progressService} from '@/services/(services)/progress/ProgressService';
+import {settingsService} from '@/services/(services)/settings/SettingsService';
+import {
+    buildDailyReminder,
+    buildGoalReminder,
+    buildStreakReminder,
+    ReminderProgress,
+    ReminderText
+} from '@/services/(services)/notifications/reminderContent';
+import {addDays, parseTime, startOfDay, toLocalDateString} from '@/utils/(utils)/date.utils';
+import {logger} from '@/utils/(utils)/logger';
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowBanner: true,
-        shouldShowList: false,
-        shouldShowAlert: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
     }),
 });
-
-export interface NotificationSchedule {
-    id: string;
-    title: string;
-    message: string;
-    time: string;
-    enabled: boolean;
-    type?: 'daily_reminder' | 'streak_reminder' | 'goal_reminder';
-    metadata?: Record<string, unknown>;
-}
 
 export interface NotificationPermissionStatus {
     granted: boolean;
@@ -28,257 +28,72 @@ export interface NotificationPermissionStatus {
     status: Notifications.PermissionStatus;
 }
 
-export interface UserData {
-    currentStreak: number;
-    dailyGoal: number;
-    todayProgress: number;
-}
+const REMINDER_CHANNEL_ID = 'bible-reading-reminders';
+const DAILY_REMINDER_ID = 'daily_bible_reading';
 
-export interface NotificationSettings {
-    notifications: boolean;
-    dailyReminder: boolean;
-    streakReminder: boolean;
-    goalReminder: boolean;
-    achievementNotifications: boolean;
-    reminderTime: string;
-    streakReminderTime: string;
-    goalReminderTime: string;
-}
+/**
+ * Goal and streak reminders are scheduled individually for this many days
+ * ahead (see reminderContent.ts for why). Opening the app renews them.
+ */
+const DAYS_SCHEDULED_AHEAD = 7;
 
-export type NotificationType = 'dailyReminder' | 'streakReminder' | 'goalReminder' | 'achievementNotifications';
-
+/**
+ * Local reminder notifications.
+ *
+ * `syncReminders()` is the single entry point that brings the scheduled
+ * notifications in line with the current settings *and* the current reading
+ * progress. It is called on app start, when the app returns to the
+ * foreground, after every progress change and after every settings change.
+ */
 export class NotificationService {
-    private initialized = false;
-    private permissionStatus: NotificationPermissionStatus | null = null;
+    private channelReady = false;
+    private syncQueue: Promise<void> = Promise.resolve();
 
-    private readonly CHANNELS = {
-        REMINDERS: 'bible-reading-reminders',
-        ACHIEVEMENTS: 'bible-reading-achievements',
-        GENERAL: 'bible-reading-general',
-    } as const;
-
-    private readonly NOTIFICATION_IDS = {
-        dailyReminder: 'daily_bible_reading',
-        streakReminder: 'streak_reminder',
-        goalReminder: 'goal_reminder',
-        achievementNotifications: 'achievement_notifications',
-    } as const;
-
-    async initialize(): Promise<boolean> {
-        if (this.initialized) return true;
+    /** Asks for notification permission if needed. Returns whether it is granted. */
+    async requestPermission(): Promise<boolean> {
         try {
-            const hasPermission = await this.requestPermissions();
-            if (hasPermission) {
-                await this.setupNotificationChannels();
-                this.initialized = true;
-                return true;
-            }
-            return false;
+            const current = await Notifications.getPermissionsAsync();
+            if (current.granted) return true;
+            if (!current.canAskAgain) return false;
+
+            const requested = await Notifications.requestPermissionsAsync({
+                ios: {allowAlert: true, allowBadge: false, allowSound: true},
+            });
+            return requested.granted;
         } catch (error) {
-            logger.error('Failed to initialize notifications:', error);
+            logger.error('Failed to request notification permission', error);
             return false;
         }
     }
 
     async getPermissionStatus(): Promise<NotificationPermissionStatus> {
         try {
-            const { status, canAskAgain, granted } = await Notifications.getPermissionsAsync();
-            this.permissionStatus = { granted, canAskAgain, status };
-            return this.permissionStatus;
+            const {status, canAskAgain, granted} = await Notifications.getPermissionsAsync();
+            return {granted, canAskAgain, status};
         } catch {
-            return { granted: false, canAskAgain: true, status: Notifications.PermissionStatus.UNDETERMINED };
+            return {granted: false, canAskAgain: true, status: Notifications.PermissionStatus.UNDETERMINED};
         }
     }
 
-    private async requestPermissions(): Promise<boolean> {
-        const { status, canAskAgain, granted } = await Notifications.getPermissionsAsync();
-        this.permissionStatus = { granted, canAskAgain, status };
-
-        if (status !== 'granted' && canAskAgain) {
-            const { status: newStatus, canAskAgain: newCanAskAgain, granted: newGranted } =
-                await Notifications.requestPermissionsAsync({
-                    ios: { allowAlert: true, allowBadge: true, allowSound: true },
-                });
-            this.permissionStatus = { granted: newGranted, canAskAgain: newCanAskAgain, status: newStatus };
-            return newStatus === 'granted';
-        }
-        return granted;
-    }
-
-    private async setupNotificationChannels(): Promise<void> {
-        if (Platform.OS !== 'android') return;
-
-        const channels = [
-            {
-                id: this.CHANNELS.REMINDERS,
-                name: 'Daily Reading Reminders',
-                description: 'Notifications to remind you of your daily Bible reading',
-                importance: Notifications.AndroidImportance.HIGH,
-                vibrationPattern: [0, 250, 250, 250],
-                lightColor: '#4F46E5',
-            },
-            {
-                id: this.CHANNELS.ACHIEVEMENTS,
-                name: 'Reading Achievements',
-                description: 'Celebrate your reading milestones and streaks',
-                importance: Notifications.AndroidImportance.DEFAULT,
-                vibrationPattern: [0, 150, 150, 150],
-                lightColor: '#10B981',
-            },
-            {
-                id: this.CHANNELS.GENERAL,
-                name: 'General Notifications',
-                description: 'App updates and general information',
-                importance: Notifications.AndroidImportance.DEFAULT,
-            },
-        ];
-
-        await Promise.all(
-            channels.map(channel => Notifications.setNotificationChannelAsync(channel.id, channel))
-        );
-    }
-
-    async scheduleSmartReminders(settings: NotificationSettings, userdata: UserData): Promise<void> {
-        if (!await this.ensureInitialized()) return;
-
-        if (!settings.notifications) {
-            await this.cancelAllNotifications();
-            return;
-        }
-
-        await this.clearAllScheduledReminders();
-
-        const types: NotificationType[] = ['dailyReminder', 'streakReminder', 'goalReminder', 'achievementNotifications'];
-        await Promise.all(
-            types
-                .filter(type => settings[type])
-                .map(type => this.scheduleSpecificNotification(type, settings, userdata))
-        );
-    }
-
-    async scheduleSpecificNotification(type: NotificationType, settings: NotificationSettings, userdata: UserData): Promise<boolean> {
-        if (!await this.ensureInitialized()) return false;
-
-        // Helper function to get streak reminder content
-        const getStreakReminderContent = () => {
-            if (userdata.currentStreak === 0) {
-                return {
-                    title: 'Start Your Reading Streak!',
-                    message: 'Begin building a daily Bible reading habit. Every journey starts with a single step!'
-                };
-            } else if (userdata.currentStreak === 1) {
-                return {
-                    title: 'Keep Going!',
-                    message: 'You started yesterday! Keep your momentum going with day 2 of reading.'
-                };
-            } else if (userdata.currentStreak < 7) {
-                return {
-                    title: 'Build Your Streak!',
-                    message: `You're on day ${userdata.currentStreak}! Keep building your reading habit.`
-                };
-            } else {
-                return {
-                    title: 'Protect Your Streak!',
-                    message: `Amazing ${userdata.currentStreak}-day streak! Don't break it now.`
-                };
-            }
-        };
-
-        const streakContent = getStreakReminderContent();
-
-        const schedules = {
-            dailyReminder: {
-                id: this.NOTIFICATION_IDS.dailyReminder,
-                title: 'Daily Bible Reading',
-                message: `Time to read your ${userdata.dailyGoal} verses today!`,
-                time: settings.reminderTime || '08:00',
-                enabled: true,
-                type: 'daily_reminder' as const,
-            },
-            streakReminder: {
-                id: this.NOTIFICATION_IDS.streakReminder,
-                title: streakContent.title,
-                message: streakContent.message,
-                time: settings.streakReminderTime || '20:00',
-                enabled: true,
-                type: 'streak_reminder' as const,
-            },
-            goalReminder: {
-                id: this.NOTIFICATION_IDS.goalReminder,
-                title: 'Daily Goal Check',
-                message: userdata.todayProgress >= userdata.dailyGoal 
-                    ? `Great job! You've completed your daily goal of ${userdata.dailyGoal} verses! 🎉`
-                    : `You've read ${userdata.todayProgress}/${userdata.dailyGoal} verses today. You're getting there!`,
-                time: settings.goalReminderTime || '18:00',
-                enabled: true,
-                type: 'goal_reminder' as const,
-            },
-            achievementNotifications: null, // Immediate notifications only
-        };
-
-        const schedule = schedules[type];
-        if (!schedule) return true; // Achievement notifications are handled elsewhere
-
-        return this.scheduleDailyReminder(schedule);
-    }
-
-    async cancelSpecificNotification(type: NotificationType): Promise<boolean> {
-        if (type === 'achievementNotifications') return true;
-
-        const notificationId = this.NOTIFICATION_IDS[type];
-        return this.cancelNotification(notificationId);
-    }
-
-    private async scheduleDailyReminder(schedule: NotificationSchedule): Promise<boolean> {
-        if (!schedule.enabled) {
-            await this.cancelNotification(schedule.id);
-            return true;
-        }
-
-        await this.cancelNotification(schedule.id);
-        const [hour, minute] = schedule.time.split(':').map(Number);
-
-        if (isNaN(hour) || isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-            throw new Error(`Invalid time format: ${schedule.time}`);
-        }
-
-        const data: Record<string, unknown> = {
-            type: schedule.type,
-            id: schedule.id,
-            scheduledTime: schedule.time,
-            ...(schedule.metadata || {}),
-        };
-
-        const identifier = await Notifications.scheduleNotificationAsync({
-            identifier: schedule.id,
-            content: {
-                title: schedule.title,
-                body: schedule.message,
-                sound: 'default',
-                data,
-            },
-            trigger: {
-                type: Notifications.SchedulableTriggerInputTypes.DAILY,
-                hour,
-                minute,
-                channelId: this.CHANNELS.REMINDERS,
-            },
-        });
-
-        return Boolean(identifier);
-    }
-
-    private async ensureInitialized(): Promise<boolean> {
-        return this.initialized || await this.initialize();
-    }
-
-    async clearAllScheduledReminders(): Promise<void> {
-        const scheduled = await this.getScheduledNotifications();
-        await Promise.all(scheduled.map(n => Notifications.cancelScheduledNotificationAsync(n.identifier)));
+    /**
+     * Reschedules all reminders from the current settings and progress.
+     * Never prompts for permission; without permission nothing is scheduled.
+     * Calls are queued so that two syncs cannot interleave.
+     */
+    syncReminders(): Promise<void> {
+        this.syncQueue = this.syncQueue
+            .then(() => this.rescheduleAll())
+            .catch(error => logger.error('Failed to sync reminders', error));
+        return this.syncQueue;
     }
 
     async getScheduledNotifications(): Promise<Notifications.NotificationRequest[]> {
-        return Notifications.getAllScheduledNotificationsAsync();
+        try {
+            return await Notifications.getAllScheduledNotificationsAsync();
+        } catch (error) {
+            logger.warn('Failed to read scheduled notifications', error);
+            return [];
+        }
     }
 
     async cancelAllNotifications(): Promise<boolean> {
@@ -290,48 +105,128 @@ export class NotificationService {
         }
     }
 
-    async cancelNotification(notificationId: string): Promise<boolean> {
+    async sendImmediateNotification(title: string, body: string, data: Record<string, unknown> = {}): Promise<boolean> {
         try {
-            await Notifications.cancelScheduledNotificationAsync(notificationId);
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
-    async sendImmediateNotification(title: string, body: string, data?: Record<string, unknown>): Promise<boolean> {
-        try {
+            await this.ensureChannel();
             await Notifications.scheduleNotificationAsync({
-                content: { title, body, data: data ?? {}, sound: 'default' },
-                trigger: null,
+                content: {title, body, data, sound: 'default'},
+                trigger: Platform.OS === 'android' ? {channelId: REMINDER_CHANNEL_ID} : null,
             });
             return true;
-        } catch {
+        } catch (error) {
+            logger.warn('Failed to send notification', error);
             return false;
         }
     }
 
-    async sendReadingCompletionNotification(versesRead: number, dailyGoal: number, achievement?: string): Promise<boolean> {
-        const message = achievement
-            ? `Great job! You read ${versesRead} verses and unlocked: ${achievement}!`
-            : `Excellent! You've read ${versesRead}/${dailyGoal} verses today.`;
+    /** Opens the system settings page of the app. */
+    openNotificationSettings(): void {
+        Linking.openSettings().catch(error => logger.warn('Could not open settings', error));
+    }
 
-        return this.sendImmediateNotification('Reading Complete!', message, {
-            versesRead, dailyGoal, achievement, type: 'reading_complete'
+    // ---------------------------------------------------------------------
+
+    private async rescheduleAll(): Promise<void> {
+        if (Platform.OS === 'web') return;
+
+        const [settings, permission] = await Promise.all([
+            settingsService.getSettings(),
+            Notifications.getPermissionsAsync(),
+        ]);
+
+        // Start from a clean slate; this app is the only source of scheduled
+        // notifications, so nothing else can get lost.
+        await Notifications.cancelAllScheduledNotificationsAsync();
+
+        if (!settings.notifications || !permission.granted) return;
+        if (!settings.dailyReminder && !settings.goalReminder && !settings.streakReminder) return;
+
+        await this.ensureChannel();
+
+        const progress = await this.loadProgress();
+        const t = (key: string, options?: Record<string, unknown>) => localizationService.t(key, options);
+
+        if (settings.dailyReminder) {
+            await this.scheduleRepeatingDaily(DAILY_REMINDER_ID, settings.reminderTime, buildDailyReminder(progress, t));
+        }
+
+        for (let dayOffset = 0; dayOffset < DAYS_SCHEDULED_AHEAD; dayOffset++) {
+            if (settings.goalReminder) {
+                await this.scheduleOnDay('goal_reminder', dayOffset, settings.goalReminderTime,
+                    buildGoalReminder(dayOffset, progress, t));
+            }
+            if (settings.streakReminder) {
+                await this.scheduleOnDay('streak_reminder', dayOffset, settings.streakReminderTime,
+                    buildStreakReminder(dayOffset, progress, t));
+            }
+        }
+    }
+
+    private async loadProgress(): Promise<ReminderProgress> {
+        const [periods, streak, dailyVerseGoal] = await Promise.all([
+            progressService.getPeriodStats(),
+            progressService.getStreak(),
+            settingsService.getDailyVerseGoal(),
+        ]);
+
+        return {
+            versesReadToday: periods.today,
+            dailyVerseGoal,
+            currentStreak: streak.currentStreak,
+            readToday: streak.readToday,
+        };
+    }
+
+    private async scheduleRepeatingDaily(identifier: string, time: string, text: ReminderText): Promise<void> {
+        const parsed = parseTime(time);
+        if (!parsed) {
+            logger.warn(`Skipping reminder with invalid time "${time}"`);
+            return;
+        }
+
+        await Notifications.scheduleNotificationAsync({
+            identifier,
+            content: {title: text.title, body: text.body, sound: 'default', data: {type: identifier}},
+            trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DAILY,
+                hour: parsed.hour,
+                minute: parsed.minute,
+                channelId: REMINDER_CHANNEL_ID,
+            },
         });
     }
 
-    async sendStreakMilestoneNotification(streakDays: number): Promise<boolean> {
-        return this.sendImmediateNotification(
-            'Streak Milestone!',
-            `Amazing! You've reached a ${streakDays}-day reading streak!`,
-            { streakDays, type: 'streak_milestone' }
-        );
+    /** Schedules a one-off notification `dayOffset` days from today at `time`. */
+    private async scheduleOnDay(type: string, dayOffset: number, time: string, text: ReminderText | null): Promise<void> {
+        const parsed = parseTime(time);
+        if (!text || !parsed) return;
+
+        const fireAt = addDays(startOfDay(), dayOffset);
+        fireAt.setHours(parsed.hour, parsed.minute, 0, 0);
+        if (fireAt.getTime() <= Date.now()) return; // today's time has already passed
+
+        await Notifications.scheduleNotificationAsync({
+            identifier: `${type}_${toLocalDateString(fireAt)}`,
+            content: {title: text.title, body: text.body, sound: 'default', data: {type}},
+            trigger: {
+                type: Notifications.SchedulableTriggerInputTypes.DATE,
+                date: fireAt,
+                channelId: REMINDER_CHANNEL_ID,
+            },
+        });
     }
 
-    openNotificationSettings(): void {
-        // Platform-specific implementation would go here
-        logger.debug('Opening notification settings...');
+    private async ensureChannel(): Promise<void> {
+        if (Platform.OS !== 'android' || this.channelReady) return;
+
+        await Notifications.setNotificationChannelAsync(REMINDER_CHANNEL_ID, {
+            name: 'Daily Reading Reminders',
+            description: 'Notifications to remind you of your daily Bible reading',
+            importance: Notifications.AndroidImportance.HIGH,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#4F46E5',
+        });
+        this.channelReady = true;
     }
 }
 

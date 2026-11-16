@@ -1,21 +1,24 @@
+import {useCallback, useEffect, useMemo, useState} from 'react';
+import {AppState, useColorScheme} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {MD3DarkTheme, MD3LightTheme, PaperProvider} from 'react-native-paper';
 import {useFonts} from 'expo-font';
+import {SplashScreen, Stack} from 'expo-router';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 
-// @ts-ignore
-import {initDatabase} from '@/services/(services)/database/db';
-import {useColorScheme} from "react-native";
-import {ThemeService} from "@/services/(services)/theme/ThemeService";
-import {useThemeInitializer} from "@/components/theme/ThemeSelector";
-import { localizationService } from '@/services';
-import {SplashScreen, Stack} from "expo-router";
-import FontAwesome from "@expo/vector-icons/FontAwesome";
-import {useCallback, useEffect, useMemo, useState} from "react";
-
-// NEW: Import AchievementProvider and GlobalAchievementModal
-import { AchievementProvider } from '@/components/progress/AchievementContext';
-import { GlobalAchievementModal } from '@/components';
-import { logger } from "@/utils/(utils)/logger";
+import {
+    initDatabase,
+    localizationService,
+    notificationService,
+    progressService,
+    resetDatabase,
+    ThemeService,
+} from '@/services';
+import {useThemeInitializer} from '@/components/theme/ThemeSelector';
+import {AchievementProvider} from '@/components/progress/AchievementContext';
+import {GlobalAchievementModal} from '@/components/progress/GlobalAchievementModal';
+import StartupErrorScreen from '@/components/StartupErrorScreen';
+import {logger} from '@/utils/(utils)/logger';
 
 export {ErrorBoundary} from 'expo-router';
 
@@ -23,56 +26,109 @@ export const unstable_settings = {
     initialRouteName: '(tabs)',
 };
 
-// Prevent auto-hiding the splash screen before fonts, DB, and localization are ready
+// Keep the splash screen up until fonts, localization and database are ready.
 SplashScreen.preventAutoHideAsync();
 
+type StartupState =
+    | { status: 'loading' }
+    | { status: 'ready' }
+    | { status: 'error'; details: string };
+
+/** Marking several verses in a row should trigger one reminder sync, not many. */
+const REMINDER_SYNC_DELAY_MS = 800;
+
 export default function RootLayout() {
-    const [loaded, error] = useFonts({
+    const [fontsLoaded, fontError] = useFonts({
         SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
         ...FontAwesome.font,
     });
-
-    const [dbReady, setDbReady] = useState(false);
-    const [localizationReady, setLocalizationReady] = useState(false);
+    const [startup, setStartup] = useState<StartupState>({status: 'loading'});
 
     useEffect(() => {
-        if (error) throw error;
-    }, [error]);
+        if (fontError) throw fontError;
+    }, [fontError]);
 
-    const prepare = useCallback(async () => {
+    const start = useCallback(async () => {
+        // Localization first and independent of the database, so that the
+        // error screen below can be shown in the user's language.
+        await localizationService.initialize();
+
         try {
             await initDatabase();
-            logger.debug('✅ Database initialized successfully');
-            setDbReady(true);
-
-            await localizationService.initialize();
-            logger.debug('✅ Localization initialized successfully');
-            setLocalizationReady(true);
-        } catch (err) {
-            logger.error('❌ Error during initialization:', err);
-            // Set to true anyway to prevent infinite loading
-            setDbReady(true);
-            setLocalizationReady(true);
-        } finally {
-            if (loaded) await SplashScreen.hideAsync();
+            setStartup({status: 'ready'});
+        } catch (error) {
+            logger.error('Startup failed', error);
+            setStartup({status: 'error', details: error instanceof Error ? error.message : String(error)});
         }
-    }, [loaded]);
+    }, []);
+
+    const resetAndStart = useCallback(async () => {
+        try {
+            await resetDatabase();
+            setStartup({status: 'ready'});
+        } catch (error) {
+            logger.error('Database reset failed', error);
+            setStartup({status: 'error', details: error instanceof Error ? error.message : String(error)});
+        }
+    }, []);
 
     useEffect(() => {
-        if (loaded && (!dbReady || !localizationReady)) {
-            prepare();
-        }
-    }, [loaded, dbReady, localizationReady, prepare]);
+        start();
+    }, [start]);
 
-    // ❗ Don't render anything until everything is ready
-    if (!loaded || !dbReady || !localizationReady) return null;
+    useEffect(() => {
+        if (fontsLoaded && startup.status !== 'loading') {
+            SplashScreen.hideAsync().catch(() => undefined);
+        }
+    }, [fontsLoaded, startup.status]);
+
+    if (!fontsLoaded || startup.status === 'loading') return null;
+
+    if (startup.status === 'error') {
+        return <StartupErrorScreen details={startup.details} onRetry={start} onReset={resetAndStart}/>;
+    }
 
     return <RootLayoutNav/>;
+}
+
+/**
+ * Keeps the scheduled reminders in line with the real reading progress: on
+ * start, whenever the app returns to the foreground (which also covers a new
+ * day), after reading was marked and after a language change.
+ */
+function useReminderSync() {
+    useEffect(() => {
+        let timer: ReturnType<typeof setTimeout> | null = null;
+
+        const syncSoon = () => {
+            if (timer) clearTimeout(timer);
+            timer = setTimeout(() => {
+                timer = null;
+                notificationService.syncReminders();
+            }, REMINDER_SYNC_DELAY_MS);
+        };
+
+        notificationService.syncReminders();
+
+        const appStateSubscription = AppState.addEventListener('change', state => {
+            if (state === 'active') syncSoon();
+        });
+        const removeProgressListener = progressService.addChangeListener(syncSoon);
+        const removeLanguageListener = localizationService.addLanguageChangeListener(syncSoon);
+
+        return () => {
+            if (timer) clearTimeout(timer);
+            appStateSubscription.remove();
+            removeProgressListener();
+            removeLanguageListener();
+        };
+    }, []);
 }
 
 function RootLayoutNav() {
     const colorScheme = useColorScheme();
     useThemeInitializer();
+    useReminderSync();
 
     const theme = useMemo(() => {
         const baseTheme = colorScheme === 'dark' ? MD3DarkTheme : MD3LightTheme;
@@ -88,10 +144,9 @@ function RootLayoutNav() {
     return (
         <SafeAreaProvider>
             <PaperProvider theme={theme}>
-                {/* NEW: Wrap everything in AchievementProvider */}
                 <AchievementProvider>
                     <Stack screenOptions={{headerShown: false}}/>
-                    <GlobalAchievementModal />
+                    <GlobalAchievementModal/>
                 </AchievementProvider>
             </PaperProvider>
         </SafeAreaProvider>

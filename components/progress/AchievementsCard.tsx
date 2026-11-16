@@ -14,7 +14,6 @@ interface Props {
     chaptersCompleted: number;
     styles: any;
     customColors: ThemeColors;
-    userId?: number;
     onAchievementUnlocked?: (events: AchievementUnlockEvent[]) => void;
 }
 
@@ -32,11 +31,10 @@ export default function AchievementsCard({
                                              chaptersCompleted,
                                              styles,
                                              customColors,
-                                             userId = 1,
                                              onAchievementUnlocked
                                          }: Props) {
     const { t, translateAchievement } = useLocalization();
-    const { addAchievementEvents } = useAchievementContext(); // NEW: Use context
+    const { addAchievementEvents } = useAchievementContext();
 
     const [achievements, setAchievements] = useState<Achievement[]>([]);
     const [achievementStats, setAchievementStats] = useState<{
@@ -55,7 +53,7 @@ export default function AchievementsCard({
     const loadAchievements = useCallback(async () => {
         try {
             // Update progress and get any newly unlocked achievements
-            const unlockedEvents = await progressService.updateAchievementProgressFromDatabase(userId);
+            const unlockedEvents = await progressService.updateAchievementProgress();
 
             // NEW: Add events to global context
             if (unlockedEvents.length > 0) {
@@ -69,8 +67,8 @@ export default function AchievementsCard({
 
             // Fetch updated achievements and stats in parallel
             const [achievementData, statsData] = await Promise.all([
-                progressService.getAchievements(userId),
-                progressService.getAchievementStats(userId)
+                progressService.getAchievements(),
+                progressService.getAchievementStats()
             ]);
 
             setAchievements(achievementData);
@@ -86,7 +84,7 @@ export default function AchievementsCard({
             setAchievementStats(null);
             setCategorizedAchievements([]);
         }
-    }, [userId, addAchievementEvents, onAchievementUnlocked]);
+    }, [addAchievementEvents, onAchievementUnlocked]);
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -102,7 +100,8 @@ export default function AchievementsCard({
         };
 
         initializeAchievements();
-    }, [loadAchievements]);
+        // Reload when the underlying numbers change (e.g. after marking verses).
+    }, [loadAchievements, currentStreak, totalVersesRead, chaptersCompleted]);
 
     const organizeByCategoryWithProgress = (achievementList: Achievement[]): CategoryData[] => {
         const categoryMap = new Map<string, CategoryData>();
@@ -117,6 +116,10 @@ export default function AchievementsCard({
                 icon: '🗺️',
                 color: customColors.success
             },
+            daily_text: {name: t('progress.achievements.categories.dailyText'), icon: '📅', color: customColors.warning},
+            family: {name: t('progress.achievements.categories.family'), icon: '👨‍👩‍👧‍👦', color: customColors.success},
+            meetings: {name: t('progress.achievements.categories.meetings'), icon: '⛪', color: customColors.info},
+            consistency: {name: t('progress.achievements.categories.consistency'), icon: '✅', color: customColors.primary},
             seasonal: {name: t('progress.achievements.categories.seasonal'), icon: '🎄', color: customColors.secondary},
             general: {name: t('progress.achievements.categories.general'), icon: '🏆', color: customColors.primary}
         };
@@ -147,7 +150,7 @@ export default function AchievementsCard({
             .filter(category => category.achievements.length > 0) // Only show categories with achievements
             .sort((a, b) => {
                 // Custom sort order for categories
-                const order = ['milestone', 'streak', 'reading', 'exploration', 'seasonal', 'general'];
+                const order = ['milestone', 'streak', 'reading', 'exploration', 'consistency', 'daily_text', 'family', 'meetings', 'seasonal', 'general'];
                 return order.indexOf(a.id) - order.indexOf(b.id);
             });
     };
@@ -167,16 +170,17 @@ export default function AchievementsCard({
         return (
             <TouchableOpacity
                 key={achievement.id}
+                // Same look as the tiles of the "Reading Activity" card: an
+                // inset, rounded box per achievement, locked or unlocked.
                 style={{
                     flexDirection: 'row',
                     alignItems: 'center',
-                    paddingVertical: 12,
-                    paddingHorizontal: isInModal ? 16 : 20,
-                    borderBottomWidth: index < (getFilteredAchievements().length - 1) ? 0.5 : 0,
-                    borderBottomColor: customColors.borderColor,
-                    backgroundColor: isCompleted ? customColors.lightGray : 'transparent',
-                    borderRadius: isCompleted ? 8 : 0,
-                    marginVertical: isCompleted ? 2 : 0,
+                    padding: 12,
+                    marginHorizontal: isInModal ? 16 : 20,
+                    marginBottom: 8,
+                    borderRadius: 12,
+                    backgroundColor: customColors.lightGray,
+                    opacity: isCompleted ? 1 : 0.85,
                 }}
                 onPress={() => {
                     if (isCompleted && achievement.unlockedAt) {
@@ -193,20 +197,15 @@ export default function AchievementsCard({
                     width: 48,
                     height: 48,
                     borderRadius: 24,
-                    backgroundColor: isCompleted ? customColors.success : customColors.lightGray,
+                    backgroundColor: isCompleted ? customColors.success : customColors.cardBackground,
                     justifyContent: 'center',
                     alignItems: 'center',
                     marginRight: 12,
                     borderWidth: 2,
                     borderColor: isCompleted ? customColors.success : customColors.borderColor,
-                    shadowColor: isCompleted ? customColors.success : 'transparent',
-                    shadowOffset: {width: 0, height: 2},
-                    shadowOpacity: isCompleted ? 0.3 : 0,
-                    shadowRadius: 4,
-                    elevation: isCompleted ? 4 : 0,
                 }}>
                     <Text style={{fontSize: 20}}>
-                        {isCompleted ? achievement.icon : '🔒'}
+                        {achievement.icon}
                     </Text>
                 </View>
 
@@ -257,7 +256,8 @@ export default function AchievementsCard({
                         <View style={{
                             flex: 1,
                             height: 6,
-                            backgroundColor: customColors.lightGray,
+                            // The row itself is lightGray, so the track needs its own shade.
+                            backgroundColor: customColors.borderColor,
                             borderRadius: 3,
                             marginRight: 8,
                             overflow: 'hidden',
@@ -351,7 +351,16 @@ export default function AchievementsCard({
         );
     }
 
-    const displayAchievements = getFilteredAchievements().slice(0, 3);
+    // The card shows what can be earned next: the locked achievements that
+    // are closest to their target. (It used to show the first three of the
+    // list, which were the ones unlocked long ago.) When everything is
+    // unlocked, the most recently unlocked ones are shown instead.
+    const locked = achievements
+        .filter(achievement => !achievement.unlocked)
+        .sort((a, b) => (b.progress / b.targetValue) - (a.progress / a.targetValue) || a.sortOrder - b.sortOrder);
+    const displayAchievements = locked.length > 0
+        ? locked.slice(0, 3)
+        : [...achievements].sort((a, b) => (b.unlockedAt ?? '').localeCompare(a.unlockedAt ?? '')).slice(0, 3);
 
     return (
         <>
@@ -370,7 +379,18 @@ export default function AchievementsCard({
                     </Text>
                 </View>
 
-                <View style={{paddingBottom: 20}}>
+                <View style={{paddingTop: 12, paddingBottom: 20}}>
+                    {locked.length > 0 && (
+                        <Text style={{
+                            fontSize: 13,
+                            fontWeight: '600',
+                            color: customColors.subtleGray,
+                            marginHorizontal: 20,
+                            marginBottom: 8,
+                        }}>
+                            {t('progress.achievements.upNext')}
+                        </Text>
+                    )}
                     {displayAchievements.map((achievement, index) =>
                         renderAchievementItem(achievement, index, false)
                     )}
@@ -381,7 +401,8 @@ export default function AchievementsCard({
                                 paddingVertical: 12,
                                 alignItems: 'center',
                                 marginHorizontal: 20,
-                                borderRadius: 8,
+                                marginTop: 4,
+                                borderRadius: 12,
                                 backgroundColor: customColors.lightGray,
                                 borderWidth: 1,
                                 borderColor: customColors.borderColor,

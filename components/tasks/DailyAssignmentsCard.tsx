@@ -14,6 +14,13 @@ interface Props {
     customColors?: any;
 }
 
+/** "Matthew 5:1-10", "Matthew 5:3" for a single verse, or just the title as fallback. */
+function formatReference(title: string, assignment: EnhancedDailyReadingAssignment): string {
+    const {chapter_number: chapter, start_verse_title: start, end_verse_title: end} = assignment;
+    if (chapter === undefined || !start || !end) return title;
+    return start === end ? `${title} ${chapter}:${start}` : `${title} ${chapter}:${start}-${end}`;
+}
+
 export default function DailyAssignmentsCard({
                                                  dailyReadingAssignments,
                                                  onToggle,
@@ -94,7 +101,7 @@ export default function DailyAssignmentsCard({
                                             color: customColors?.subtleGray || '#8e8e8e'
                                         }
                                     ]}>
-                                        {localizedTitle} {assignment.chapter_number}:{assignment.start_verse_title}-{item.end_verse_title}
+                                        {formatReference(localizedTitle, assignment)}
                                     </Text>
                                     {/* Add additional info if available */}
                                     {item.verses_in_range && (

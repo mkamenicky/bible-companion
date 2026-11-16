@@ -33,7 +33,6 @@ interface NotificationSettingsCardProps {
     onShowTimePicker: () => void;
     onShowStreakTimePicker: () => void;
     onShowGoalTimePicker: () => void;
-    onCancelAllNotifications: () => void;
     styles: any;
     customColors: any;
 }
@@ -62,7 +61,6 @@ export default function NotificationSettingsCard({
                                                      onShowTimePicker,
                                                      onShowStreakTimePicker,
                                                      onShowGoalTimePicker,
-                                                     onCancelAllNotifications,
                                                      styles,
                                                      customColors,
                                                  }: NotificationSettingsCardProps) {

@@ -69,6 +69,43 @@ export class TasksRepository extends BaseRepository<Task, CreateTaskDto, UpdateT
         return super.findAll('date DESC, task_name');
     }
 
+
+    /** All tasks stored for one day (YYYY-MM-DD). */
+    async findByDate(date: string): Promise<Task[]> {
+        this.validateString(date, 'date');
+        return this.findWhere('date = ?', [date], 'task_name');
+    }
+
+    /** Creates the task or updates its done-state (date + name are unique). */
+    async upsert(date: string, taskName: string, isDone: boolean): Promise<void> {
+        this.validateInput({date, task_name: taskName});
+        await this.execute(
+            `INSERT INTO tasks (date, task_name, is_done)
+             VALUES (?, ?, ?)
+             ON CONFLICT (date, task_name) DO UPDATE SET is_done = excluded.is_done`,
+            [date, taskName, isDone ? 1 : 0]
+        );
+    }
+
+    /** Days (YYYY-MM-DD, ascending) on which a daily task was done. */
+    async findCompletedDates(taskName: string): Promise<string[]> {
+        const rows = await this.query<{ date: string }>(
+            'SELECT DISTINCT date FROM tasks WHERE is_done = 1 AND task_name = ? ORDER BY date',
+            [taskName]
+        );
+        return rows.map(row => row.date);
+    }
+
+    /** Mondays (YYYY-MM-DD, ascending) of the weeks in which a weekly task was done. */
+    async findCompletedWeeks(taskName: string): Promise<string[]> {
+        const rows = await this.query<{ date: string }>(
+            `SELECT DISTINCT date FROM tasks
+             WHERE is_done = 1 AND task_name = ? || '_WEEKLY_' || date
+             ORDER BY date`,
+            [taskName]
+        );
+        return rows.map(row => row.date);
+    }
 }
 
 /**

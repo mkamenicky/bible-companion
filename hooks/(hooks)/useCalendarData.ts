@@ -1,58 +1,42 @@
-import { useState, useEffect } from 'react';
-import { ProgressService } from '@/services';
-import {logger} from "@/utils/(utils)/logger";
+import {useCallback, useState} from 'react';
+import {useFocusEffect} from 'expo-router';
+import {progressService} from '@/services';
+import {logger} from '@/utils/(utils)/logger';
 
-const progressService = new ProgressService();
-
-export interface CalendarData {
-    readingDays: string[];
-    currentYear: number;
-    currentMonth: number;
-    loading: boolean;
-}
-
+/**
+ * Reading activity (verses read per day) for the calendar screen.
+ */
 export const useCalendarData = () => {
     const [readingDays, setReadingDays] = useState<Map<string, number>>(new Map());
     const [loading, setLoading] = useState(true);
-    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+    const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+    const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
 
-    const loadReadingActivity = async (year: number) => {
+    const loadReadingActivity = useCallback(async (year: number) => {
         try {
-            setLoading(true);
-            const activity = await progressService.getReadingActivity(year);
-            setReadingDays(activity);
+            setReadingDays(await progressService.getReadingActivity(year));
         } catch (error) {
-            logger.error('Error loading reading activity:', error);
+            logger.error('Error loading reading activity', error);
             setReadingDays(new Map());
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    useEffect(() => {
-        loadReadingActivity(currentYear);
-    }, [currentYear]);
-
-    const handleYearChange = (year: number) => {
-        setCurrentYear(year);
-    };
-
-    const handleMonthChange = (month: number) => {
-        setCurrentMonth(month);
-    };
-
-    const onRefresh = async () => {
-        loadReadingActivity(currentYear);
-    };
+    // Reload on focus and whenever another year is selected.
+    useFocusEffect(
+        useCallback(() => {
+            loadReadingActivity(currentYear);
+        }, [loadReadingActivity, currentYear])
+    );
 
     return {
         readingDays,
         loading,
         currentYear,
         currentMonth,
-        handleYearChange,
-        handleMonthChange,
-        onRefresh,
+        handleYearChange: setCurrentYear,
+        handleMonthChange: setCurrentMonth,
+        onRefresh: useCallback(() => loadReadingActivity(currentYear), [loadReadingActivity, currentYear]),
     };
 };

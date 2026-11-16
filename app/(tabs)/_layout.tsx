@@ -35,17 +35,22 @@ export default function TabLayout() {
 
     return (
         <>
-            <StatusBar
-                style={colorScheme === 'dark' ? "light" : "dark"}
-                backgroundColor={custom.titleBackground}
-                translucent={false}
-            />
+            {/* Android is always edge-to-edge from SDK 54 on, so the status bar
+                has no background of its own; only the icon style is set. */}
+            <StatusBar style={colorScheme === 'dark' ? "light" : "dark"}/>
             <Tabs screenOptions={screenOptions}>
                 <Tabs.Screen
                     name="index"
                     options={{
                         title: t('navigation.home'),
                         tabBarIcon: ({color, size}) => (<FontAwesome name="home" color={color} size={size}/>),
+                    }}
+                />
+                <Tabs.Screen
+                    name="BibleScreen"
+                    options={{
+                        title: t('navigation.bible'),
+                        tabBarIcon: ({color, size}) => (<FontAwesome name="book" color={color} size={size - 2}/>),
                     }}
                 />
                 <Tabs.Screen

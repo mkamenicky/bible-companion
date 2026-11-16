@@ -1,17 +1,50 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
-import { readingPreferencesRepository } from '@/repository';
-import type { AppSettings, CreateReadingPreferencesDto, ReadingPreferences } from '@/models';
-import { logger } from "@/utils/(utils)/logger";
+import {Platform} from 'react-native';
+import Constants from 'expo-constants';
+import {readingPreferencesRepository} from '@/repository';
+import type {AppSettings, ReadingPreferences} from '@/models';
+import {parseTime} from '@/utils/(utils)/date.utils';
+import {logger} from '@/utils/(utils)/logger';
 
-const DEFAULT_USER_ID = 1;
-const SETTINGS_CACHE_KEY = '@app_settings_cache';
-const SETTINGS_VERSION = '1.0.0';
+const USER_ID = 1;
+const SETTINGS_VERSION = '1.1.0';
+const DEFAULT_DAILY_VERSE_GOAL = 10;
+const MAX_DAILY_VERSE_GOAL = 1000;
+
+/** Reminder switches and the two extra reminder times live in AsyncStorage. */
+const REMINDER_PREFERENCES_KEY = '@notification_preferences';
+/** Obsolete: a 5-minute settings cache that made saved times revert. */
+const LEGACY_SETTINGS_CACHE_KEY = '@app_settings_cache';
+
+/** The part of the settings that is not stored in the reading_preferences table. */
+type ReminderPreferences = Pick<AppSettings,
+    'dailyReminder' | 'streakReminder' | 'goalReminder' | 'achievementNotifications'
+    | 'streakReminderTime' | 'goalReminderTime'>;
+
+const DEFAULT_REMINDER_PREFERENCES: ReminderPreferences = {
+    dailyReminder: false,
+    streakReminder: false,
+    goalReminder: false,
+    achievementNotifications: false,
+    streakReminderTime: '20:00',
+    goalReminderTime: '18:00',
+};
+
+const DEFAULT_SETTINGS: AppSettings = {
+    notifications: true,
+    reminderTime: '08:00',
+    theme: 'auto',
+    fontSize: 'medium',
+    offlineMode: false,
+    ...DEFAULT_REMINDER_PREFERENCES,
+};
+
+const REMINDER_KEYS = Object.keys(DEFAULT_REMINDER_PREFERENCES) as Array<keyof ReminderPreferences>;
 
 export interface SettingsValidationError {
     field: string;
     message: string;
-    value: any;
+    value: unknown;
 }
 
 export interface SettingsBackup {
@@ -25,116 +58,55 @@ export interface SettingsBackup {
     };
 }
 
+const isBoolean = (value: unknown): boolean => typeof value === 'boolean';
+const isTime = (value: unknown): boolean => typeof value === 'string' && parseTime(value) !== null;
+
+const VALIDATORS: Record<keyof AppSettings, (value: unknown) => boolean> = {
+    notifications: isBoolean,
+    dailyReminder: isBoolean,
+    streakReminder: isBoolean,
+    goalReminder: isBoolean,
+    achievementNotifications: isBoolean,
+    reminderTime: isTime,
+    streakReminderTime: isTime,
+    goalReminderTime: isTime,
+    theme: value => ['light', 'dark', 'auto'].includes(value as string),
+    fontSize: value => ['small', 'medium', 'large'].includes(value as string),
+    offlineMode: isBoolean,
+};
+
+/**
+ * User settings.
+ *
+ * Stored in two places for historical reasons: the reading_preferences table
+ * (master notification switch, daily reminder time, theme, font size, daily
+ * verse goal) and AsyncStorage (the individual reminder switches and times).
+ * This service hides that split behind one AppSettings object.
+ */
 export class SettingsService {
     private cache: AppSettings | null = null;
-    private cacheTimestamp: number = 0;
-    private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-    private isLoading = false; // Prevent concurrent loads
-
-    private readonly validationRules = {
-        notifications: (value: any): boolean => typeof value === 'boolean',
-        dailyReminder: (value: any): boolean => typeof value === 'boolean',
-        streakReminder: (value: any): boolean => typeof value === 'boolean',
-        goalReminder: (value: any): boolean => typeof value === 'boolean',
-        achievementNotifications: (value: any): boolean => typeof value === 'boolean',
-        reminderTime: (value: any): boolean => {
-            if (typeof value !== 'string') return false;
-            const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-            return timeRegex.test(value);
-        },
-        streakReminderTime: (value: any): boolean => {
-            if (typeof value !== 'string') return false;
-            const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-            return timeRegex.test(value);
-        },
-        goalReminderTime: (value: any): boolean => {
-            if (typeof value !== 'string') return false;
-            const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-            return timeRegex.test(value);
-        },
-        theme: (value: any): boolean => ['light', 'dark', 'auto'].includes(value),
-        fontSize: (value: any): boolean => ['small', 'medium', 'large'].includes(value),
-        offlineMode: (value: any): boolean => typeof value === 'boolean',
-    };
 
     async getSettings(): Promise<AppSettings> {
-        logger.debug('📋 SettingsService.getSettings() called');
-
-        // Prevent concurrent loading
-        if (this.isLoading) {
-            logger.debug('⏳ Settings already loading, waiting...');
-            // Wait for existing load to complete
-            await new Promise(resolve => setTimeout(resolve, 100));
-            if (this.cache) return this.cache;
-        }
+        if (this.cache) return this.cache;
 
         try {
-            this.isLoading = true;
-
-            // Return cached settings if valid
-            if (this.isCacheValid()) {
-                logger.debug('✅ Using cached settings');
-                return this.cache!;
-            }
-
-            logger.debug('💾 Loading settings from AsyncStorage cache...');
-            // Try to load from AsyncStorage cache first
-            const cachedSettings = await this.loadFromCache();
-            if (cachedSettings) {
-                logger.debug('✅ Loaded from AsyncStorage cache');
-                this.updateCacheInMemory(cachedSettings); // Fixed: don't call getSettings() again
-                return cachedSettings;
-            }
-
-            logger.debug('🗄️ Loading settings from database...');
-            // Load from database with timeout
-            const settings = await Promise.race([
-                this.loadFromDatabase(),
-                new Promise<AppSettings>((_, reject) =>
-                    setTimeout(() => reject(new Error('Database timeout')), 10000)
-                )
+            const [preferences, reminders] = await Promise.all([
+                this.getOrCreatePreferences(),
+                this.loadReminderPreferences(),
             ]);
 
-            logger.debug('✅ Settings loaded from database');
-            this.updateCacheInMemory(settings);
-            await this.saveToCache(settings); // Save to AsyncStorage
-            return settings;
-
+            this.cache = {
+                ...DEFAULT_SETTINGS,
+                ...reminders,
+                notifications: preferences.notificationEnabled ?? true,
+                reminderTime: isTime(preferences.notificationTime) ? preferences.notificationTime : DEFAULT_SETTINGS.reminderTime,
+                theme: VALIDATORS.theme(preferences.themePreference) ? preferences.themePreference as AppSettings['theme'] : 'auto',
+                fontSize: VALIDATORS.fontSize(preferences.fontSize) ? preferences.fontSize as AppSettings['fontSize'] : 'medium',
+            };
+            return this.cache;
         } catch (error) {
-            logger.error('❌ Error loading settings:', error);
-            const defaultSettings = this.getDefaultSettings();
-            this.updateCacheInMemory(defaultSettings);
-            return defaultSettings;
-        } finally {
-            this.isLoading = false;
-        }
-    }
-
-    private async loadFromDatabase(): Promise<AppSettings> {
-        try {
-            let preferences = await readingPreferencesRepository.findByUserId(DEFAULT_USER_ID);
-
-            if (!preferences) {
-                logger.debug('🆕 Creating default preferences');
-                const defaultPrefs: CreateReadingPreferencesDto = {
-                    userId: DEFAULT_USER_ID,
-                    preferredReadingTime: 'morning',
-                    dailyVerseGoal: 10,
-                    streakGraceHours: 2,
-                    notificationEnabled: true,
-                    notificationTime: '08:00',
-                    themePreference: 'auto',
-                    fontSize: 'medium'
-                };
-
-                const createdPreferences = await readingPreferencesRepository.create(defaultPrefs);
-                preferences = await readingPreferencesRepository.findById(createdPreferences.id);
-            }
-
-            return preferences ? this.mapPreferencesToSettings(preferences) : this.getDefaultSettings();
-        } catch (error) {
-            logger.error('❌ Database load failed:', error);
-            throw error;
+            logger.error('Error loading settings, using defaults', error);
+            return {...DEFAULT_SETTINGS};
         }
     }
 
@@ -142,251 +114,149 @@ export class SettingsService {
         success: boolean;
         errors?: SettingsValidationError[]
     }> {
+        if (!VALIDATORS[key](value)) {
+            return {success: false, errors: [{field: key, message: `Invalid value for ${key}`, value}]};
+        }
+
         try {
-            const validationErrors = this.validateSetting(key, value);
-            if (validationErrors.length > 0) {
-                return { success: false, errors: validationErrors };
-            }
+            const current = await this.getSettings();
+            const updated: AppSettings = {...current, [key]: value};
 
-            let preferences = await readingPreferencesRepository.findByUserId(DEFAULT_USER_ID);
-
-            if (!preferences) {
-                const defaultPrefs: CreateReadingPreferencesDto = {
-                    userId: DEFAULT_USER_ID,
-                    preferredReadingTime: 'morning',
-                    dailyVerseGoal: 10,
-                    streakGraceHours: 2,
-                    notificationEnabled: true,
-                    notificationTime: '08:00',
-                    themePreference: 'auto',
-                    fontSize: 'medium'
-                };
-
-                const createdPreferences = await readingPreferencesRepository.create(defaultPrefs);
-                preferences = await readingPreferencesRepository.findById(createdPreferences.id);
-            }
-
-            if (preferences) {
-                const settingsUpdate = { [key]: value } as Partial<AppSettings>;
-                const preferencesUpdate = this.mapSettingsToPreferences(settingsUpdate);
-
+            if ((REMINDER_KEYS as string[]).includes(key)) {
+                await this.saveReminderPreferences(updated);
+            } else if (key !== 'offlineMode') { // offlineMode is not persisted (nothing uses it yet)
+                const preferences = await this.getOrCreatePreferences();
                 await readingPreferencesRepository.update({
                     id: preferences.id,
-                    ...preferencesUpdate
+                    notificationEnabled: updated.notifications,
+                    notificationTime: updated.reminderTime,
+                    themePreference: updated.theme,
+                    fontSize: updated.fontSize,
                 });
-
-                // Update cache directly without calling getSettings()
-                if (this.cache) {
-                    const updatedSettings = { ...this.cache, [key]: value };
-                    this.updateCacheInMemory(updatedSettings);
-                    await this.saveToCache(updatedSettings);
-                }
             }
 
-            return { success: true };
+            this.cache = updated;
+            return {success: true};
         } catch (error) {
-            logger.error('Error updating setting:', error);
-            return {
-                success: false,
-                errors: [{ field: key, message: 'Failed to save setting', value }]
-            };
+            logger.error('Error updating setting', error);
+            return {success: false, errors: [{field: key, message: 'Failed to save setting', value}]};
         }
     }
 
     async getDailyVerseGoal(): Promise<number> {
         try {
-            const preferences = await readingPreferencesRepository.findByUserId(DEFAULT_USER_ID);
-            return preferences?.dailyVerseGoal ?? 10;
+            const preferences = await this.getOrCreatePreferences();
+            return preferences.dailyVerseGoal > 0 ? preferences.dailyVerseGoal : DEFAULT_DAILY_VERSE_GOAL;
         } catch (error) {
-            logger.error('Error getting daily verse goal:', error);
-            return 10;
+            logger.error('Error getting daily verse goal', error);
+            return DEFAULT_DAILY_VERSE_GOAL;
         }
     }
 
     async updateDailyVerseGoal(goal: number): Promise<{ success: boolean; error?: string }> {
+        if (!Number.isInteger(goal) || goal < 1 || goal > MAX_DAILY_VERSE_GOAL) {
+            return {success: false, error: `Daily goal must be between 1 and ${MAX_DAILY_VERSE_GOAL} verses`};
+        }
+
         try {
-            if (!Number.isInteger(goal) || goal < 1 || goal > 1000) {
-                return { success: false, error: 'Daily goal must be between 1 and 1000 verses' };
-            }
-
-            let preferences = await readingPreferencesRepository.findByUserId(DEFAULT_USER_ID);
-
-            if (!preferences) {
-                const defaultPrefs: CreateReadingPreferencesDto = {
-                    userId: DEFAULT_USER_ID,
-                    dailyVerseGoal: goal,
-                    preferredReadingTime: 'morning',
-                    streakGraceHours: 2,
-                    notificationEnabled: true,
-                    notificationTime: '08:00',
-                    themePreference: 'auto',
-                    fontSize: 'medium'
-                };
-                await readingPreferencesRepository.create(defaultPrefs);
-            } else {
-                await readingPreferencesRepository.update({
-                    id: preferences.id,
-                    dailyVerseGoal: goal
-                });
-            }
-
-            return { success: true };
+            const preferences = await this.getOrCreatePreferences();
+            await readingPreferencesRepository.update({id: preferences.id, dailyVerseGoal: goal});
+            return {success: true};
         } catch (error) {
-            logger.error('Error updating daily verse goal:', error);
-            return { success: false, error: 'Failed to update daily verse goal' };
+            logger.error('Error updating daily verse goal', error);
+            return {success: false, error: 'Failed to update daily verse goal'};
         }
     }
 
     async exportSettings(): Promise<{ success: boolean; data?: string; error?: string }> {
         try {
-            const settings = await this.getSettings();
-            const dailyGoal = await this.getDailyVerseGoal();
-
             const backup: SettingsBackup = {
                 version: SETTINGS_VERSION,
                 timestamp: new Date().toISOString(),
-                settings,
-                dailyVerseGoal: dailyGoal,
+                settings: await this.getSettings(),
+                dailyVerseGoal: await this.getDailyVerseGoal(),
                 metadata: {
-                    appVersion: '1.0.0',
+                    appVersion: Constants.expoConfig?.version ?? 'unknown',
                     deviceInfo: `${Platform.OS} ${Platform.Version}`,
                 },
             };
-
-            const exportData = JSON.stringify(backup, null, 2);
-            return { success: true, data: exportData };
+            return {success: true, data: JSON.stringify(backup, null, 2)};
         } catch (error) {
-            logger.error('Error exporting settings:', error);
-            return { success: false, error: 'Failed to export settings' };
+            logger.error('Error exporting settings', error);
+            return {success: false, error: 'Failed to export settings'};
         }
     }
 
     async resetToDefaults(): Promise<{ success: boolean; error?: string }> {
         try {
-            const preferences = await readingPreferencesRepository.findByUserId(DEFAULT_USER_ID);
+            const preferences = await this.getOrCreatePreferences();
+            await readingPreferencesRepository.update({
+                id: preferences.id,
+                preferredReadingTime: 'morning',
+                dailyVerseGoal: DEFAULT_DAILY_VERSE_GOAL,
+                notificationEnabled: DEFAULT_SETTINGS.notifications,
+                notificationTime: DEFAULT_SETTINGS.reminderTime,
+                themePreference: DEFAULT_SETTINGS.theme,
+                fontSize: DEFAULT_SETTINGS.fontSize,
+            });
+            await AsyncStorage.removeItem(REMINDER_PREFERENCES_KEY);
 
-            if (preferences) {
-                await readingPreferencesRepository.update({
-                    id: preferences.id,
-                    preferredReadingTime: 'morning',
-                    dailyVerseGoal: 10,
-                    streakGraceHours: 2,
-                    notificationEnabled: true,
-                    notificationTime: '08:00',
-                    themePreference: 'auto',
-                    fontSize: 'medium'
-                });
-            }
-
-            // Clear all caches
             this.cache = null;
-            this.cacheTimestamp = 0;
-            await AsyncStorage.removeItem(SETTINGS_CACHE_KEY);
-
-            return { success: true };
+            return {success: true};
         } catch (error) {
-            logger.error('Error resetting settings:', error);
-            return { success: false, error: 'Failed to reset settings' };
+            logger.error('Error resetting settings', error);
+            return {success: false, error: 'Failed to reset settings'};
         }
     }
 
-    // Private helper methods
-    private isCacheValid(): boolean {
-        return this.cache !== null &&
-            this.cacheTimestamp > 0 &&
-            (Date.now() - this.cacheTimestamp) < this.CACHE_DURATION;
+    /** Forces the next getSettings() to read from storage again. */
+    invalidateCache(): void {
+        this.cache = null;
     }
 
-    private updateCacheInMemory(settings: AppSettings): void {
-        this.cache = settings;
-        this.cacheTimestamp = Date.now();
+    private async getOrCreatePreferences(): Promise<ReadingPreferences> {
+        const existing = await readingPreferencesRepository.findByUserId(USER_ID);
+        if (existing) return existing;
+
+        return readingPreferencesRepository.create({
+            userId: USER_ID,
+            preferredReadingTime: 'morning',
+            dailyVerseGoal: DEFAULT_DAILY_VERSE_GOAL,
+            notificationEnabled: DEFAULT_SETTINGS.notifications,
+            notificationTime: DEFAULT_SETTINGS.reminderTime,
+            themePreference: DEFAULT_SETTINGS.theme,
+            fontSize: DEFAULT_SETTINGS.fontSize,
+        });
     }
 
-    private async loadFromCache(): Promise<AppSettings | null> {
+    private async loadReminderPreferences(): Promise<ReminderPreferences> {
         try {
-            const cached = await AsyncStorage.getItem(SETTINGS_CACHE_KEY);
-            if (cached) {
-                const parsed = JSON.parse(cached);
-                if (parsed && parsed.settings && parsed.timestamp) {
-                    const age = Date.now() - parsed.timestamp;
-                    if (age < this.CACHE_DURATION) {
-                        return parsed.settings;
-                    }
+            AsyncStorage.removeItem(LEGACY_SETTINGS_CACHE_KEY).catch(() => undefined);
+
+            const stored = await AsyncStorage.getItem(REMINDER_PREFERENCES_KEY);
+            const parsed: Record<string, unknown> = stored ? JSON.parse(stored) : {};
+
+            // Take only known keys with valid values; anything else falls back.
+            const result: Record<string, unknown> = {...DEFAULT_REMINDER_PREFERENCES};
+            for (const key of REMINDER_KEYS) {
+                if (key in parsed && VALIDATORS[key](parsed[key])) {
+                    result[key] = parsed[key];
                 }
             }
+            return result as ReminderPreferences;
         } catch (error) {
-            logger.warn('Failed to load from cache:', error);
-        }
-        return null;
-    }
-
-    private async saveToCache(settings: AppSettings): Promise<void> {
-        try {
-            const cacheData = {
-                settings,
-                timestamp: Date.now()
-            };
-            await AsyncStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(cacheData));
-        } catch (error) {
-            logger.warn('Failed to save to cache:', error);
+            logger.warn('Failed to load reminder preferences', error);
+            return {...DEFAULT_REMINDER_PREFERENCES};
         }
     }
 
-    private getDefaultSettings(): AppSettings {
-        return {
-            notifications: true,
-            dailyReminder: true,
-            streakReminder: true,
-            goalReminder: true,
-            achievementNotifications: true,
-            reminderTime: '08:00',
-            streakReminderTime: '20:00',
-            goalReminderTime: '18:00',
-            theme: 'auto',
-            fontSize: 'medium',
-            offlineMode: false,
-        };
-    }
-
-    private mapPreferencesToSettings(prefs: ReadingPreferences): AppSettings {
-        return {
-            goalReminderTime: "", streakReminderTime: "",
-            notifications: prefs.notificationEnabled ?? true,
-            dailyReminder: prefs.notificationEnabled ?? true,
-            streakReminder: true,
-            goalReminder: true,
-            achievementNotifications: true,
-            reminderTime: prefs.notificationTime ?? '08:00',
-            theme: (prefs.themePreference as 'light' | 'dark' | 'auto') ?? 'auto',
-            fontSize: (prefs.fontSize as 'small' | 'medium' | 'large') ?? 'medium',
-            offlineMode: false
-        };
-    }
-
-    private mapSettingsToPreferences(settings: Partial<AppSettings>): Partial<ReadingPreferences> {
-        const mapped: any = {};
-
-        if ('notifications' in settings) mapped.notificationEnabled = settings.notifications;
-        if ('reminderTime' in settings) mapped.notificationTime = settings.reminderTime;
-        if ('theme' in settings) mapped.themePreference = settings.theme;
-        if ('fontSize' in settings) mapped.fontSize = settings.fontSize;
-
-        return mapped;
-    }
-
-    private validateSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]): SettingsValidationError[] {
-        const rule = this.validationRules[key];
-        if (rule && !rule(value)) {
-            return [{ field: key, message: `Invalid value for ${key}`, value }];
+    private async saveReminderPreferences(settings: AppSettings): Promise<void> {
+        const toStore: Record<string, unknown> = {};
+        for (const key of REMINDER_KEYS) {
+            toStore[key] = settings[key];
         }
-        return [];
-    }
-
-    private validateAllSettings(settings: Partial<AppSettings>): SettingsValidationError[] {
-        const errors: SettingsValidationError[] = [];
-        for (const [key, value] of Object.entries(settings)) {
-            errors.push(...this.validateSetting(key as keyof AppSettings, value));
-        }
-        return errors;
+        await AsyncStorage.setItem(REMINDER_PREFERENCES_KEY, JSON.stringify(toStore));
     }
 }
+
+export const settingsService = new SettingsService();

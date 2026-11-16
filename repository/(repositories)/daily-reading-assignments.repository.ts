@@ -94,23 +94,25 @@ export class DailyReadingAssignmentsRepository extends BaseRepository<DailyReadi
         if (assignment.display_title !== undefined) {
             this.validateString(assignment.display_title, 'display_title');
         }
+    }
 
-        // // Additional validation for required fields during creation
-        // if ('date' in assignment && assignment.date === undefined) {
-        //     throw new Error('date is required');
-        // }
-        // if ('start_verse_id' in assignment && assignment.start_verse_id === undefined) {
-        //     throw new Error('start_verse_id is required');
-        // }
-        // if ('end_verse_id' in assignment && assignment.end_verse_id === undefined) {
-        //     throw new Error('end_verse_id is required');
-        // }
-        // if ('chapter_id' in assignment && assignment.chapter_id === undefined) {
-        //     throw new Error('chapter_id is required');
-        // }
-        // if ('display_title' in assignment && assignment.display_title === undefined) {
-        //     throw new Error('display_title is required');
-        // }
+    /** All assignments of one day (YYYY-MM-DD), in reading order. */
+    async findByDate(date: string): Promise<DailyReadingAssignment[]> {
+        this.validateString(date, 'date');
+        return this.findWhere('date = ?', [date], 'start_verse_id');
+    }
+
+    /**
+     * Sets or clears the completed state. A dedicated statement because the
+     * generic update keeps old values for null (COALESCE) and therefore can
+     * never clear completed_at again.
+     */
+    async setCompleted(id: number, completedAt: string | null): Promise<void> {
+        this.validateId(id);
+        await this.execute(
+            'UPDATE daily_reading_assignments SET is_completed = ?, completed_at = ? WHERE id = ?',
+            [completedAt ? 1 : 0, completedAt, id]
+        );
     }
 }
 

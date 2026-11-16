@@ -1,6 +1,7 @@
 {
   "navigation": {
     "home": "Startseite",
+    "bible": "Bibel",
     "progress": "Fortschritt",
     "feedback": "Feedback",
     "calendar": "Kalender",
@@ -61,7 +62,7 @@
         "chapter_champion": "Kapitel-Champion",
         "testament_explorer": "Testament-Erforscher",
         "verse_master": "Vers-Meister",
-        "daily_devotion": "Tägliche Andacht",
+        "daily_devotion": "Tägliche Hingabe",
         "year_streak": "Jahres-Serie",
         "chapter_hero": "Kapitel-Held",
         "full_bible_reader": "Bibel-Eroberer",
@@ -75,7 +76,21 @@
         "century_reader": "Jahrhundert-Leser",
         "consistent_reader": "Beständiger Leser",
         "month_master": "Monats-Meister",
-        "book_explorer": "Buch-Entdecker"
+        "book_explorer": "Buch-Entdecker",
+        "dt_week": "Tagestext-Woche",
+        "dt_month": "Tagestext-Monat",
+        "dt_hundred": "Tagestext-Profi",
+        "dt_year": "Ein Jahr Tagestext",
+        "fw_month": "Familienrhythmus",
+        "fw_quarter": "Familientradition",
+        "fw_year": "Ein Jahr Familienstudium",
+        "prep_month": "Gut vorbereitet",
+        "prep_quarter": "Immer vorbereitet",
+        "perfect_week": "Perfekte Woche",
+        "perfect_month": "Perfekter Monat",
+        "reading_days_30": "30 Lesetage",
+        "reading_days_100": "100 Lesetage",
+        "reading_days_365": "365 Lesetage"
       },
       "descriptions": {
         "first_steps": "Vervollständige deinen ersten Lesetag",
@@ -85,7 +100,7 @@
         "chapter_champion": "Vervollständige 100 Kapitel",
         "testament_explorer": "Beginne das Lesen aus 10 verschiedenen Büchern",
         "verse_master": "Lese 5000 Verse",
-        "daily_devotion": "Vervollständige den Tagestext 50 Mal",
+        "daily_devotion": "50 Tagestexte abgeschlossen",
         "year_streak": "Lese 365 aufeinanderfolgende Tage",
         "chapter_hero": "Vervollständige 500 Kapitel",
         "full_bible_reader": "Vervollständige alle 1 189 Kapitel der Bibel",
@@ -99,7 +114,21 @@
         "century_reader": "Lese 100 Tage lang",
         "consistent_reader": "Halte beständige Lesegewohnheiten aufrecht",
         "month_master": "Vervollständige einen ganzen Monat des Lesens",
-        "book_explorer": "Erkunde verschiedene Bücher der Bibel"
+        "book_explorer": "Erkunde verschiedene Bücher der Bibel",
+        "dt_week": "Tagestext 7 Tage in Folge",
+        "dt_month": "Tagestext 30 Tage in Folge",
+        "dt_hundred": "Tagestext 100 Tage in Folge",
+        "dt_year": "365 Tagestexte abgeschlossen",
+        "fw_month": "Familienstudium 4 Wochen in Folge",
+        "fw_quarter": "Familienstudium 12 Wochen in Folge",
+        "fw_year": "Familienstudium in 52 Wochen",
+        "prep_month": "Beide Zusammenkünfte 4 Wochen in Folge vorbereitet",
+        "prep_quarter": "Beide Zusammenkünfte 12 Wochen in Folge vorbereitet",
+        "perfect_week": "Alle Wochenaufgaben in einer Woche erledigt",
+        "perfect_month": "Alle Wochenaufgaben 4 Wochen in Folge",
+        "reading_days_30": "An 30 Tagen in der Bibel gelesen",
+        "reading_days_100": "An 100 Tagen in der Bibel gelesen",
+        "reading_days_365": "An 365 Tagen in der Bibel gelesen"
       },
       "categories": {
         "all": "Alle",
@@ -108,8 +137,26 @@
         "readingGoals": "Leseziele",
         "explorer": "Entdecker",
         "seasonal": "Saisonal",
-        "general": "Allgemein"
-      }
+        "general": "Allgemein",
+        "dailyText": "Tagestext",
+        "family": "Familie",
+        "meetings": "Zusammenkünfte",
+        "consistency": "Regelmäßigkeit"
+      },
+      "upNext": "Als Nächstes"
+    },
+    "consistency": {
+      "title": "Regelmäßigkeit",
+      "subtitle": "Wie regelmäßig du deine Gewohnheiten einhältst",
+      "bibleReading": "Bibellesen",
+      "daily": "täglich",
+      "weekly": "wöchentlich",
+      "best": "Bestwert {{count}}",
+      "rateDays": "{{percentage}}% der letzten {{count}} Tage",
+      "rateWeeks": "{{percentage}}% der letzten {{count}} Wochen",
+      "notStarted": "noch nicht begonnen",
+      "thisWeek": "Diese Woche: {{done}} von {{total}} erledigt",
+      "legend": "🔥 aktuelle Serie in Tagen oder Wochen. Die Punkte zeigen die letzten 7 Tage bzw. 8 Wochen; der letzte ist heute bzw. diese Woche."
     }
   },
   "calendar": {
@@ -374,5 +421,59 @@
       "november": "November",
       "december": "Dezember"
     }
+  },
+  "bible": {
+    "title": "Bibel",
+    "loadingMessage": "Bibel wird geladen...",
+    "hebrewScriptures": "Hebräisch-Aramäische Schriften",
+    "greekScriptures": "Christliche Griechische Schriften",
+    "overallProgress": "{{books}} von {{total}} Büchern abgeschlossen",
+    "chaptersRead": "{{read}} von {{total}} Kapiteln abgeschlossen",
+    "versesRead": "{{read}} von {{total}} Versen gelesen",
+    "chapterHint": "Tippe auf ein Kapitel, um einzelne Verse zu markieren. Halte gedrückt, um das ganze Kapitel zu markieren.",
+    "verseHint": "Tippe auf einen Vers, um ihn als gelesen oder ungelesen zu markieren.",
+    "markAll": "Alle als gelesen markieren",
+    "clear": "Zurücksetzen",
+    "markBookTitle": "{{book}} vollständig als gelesen markieren?",
+    "clearBookTitle": "Alle Markierungen in {{book}} zurücksetzen?",
+    "clearChapterTitle": "{{book}} {{chapter}} zurücksetzen?",
+    "clearMessage": "Die Verse gelten wieder als ungelesen, einschließlich der Tage, an denen sie gelesen wurden.",
+    "chapterNotFound": "Dieses Kapitel existiert nicht.",
+    "superscription": "Überschrift",
+    "superscriptionShort": "Üb.",
+    "markMode": {
+      "title": "Hier markierte Verse eintragen als",
+      "backfill": "Früher gelesen",
+      "manual": "Heute gelesen",
+      "backfillHint": "Neue Markierungen zählen nur für deinen Bibel-Fortschritt, nicht für das heutige Ziel oder deine Serie.",
+      "manualHint": "Neue Markierungen werden als heutige Lesung eingetragen: für das Tagesziel, deine Serie und den Kalender."
+    }
+  },
+  "notifications": {
+    "daily": {
+      "title": "Tägliches Bibellesen",
+      "body": "Zeit für deine {{goal}} Verse heute!"
+    },
+    "goal": {
+      "title": "Tagesziel-Check",
+      "completed": "Super! Du hast dein Tagesziel von {{goal}} Versen erreicht! 🎉",
+      "partial": "Du hast heute {{read}}/{{goal}} Verse gelesen. Du bist auf einem guten Weg!",
+      "notStarted": "Du hast heute noch nicht gelesen. Deine {{goal}} Verse warten auf dich."
+    },
+    "streak": {
+      "startTitle": "Starte deine Leseserie!",
+      "startBody": "Mach das tägliche Bibellesen zur Gewohnheit. Jede Reise beginnt mit dem ersten Schritt!",
+      "keepTitle": "Bau deine Serie aus!",
+      "keepBody": "Du hast eine Serie von {{count}} Tagen. Lies heute, damit sie weitergeht.",
+      "protectTitle": "Schütze deine Serie!",
+      "protectBody": "Starke Serie von {{count}} Tagen! Lass sie jetzt nicht abreißen."
+    }
+  },
+  "startup": {
+    "errorTitle": "Die App konnte nicht starten",
+    "errorMessage": "Die Bibel-Datenbank konnte nicht geöffnet werden. Bitte versuche es erneut. Wenn das Problem bleibt, kannst du die Datenbank zurücksetzen.",
+    "reset": "Datenbank zurücksetzen",
+    "resetTitle": "Datenbank zurücksetzen?",
+    "resetMessage": "Dadurch werden Leseverlauf, Erfolge und Einstellungen auf diesem Gerät gelöscht und eine neue Datenbank installiert. Das kann nicht rückgängig gemacht werden."
   }
 }

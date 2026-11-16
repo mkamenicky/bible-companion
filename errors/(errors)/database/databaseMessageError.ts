@@ -1,32 +1,14 @@
 /**
- * Custom error classes for repository operations
+ * Error thrown when a database operation fails.
+ * The original error is kept as `cause` so the real reason is never lost.
  */
-
-/**
- * Error thrown when database operations fail
- */
-export class DatabaseMessageError extends Error {
-  constructor(message: string, public readonly cause?: Error) {
-    super(message);
-    this.name = 'DatabaseError';
-
-    // Maintains proper stack trace for where our error was thrown (only available on V8)
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, DatabaseMessageError);
-    }
-  }
-}
-
 export class DatabaseError extends Error {
-    public readonly originalError?: Error | null | undefined;
+    public readonly cause?: Error;
 
-    constructor(message: string, originalError?: Error | null) {
-        super(message);
+    constructor(message: string, cause?: unknown) {
+        const causeError = cause instanceof Error ? cause : cause != null ? new Error(String(cause)) : undefined;
+        super(causeError ? `${message}: ${causeError.message}` : message);
         this.name = 'DatabaseError';
-        this.originalError = originalError;
-
-        if (originalError?.stack) {
-            this.stack = originalError.stack;
-        }
+        this.cause = causeError;
     }
 }

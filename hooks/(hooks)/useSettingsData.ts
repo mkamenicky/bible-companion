@@ -1,10 +1,12 @@
-import { useCallback, useRef, useState, useEffect } from 'react';
-import { Alert, Platform } from 'react-native';
+import {useCallback, useEffect, useState} from 'react';
+import {Alert, Platform} from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Notifications from 'expo-notifications';
-import { SettingsService, databaseBackupService, notificationService, progressService } from '@/services';
-import { AppSettings } from '@/models';
-import { logger } from "@/utils/(utils)/logger";
+import type * as Notifications from 'expo-notifications';
+import {databaseBackupService, notificationService, settingsService} from '@/services';
+import type {NotificationPermissionStatus} from '@/services';
+import type {AppSettings} from '@/models';
+import {toTimeString} from '@/utils/(utils)/date.utils';
+import {logger} from '@/utils/(utils)/logger';
 
 export interface DialogStates {
     changeTheme: boolean;
@@ -17,6 +19,8 @@ export interface DialogStates {
     goalTimePicker: boolean;
 }
 
+type TimePickerType = 'daily' | 'streak' | 'goal';
+
 export interface FormStates {
     dailyGoalInput: string;
     timePickerVisible: boolean;
@@ -25,7 +29,7 @@ export interface FormStates {
     selectedTime: Date;
     selectedStreakTime: Date;
     selectedGoalTime: Date;
-    currentTimePickerType: 'daily' | 'streak' | 'goal';
+    currentTimePickerType: TimePickerType;
     refreshing: boolean;
 }
 
@@ -33,28 +37,55 @@ export interface NotificationState {
     initialized: boolean;
     loading: boolean;
     error: string | null;
-    permissions: any | null;
+    permissions: NotificationPermissionStatus | null;
     scheduledCount: number;
     lastRefresh: Date | null;
 }
 
-export interface ExtendedAppSettings extends AppSettings {
-    dailyReminder: boolean;
-    streakReminder: boolean;
-    goalReminder: boolean;
-    achievementNotifications: boolean;
+/** Kept as an alias: all reminder fields are part of AppSettings itself. */
+export type ExtendedAppSettings = AppSettings;
+
+type ReminderToggleKey = 'dailyReminder' | 'streakReminder' | 'goalReminder' | 'achievementNotifications';
+
+/** Per reminder type: which setting holds its time and which form fields belong to it. */
+const TIME_PICKERS: Record<TimePickerType, {
+    setting: 'reminderTime' | 'streakReminderTime' | 'goalReminderTime';
+    visibleField: 'timePickerVisible' | 'streakTimePickerVisible' | 'goalTimePickerVisible';
+    selectedField: 'selectedTime' | 'selectedStreakTime' | 'selectedGoalTime';
+    fallback: string;
+}> = {
+    daily: {setting: 'reminderTime', visibleField: 'timePickerVisible', selectedField: 'selectedTime', fallback: '08:00'},
+    streak: {setting: 'streakReminderTime', visibleField: 'streakTimePickerVisible', selectedField: 'selectedStreakTime', fallback: '20:00'},
+    goal: {setting: 'goalReminderTime', visibleField: 'goalTimePickerVisible', selectedField: 'selectedGoalTime', fallback: '18:00'},
+};
+
+/**
+ * One entry per reminder type. Goal and streak reminders are scheduled as
+ * one notification per day, which would otherwise be counted seven times.
+ */
+function uniqueByType(requests: Notifications.NotificationRequest[]): Notifications.NotificationRequest[] {
+    const seen = new Set<string>();
+    return requests.filter(request => {
+        const type = String(request.content?.data?.type ?? request.identifier);
+        if (seen.has(type)) return false;
+        seen.add(type);
+        return true;
+    });
 }
 
-type NotificationToggleKey = 'dailyReminder' | 'streakReminder' | 'goalReminder' | 'achievementNotifications';
-
+/**
+ * State and actions of the settings screen.
+ *
+ * Reminder scheduling itself lives in notificationService.syncReminders();
+ * this hook only stores the settings and asks for a re-sync afterwards.
+ */
 export function useSettingsData() {
-    // State
     const [settings, setSettings] = useState<ExtendedAppSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [dailyVerseGoal, setDailyVerseGoal] = useState<number>(10);
     const [notificationState, setNotificationState] = useState<NotificationState>({
         initialized: false,
-        loading: false,
+        loading: true,
         error: null,
         permissions: null,
         scheduledCount: 0,
@@ -71,7 +102,6 @@ export function useSettingsData() {
         streakTimePicker: false,
         goalTimePicker: false,
     });
-
     const [formStates, setFormStates] = useState<FormStates>({
         dailyGoalInput: '10',
         timePickerVisible: false,
@@ -84,524 +114,299 @@ export function useSettingsData() {
         refreshing: false,
     });
 
-    // Services
-    const settingsService = useRef(new SettingsService()).current;
+    // ---------------------------------------------------------------------
+    // Loading
+    // ---------------------------------------------------------------------
 
-    // Helper function to get real user data for notifications
-    const getUserDataForNotifications = useCallback(async () => {
-        try {
-            const stats = await progressService.getProgressStats();
-            const periodStats = await progressService.calculatePeriodStats();
+    /** Reads permission and scheduled reminders for the status display. */
+    const refreshNotificationState = useCallback(async () => {
+        const [permissions, scheduled] = await Promise.all([
+            notificationService.getPermissionStatus(),
+            notificationService.getScheduledNotifications(),
+        ]);
+        const reminders = uniqueByType(scheduled);
 
-            return {
-                currentStreak: stats.currentStreak,
-                dailyGoal: dailyVerseGoal,
-                todayProgress: periodStats.today, // Use actual today's progress
-            };
-        } catch (error) {
-            logger.warn('Failed to get progress data for notifications, using defaults:', error);
-            return {
-                currentStreak: 0,
-                dailyGoal: dailyVerseGoal,
-                todayProgress: 0,
-            };
-        }
-    }, [dailyVerseGoal]);
-
-    // Utilities
-    const updateNotificationState = useCallback((updates: Partial<NotificationState>) => {
-        setNotificationState(prev => ({ ...prev, ...updates }));
+        setScheduledNotifications(reminders);
+        setNotificationState({
+            initialized: true,
+            loading: false,
+            error: null,
+            permissions,
+            scheduledCount: reminders.length,
+            lastRefresh: new Date(),
+        });
     }, []);
 
-    const getDefaultExtendedSettings = useCallback((): ExtendedAppSettings => ({
-        notifications: false,
-        dailyReminder: false,
-        streakReminder: false,
-        goalReminder: false,
-        achievementNotifications: false,
-        reminderTime: '08:00',
-        streakReminderTime: '20:00',
-        goalReminderTime: '18:00',
-        theme: 'auto',
-        fontSize: 'medium',
-        offlineMode: false,
-    }), []);
+    /** Re-schedules the reminders and refreshes the status display. */
+    const syncReminders = useCallback(async () => {
+        await notificationService.syncReminders();
+        await refreshNotificationState();
+    }, [refreshNotificationState]);
 
-    // Cache utilities
-    const saveNotificationPreferencesToCache = useCallback(async (prefs: Partial<Pick<ExtendedAppSettings, NotificationToggleKey>>) => {
-        try {
-            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-            const existing = await AsyncStorage.getItem('@notification_preferences');
-            const existingPrefs = existing ? JSON.parse(existing) : {};
-            const updatedPrefs = { ...existingPrefs, ...prefs };
-            await AsyncStorage.setItem('@notification_preferences', JSON.stringify(updatedPrefs));
-        } catch (error) {
-            logger.warn('Failed to save notification preferences to cache:', error);
-        }
-    }, []);
-
-    const loadNotificationPreferencesFromCache = useCallback(async () => {
-        try {
-            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-            const cached = await AsyncStorage.getItem('@notification_preferences');
-            return cached ? JSON.parse(cached) : null;
-        } catch (error) {
-            logger.warn('Failed to load notification preferences from cache:', error);
-            return null;
-        }
-    }, []);
-
-    const loadScheduledNotifications = useCallback(async () => {
-        try {
-            const notifications = await notificationService.getScheduledNotifications();
-            setScheduledNotifications(notifications);
-            updateNotificationState({
-                scheduledCount: notifications.length,
-                lastRefresh: new Date(),
-            });
-        } catch (error) {
-            updateNotificationState({ error: 'Failed to load notifications' });
-        }
-    }, [updateNotificationState]);
-
-    // Data loaders
     const loadSettings = useCallback(async (): Promise<void> => {
         try {
-            logger.debug('🔄 Loading settings...');
             setLoading(true);
-
-            const [baseSettings, goal, cachedNotificationPrefs] = await Promise.all([
+            const [loadedSettings, goal] = await Promise.all([
                 settingsService.getSettings(),
                 settingsService.getDailyVerseGoal(),
-                loadNotificationPreferencesFromCache(),
             ]);
 
-            logger.debug('📋 Settings loaded:', baseSettings);
+            setSettings(loadedSettings);
             setDailyVerseGoal(goal);
-            // Update form state with the loaded daily goal
-            setFormStates(prev => ({ ...prev, dailyGoalInput: goal.toString() }));
-            const extendedSettings: ExtendedAppSettings = {
-                ...baseSettings,
-                // Ensure new time fields have defaults if not present
-                streakReminderTime: baseSettings.streakReminderTime ?? '20:00',
-                goalReminderTime: baseSettings.goalReminderTime ?? '18:00',
-                dailyReminder: cachedNotificationPrefs?.dailyReminder ?? false,
-                streakReminder: cachedNotificationPrefs?.streakReminder ?? false,
-                goalReminder: cachedNotificationPrefs?.goalReminder ?? false,
-                achievementNotifications: cachedNotificationPrefs?.achievementNotifications ?? false,
-            };
-            setSettings(extendedSettings);
-            logger.debug('✅ Settings state updated');
+            setFormStates(prev => ({...prev, dailyGoalInput: goal.toString()}));
         } catch (error) {
-            logger.error('❌ Error loading settings:', error);
-            const defaultSettings = getDefaultExtendedSettings();
-            setSettings(defaultSettings);
-            Alert.alert('Error', 'Failed to load settings, using defaults');
+            logger.error('Error loading settings', error);
+            Alert.alert('Error', 'Failed to load settings');
         } finally {
-            logger.debug('🏁 Setting loading to false');
             setLoading(false);
         }
-    }, [settingsService, getDefaultExtendedSettings, loadNotificationPreferencesFromCache]);
+    }, []);
 
-    const initializeNotifications = useCallback(async () => {
-        try {
-            updateNotificationState({ loading: true, error: null });
-            const [initialized, permissions] = await Promise.all([
-                notificationService.initialize(),
-                notificationService.getPermissionStatus(),
-            ]);
-            updateNotificationState({
-                initialized,
-                loading: false,
-                permissions,
-                error: initialized ? null : 'Failed to initialize notifications',
-            });
-            return initialized;
-        } catch (error) {
-            updateNotificationState({
-                initialized: false,
-                loading: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
-            });
-            return false;
-        }
-    }, [updateNotificationState]);
-
-    // Schedule notifications based on current settings
-    const scheduleNotificationsFromSettings = useCallback(async (currentSettings: ExtendedAppSettings) => {
-        if (!notificationState.initialized || !currentSettings.notifications) {
-            logger.debug('⏭️ Skipping notification scheduling - not initialized or notifications disabled');
-            return;
-        }
-
-        try {
-            logger.debug('📅 Scheduling notifications from current settings...');
-            const userdata = await getUserDataForNotifications();
-            await notificationService.scheduleSmartReminders(currentSettings, userdata);
-
-            // Load scheduled notifications after scheduling
-            await loadScheduledNotifications();
-            logger.debug('✅ Notifications scheduled and loaded');
-        } catch (error) {
-            logger.error('❌ Error scheduling notifications:', error);
-        }
-    }, [notificationState.initialized, getUserDataForNotifications, loadScheduledNotifications]);
-
-    // Auto-load settings on mount
     useEffect(() => {
-        logger.debug('🚀 useSettingsData mounted, loading settings...');
         loadSettings();
-    }, []); // Empty dependency array means this runs once on mount
+        refreshNotificationState().catch(error => logger.warn('Failed to load notification state', error));
+    }, [loadSettings, refreshNotificationState]);
 
-    // Auto-initialize notifications
-    useEffect(() => {
-        initializeNotifications();
-    }, [initializeNotifications]);
+    // ---------------------------------------------------------------------
+    // Settings
+    // ---------------------------------------------------------------------
 
-    // Schedule notifications when settings and notification service are ready
-    useEffect(() => {
-        if (settings && notificationState.initialized && !loading) {
-            logger.debug('🔄 Settings and notifications ready, scheduling notifications...');
-            scheduleNotificationsFromSettings(settings);
-        }
-    }, [settings, notificationState.initialized, loading, scheduleNotificationsFromSettings]);
-
-    // Settings updaters
     const updateSetting = useCallback(async <K extends keyof AppSettings>(
         key: K,
         value: AppSettings[K]
     ): Promise<ExtendedAppSettings | null> => {
-        try {
-            const result = await settingsService.updateSetting(key, value);
-            if (result.success && settings) {
-                const updatedSettings = { ...settings, [key]: value };
-                setSettings(updatedSettings);
-                return updatedSettings;
-            }
-            return null;
-        } catch (error) {
+        const result = await settingsService.updateSetting(key, value);
+        if (!result.success) {
             Alert.alert('Error', 'Failed to update setting');
             return null;
         }
-    }, [settingsService, settings]);
 
-    const updateNotificationPreference = useCallback(async <K extends NotificationToggleKey>(
-        key: K,
-        value: ExtendedAppSettings[K]
-    ): Promise<ExtendedAppSettings | null> => {
-        if (!settings) return null;
-        try {
-            const updatedSettings = { ...settings, [key]: value };
-            setSettings(updatedSettings);
-            await saveNotificationPreferencesToCache({ [key]: value });
-
-            if (updatedSettings.notifications && notificationState.initialized) {
-                const userdata = await getUserDataForNotifications();
-
-                if (value) {
-                    await notificationService.scheduleSpecificNotification(key, updatedSettings, userdata);
-                } else {
-                    await notificationService.cancelSpecificNotification(key);
-                }
-                await loadScheduledNotifications();
-            }
-            return updatedSettings;
-        } catch (error) {
-            setSettings(settings); // Revert on error
-            return null;
-        }
-    }, [settings, saveNotificationPreferencesToCache, notificationState.initialized, getUserDataForNotifications, loadScheduledNotifications]);
-
-    // Action handlers
-    const handleMasterNotificationToggle = useCallback(async (value: boolean) => {
-        try {
-            const updatedSettings = await updateSetting('notifications', value);
-            if (updatedSettings) {
-                const userdata = await getUserDataForNotifications();
-
-                if (!value) {
-                    await notificationService.cancelAllNotifications();
-                } else {
-                    await notificationService.scheduleSmartReminders(updatedSettings, userdata);
-                }
-                await loadScheduledNotifications();
-            }
-        } catch (error) {
-            logger.error('Failed to toggle master notifications:', error);
-        }
-    }, [updateSetting, getUserDataForNotifications, loadScheduledNotifications]);
-
-    const handleDailyReminderToggle = useCallback(
-        (value: boolean) => updateNotificationPreference('dailyReminder', value),
-        [updateNotificationPreference]
-    );
-
-    const handleStreakReminderToggle = useCallback(
-        (value: boolean) => updateNotificationPreference('streakReminder', value),
-        [updateNotificationPreference]
-    );
-
-    const handleGoalReminderToggle = useCallback(
-        (value: boolean) => updateNotificationPreference('goalReminder', value),
-        [updateNotificationPreference]
-    );
-
-    const handleAchievementNotificationToggle = useCallback(
-        (value: boolean) => updateNotificationPreference('achievementNotifications', value),
-        [updateNotificationPreference]
-    );
-
-    const handleTimeChange = useCallback(async (_event: any, selectedDate?: Date, type?: 'daily' | 'streak' | 'goal') => {
-        const timeType = type || formStates.currentTimePickerType;
-
-        if (Platform.OS === 'android') {
-            const stateUpdate: Partial<FormStates> = {};
-            if (timeType === 'daily') stateUpdate.timePickerVisible = false;
-            else if (timeType === 'streak') stateUpdate.streakTimePickerVisible = false;
-            else stateUpdate.goalTimePickerVisible = false;
-
-            setFormStates(prev => ({ ...prev, ...stateUpdate }));
-        }
-
-        if (selectedDate && settings) {
-            const timeString = selectedDate.toTimeString().slice(0, 5);
-            const timeField = timeType === 'daily' ? 'reminderTime' :
-                timeType === 'streak' ? 'streakReminderTime' : 'goalReminderTime';
-
-            const stateUpdate: Partial<FormStates> = {};
-            if (timeType === 'daily') stateUpdate.selectedTime = selectedDate;
-            else if (timeType === 'streak') stateUpdate.selectedStreakTime = selectedDate;
-            else stateUpdate.selectedGoalTime = selectedDate;
-
-            setFormStates(prev => ({ ...prev, ...stateUpdate }));
-
-            const updatedSettings = await updateSetting(timeField as keyof AppSettings, timeString);
-
-            if (updatedSettings?.notifications && notificationState.initialized) {
-                const userdata = await getUserDataForNotifications();
-                await notificationService.scheduleSmartReminders(updatedSettings, userdata);
-                await loadScheduledNotifications();
-            }
-            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        }
-    }, [settings, updateSetting, notificationState.initialized, getUserDataForNotifications, loadScheduledNotifications, formStates.currentTimePickerType]);
-
-    const sendTestNotification = useCallback(async () => {
-        if (!notificationState.initialized) {
-            Alert.alert('Error', 'Notifications not initialized');
-            return;
-        }
-        if (!notificationState.permissions?.granted) {
-            Alert.alert('Permission Required', 'Please enable notifications in your device settings', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => notificationService.openNotificationSettings() }
-            ]);
-            return;
-        }
-
-        const success = await notificationService.sendImmediateNotification(
-            '🧪 Test Notification',
-            'Your notifications are working perfectly! 🎉',
-            { type: 'test', timestamp: Date.now() }
-        );
-
-        if (success) {
-            Alert.alert('Test Sent', 'Check your notification tray for the test notification');
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        } else {
-            Alert.alert('Error', 'Failed to send test notification');
-        }
-    }, [notificationState]);
-
-    // Database operations
-    const handleDatabaseBackup = useCallback(async () => {
-        try {
-            const result = await databaseBackupService.createDatabaseBackup();
-            if (result.success) {
-                const sizeText = result.size ? ` (${(result.size / 1024 / 1024).toFixed(1)} MB)` : '';
-
-                Alert.alert(
-                    'Backup Created',
-                    `Database backup created successfully${sizeText}.`,
-                    [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                            text: 'Share Backup',
-                            onPress: async () => {
-                                if (result.filePath) {
-                                    const shareResult = await databaseBackupService.shareBackup(result.filePath);
-                                    if (!shareResult.success) {
-                                        Alert.alert('Share Error', shareResult.error || 'Failed to share backup file');
-                                    }
-                                }
-                            }
-                        }
-                    ]
-                );
-
-                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } else {
-                Alert.alert('Backup Failed', result.error || 'Failed to create database backup');
-                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-            }
-        } catch (error) {
-            logger.error('Database backup error:', error);
-            Alert.alert('Backup Error', 'An unexpected error occurred while creating the backup');
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        }
+        const updated = await settingsService.getSettings();
+        setSettings(updated);
+        return updated;
     }, []);
 
-    const handleDatabaseRestore = useCallback(async () => {
-        Alert.alert('Restore Database', 'This will replace all your current data with the backup. This action cannot be undone. Continue?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Restore',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        const result = await databaseBackupService.restoreDatabaseBackup();
-                        if (result.success) {
-                            Alert.alert('Restore Complete', 'Database restored successfully! Please restart the app.');
-                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        } else {
-                            Alert.alert('Restore Failed', result.error || 'Failed to restore database backup');
-                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                        }
-                    } catch (error) {
-                        logger.error('Database restore error:', error);
-                        Alert.alert('Restore Error', 'An unexpected error occurred while restoring the backup');
-                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                    }
-                }
-            }
+    /**
+     * Makes sure the app may show notifications; explains how to allow them
+     * if the user has denied the permission before.
+     */
+    const ensurePermission = useCallback(async (): Promise<boolean> => {
+        if (await notificationService.requestPermission()) return true;
+
+        Alert.alert('Permission Required', 'Please enable notifications in your device settings', [
+            {text: 'Cancel', style: 'cancel'},
+            {text: 'Open Settings', onPress: () => notificationService.openNotificationSettings()},
         ]);
+        return false;
     }, []);
 
-    const handleExportSettings = useCallback(async () => {
-        try {
-            const result = await settingsService.exportSettings();
-            if (result.success && result.data) {
-                const shareResult = await databaseBackupService.shareTextData(result.data, 'settings-backup.json');
-                if (shareResult.success) {
-                    Alert.alert('Export Complete', 'Settings exported successfully!');
-                    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                } else {
-                    Alert.alert('Export Error', shareResult.error || 'Failed to share settings');
-                }
-            } else {
-                Alert.alert('Export Failed', result.error || 'Failed to export settings');
-            }
-        } catch (error) {
-            logger.error('Settings export error:', error);
-            Alert.alert('Export Error', 'An unexpected error occurred while exporting settings');
+    const handleNotificationToggle = useCallback(async (value: boolean) => {
+        if (value) await ensurePermission();
+        if (await updateSetting('notifications', value)) {
+            await syncReminders();
         }
-    }, []);
+    }, [ensurePermission, updateSetting, syncReminders]);
 
-    const resetSettings = useCallback(async () => {
-        Alert.alert('Reset Settings', 'This will reset all settings to their default values. This action cannot be undone. Continue?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Reset',
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        const result = await settingsService.resetToDefaults();
-                        if (result.success) {
-                            await loadSettings();
-                            Alert.alert('Reset Complete', 'All settings have been reset to their default values');
-                            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        } else {
-                            Alert.alert('Reset Failed', result.error || 'Failed to reset settings');
-                        }
-                    } catch (error) {
-                        logger.error('Settings reset error:', error);
-                        Alert.alert('Reset Error', 'An unexpected error occurred while resetting settings');
-                    }
-                }
-            }
-        ]);
-    }, [loadSettings]);
-
-    // UI state handlers
-    const handleToggleDialog = useCallback((dialogName: keyof DialogStates, visible?: boolean) => {
-        setDialogs(prev => ({ ...prev, [dialogName]: visible ?? !prev[dialogName] }));
-    }, []);
-
-    const updateFormState = useCallback(<K extends keyof FormStates>(key: K, value: FormStates[K]) => {
-        setFormStates(prev => ({ ...prev, [key]: value }));
-    }, []);
-
-    const handleDailyGoalSave = useCallback(async () => {
-        try {
-            const goal = parseInt(formStates.dailyGoalInput, 10);
-            if (isNaN(goal) || goal <= 0 || goal > 1000) {
-                Alert.alert('Invalid Goal', 'Please enter a number between 1 and 1000 verses');
-                return;
-            }
-
-            const result = await settingsService.updateDailyVerseGoal(goal);
-            if (result.success) {
-                setDailyVerseGoal(goal);
-                // Keep form state in sync
-                setFormStates(prev => ({ ...prev, dailyGoalInput: goal.toString() }));
-                handleToggleDialog('dailyGoal', false);
-                await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            } else {
-                Alert.alert('Error', result.error || 'Failed to update daily goal');
-            }
-        } catch (error) {
-            Alert.alert('Error', 'Failed to update daily goal');
+    const toggleReminder = useCallback(async (key: ReminderToggleKey, value: boolean) => {
+        if (value) await ensurePermission();
+        if (await updateSetting(key, value)) {
+            await syncReminders();
         }
-    }, [formStates.dailyGoalInput, settingsService, handleToggleDialog]);
+    }, [ensurePermission, updateSetting, syncReminders]);
 
-    const showTimePicker = useCallback((type: 'daily' | 'streak' | 'goal' = 'daily') => {
-        logger.debug('🕐 showTimePicker called with type:', type, 'settings:', settings);
-        if (settings) {
-            const timeField = type === 'daily' ? 'reminderTime' :
-                type === 'streak' ? 'streakReminderTime' : 'goalReminderTime';
-            const timeValue = settings[timeField as keyof typeof settings];
-            logger.debug('🕐 timeField:', timeField, 'timeValue:', timeValue);
+    const handleDailyReminderToggle = useCallback((value: boolean) => toggleReminder('dailyReminder', value), [toggleReminder]);
+    const handleStreakReminderToggle = useCallback((value: boolean) => toggleReminder('streakReminder', value), [toggleReminder]);
+    const handleGoalReminderToggle = useCallback((value: boolean) => toggleReminder('goalReminder', value), [toggleReminder]);
+    const handleAchievementNotificationToggle = useCallback((value: boolean) => toggleReminder('achievementNotifications', value), [toggleReminder]);
 
-            // Use default time if timeValue is not available
-            const finalTimeValue = <string> timeValue || (type === 'daily' ? '08:00' : type === 'streak' ? '20:00' : '18:00');
-            logger.debug('🕐 finalTimeValue:', finalTimeValue);
+    // ---------------------------------------------------------------------
+    // Time pickers
+    // ---------------------------------------------------------------------
 
-            const [hours, minutes] = finalTimeValue.split(':').map(Number);
-            const date = new Date();
-            date.setHours(hours, minutes, 0, 0);
+    const showTimePicker = useCallback((type: TimePickerType = 'daily') => {
+        if (!settings) return;
 
-            const stateUpdate: Partial<FormStates> = {
-                currentTimePickerType: type,
-            };
+        const picker = TIME_PICKERS[type];
+        const [hours, minutes] = (settings[picker.setting] || picker.fallback).split(':').map(Number);
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
 
-            if (type === 'daily') {
-                stateUpdate.selectedTime = date;
-                stateUpdate.timePickerVisible = true;
-            } else if (type === 'streak') {
-                stateUpdate.selectedStreakTime = date;
-                stateUpdate.streakTimePickerVisible = true;
-            } else {
-                stateUpdate.selectedGoalTime = date;
-                stateUpdate.goalTimePickerVisible = true;
-            }
-
-            logger.debug('🕐 Setting state update:', stateUpdate);
-            setFormStates(prev => ({ ...prev, ...stateUpdate }));
-        }
+        setFormStates(prev => ({
+            ...prev,
+            currentTimePickerType: type,
+            [picker.selectedField]: date,
+            [picker.visibleField]: true,
+        }));
     }, [settings]);
 
     const showStreakTimePicker = useCallback(() => showTimePicker('streak'), [showTimePicker]);
     const showGoalTimePicker = useCallback(() => showTimePicker('goal'), [showTimePicker]);
 
-    const onRefresh = useCallback(async () => {
-        logger.debug('🔄 Refreshing settings...');
-        setFormStates(prev => ({ ...prev, refreshing: true }));
-        try {
-            await Promise.all([loadSettings(), loadScheduledNotifications()]);
-        } finally {
-            setFormStates(prev => ({ ...prev, refreshing: false }));
+    const handleTimeChange = useCallback(async (_event: unknown, selectedDate?: Date, type?: TimePickerType) => {
+        const picker = TIME_PICKERS[type ?? formStates.currentTimePickerType];
+
+        // The Android picker is a dialog that closes itself on every result.
+        if (Platform.OS === 'android') {
+            setFormStates(prev => ({...prev, [picker.visibleField]: false}));
         }
-    }, [loadSettings, loadScheduledNotifications]);
+        if (!selectedDate) return; // dismissed
+
+        setFormStates(prev => ({...prev, [picker.selectedField]: selectedDate}));
+
+        if (await updateSetting(picker.setting, toTimeString(selectedDate))) {
+            await syncReminders();
+            await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+    }, [formStates.currentTimePickerType, updateSetting, syncReminders]);
+
+    const handleTestNotification = useCallback(async () => {
+        if (!await ensurePermission()) return;
+
+        const sent = await notificationService.sendImmediateNotification(
+            '🧪 Test Notification',
+            'Your notifications are working perfectly! 🎉',
+            {type: 'test'}
+        );
+
+        if (sent) {
+            Alert.alert('Test Sent', 'Check your notification tray for the test notification');
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else {
+            Alert.alert('Error', 'Failed to send test notification');
+        }
+    }, [ensurePermission]);
+
+    // ---------------------------------------------------------------------
+    // Daily goal
+    // ---------------------------------------------------------------------
+
+    const handleToggleDialog = useCallback((dialogName: keyof DialogStates, visible?: boolean) => {
+        setDialogs(prev => ({...prev, [dialogName]: visible ?? !prev[dialogName]}));
+    }, []);
+
+    const updateFormState = useCallback(<K extends keyof FormStates>(key: K, value: FormStates[K]) => {
+        setFormStates(prev => ({...prev, [key]: value}));
+    }, []);
+
+    const handleDailyGoalSave = useCallback(async () => {
+        const goal = parseInt(formStates.dailyGoalInput, 10);
+        if (isNaN(goal) || goal <= 0 || goal > 1000) {
+            Alert.alert('Invalid Goal', 'Please enter a number between 1 and 1000 verses');
+            return;
+        }
+
+        const result = await settingsService.updateDailyVerseGoal(goal);
+        if (!result.success) {
+            Alert.alert('Error', result.error || 'Failed to update daily goal');
+            return;
+        }
+
+        setDailyVerseGoal(goal);
+        setFormStates(prev => ({...prev, dailyGoalInput: goal.toString()}));
+        handleToggleDialog('dailyGoal', false);
+        await syncReminders(); // the reminder texts mention the goal
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }, [formStates.dailyGoalInput, handleToggleDialog, syncReminders]);
+
+    // ---------------------------------------------------------------------
+    // Backup, export, reset
+    // ---------------------------------------------------------------------
+
+    const handleDatabaseBackup = useCallback(async () => {
+        const result = await databaseBackupService.createDatabaseBackup();
+        if (!result.success) {
+            Alert.alert('Backup Failed', result.error || 'Failed to create database backup');
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            return;
+        }
+
+        const sizeText = result.size ? ` (${(result.size / 1024 / 1024).toFixed(1)} MB)` : '';
+        Alert.alert('Backup Created', `Database backup created successfully${sizeText}.`, [
+            {text: 'Cancel', style: 'cancel'},
+            {
+                text: 'Share Backup',
+                onPress: async () => {
+                    if (!result.filePath) return;
+                    const shareResult = await databaseBackupService.shareBackup(result.filePath);
+                    if (!shareResult.success) {
+                        Alert.alert('Share Error', shareResult.error || 'Failed to share backup file');
+                    }
+                },
+            },
+        ]);
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }, []);
+
+    const handleDatabaseRestore = useCallback(() => {
+        Alert.alert('Restore Database', 'This will replace all your current data with the backup. This action cannot be undone. Continue?', [
+            {text: 'Cancel', style: 'cancel'},
+            {
+                text: 'Restore',
+                style: 'destructive',
+                onPress: async () => {
+                    const result = await databaseBackupService.restoreDatabaseBackup();
+                    if (result.success) {
+                        // The restored database brings its own settings.
+                        settingsService.invalidateCache();
+                        await loadSettings();
+                        await syncReminders();
+                        Alert.alert('Restore Complete', 'Database restored successfully!');
+                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    } else if (result.error !== 'Restore cancelled by user') {
+                        Alert.alert('Restore Failed', result.error || 'Failed to restore database backup');
+                        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                    }
+                },
+            },
+        ]);
+    }, [loadSettings, syncReminders]);
+
+    const handleExportSettings = useCallback(async () => {
+        const result = await settingsService.exportSettings();
+        if (!result.success || !result.data) {
+            Alert.alert('Export Failed', result.error || 'Failed to export settings');
+            return;
+        }
+
+        const shareResult = await databaseBackupService.shareTextData(result.data, 'settings-backup.json');
+        if (shareResult.success) {
+            Alert.alert('Export Complete', 'Settings exported successfully!');
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } else {
+            Alert.alert('Export Error', shareResult.error || 'Failed to share settings');
+        }
+    }, []);
+
+    const resetSettings = useCallback(() => {
+        Alert.alert('Reset Settings', 'This will reset all settings to their default values. This action cannot be undone. Continue?', [
+            {text: 'Cancel', style: 'cancel'},
+            {
+                text: 'Reset',
+                style: 'destructive',
+                onPress: async () => {
+                    const result = await settingsService.resetToDefaults();
+                    if (!result.success) {
+                        Alert.alert('Reset Failed', result.error || 'Failed to reset settings');
+                        return;
+                    }
+                    await loadSettings();
+                    await syncReminders();
+                    Alert.alert('Reset Complete', 'All settings have been reset to their default values');
+                    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                },
+            },
+        ]);
+    }, [loadSettings, syncReminders]);
+
+    const onRefresh = useCallback(async () => {
+        setFormStates(prev => ({...prev, refreshing: true}));
+        try {
+            settingsService.invalidateCache();
+            await Promise.all([loadSettings(), syncReminders()]);
+        } finally {
+            setFormStates(prev => ({...prev, refreshing: false}));
+        }
+    }, [loadSettings, syncReminders]);
 
     return {
         // State
@@ -632,19 +437,16 @@ export function useSettingsData() {
         showGoalTimePicker,
 
         // Notification actions
-        handleNotificationToggle: handleMasterNotificationToggle,
+        handleNotificationToggle,
         handleDailyReminderToggle,
         handleStreakReminderToggle,
         handleGoalReminderToggle,
         handleAchievementNotificationToggle,
-        handleTestNotification: sendTestNotification,
+        handleTestNotification,
 
         // Database actions
         handleDatabaseBackup,
         handleDatabaseRestore,
         handleExportSettings,
-
-        // Initialize notifications
-        initializeNotifications,
     };
 }

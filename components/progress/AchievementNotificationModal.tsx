@@ -44,7 +44,7 @@ export default function AchievementNotificationModal({
                 for (const event of events) {
                     try {
                         // Try to get the full achievement details
-                        const achievements = await progressService.getAchievements(event.userId);
+                        const achievements = await progressService.getAchievements();
                         const achievement = achievements.find(a => a.id === event.achievementId);
 
                         if (achievement) {

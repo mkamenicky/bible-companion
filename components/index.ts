@@ -11,6 +11,7 @@ export { default as PeriodStatsCard } from './progress/PeriodStatsCard';
 export { default as AchievementsCard } from './progress/AchievementsCard';
 export { default as ReadingStatsCard } from './progress/ReadingStatsCard';
 export { default as StreakCard } from './progress/StreakCard';
+export { default as ConsistencyCard } from './progress/ConsistencyCard';
 export { useAchievementContext, AchievementProvider, useAchievementReporter } from './progress/AchievementContext';
 export { GlobalAchievementModal} from './progress/GlobalAchievementModal';
 export { default as AchievementNotificationModal} from './progress/AchievementNotificationModal';
@@ -31,3 +32,8 @@ export { default as SettingsDialogs } from './settings/SettingsDialogs';
 export { default as SettingsQuickStatusCard } from './settings/SettingsQuickStatusCard';
 export { default as SettingsTimePicker } from './settings/SettingsTimePicker';
 export { default as Text } from './settings/TextProps';
+
+// Bible overview components
+export { default as ProgressTile } from './bible/ProgressTile';
+export { default as TileGrid } from './bible/TileGrid';
+export { default as MarkModeSwitch } from './bible/MarkModeSwitch';

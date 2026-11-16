@@ -1,4 +1,3 @@
-// Updated Index.tsx - Clean version using global achievement context
 import React from 'react';
 import { useColorScheme, View } from 'react-native';
 import { Appbar } from 'react-native-paper';
@@ -14,13 +13,12 @@ import {
 
 // Service and utility imports
 import { useHomeData, useTranslation } from '@/hooks';
-import { DateFormattingService, ThemeService } from '@/services';
-import {logger} from "@/utils/(utils)/logger";
+import { ThemeService } from '@/services';
+import { formatWeekRange } from '@/utils';
 
 export default function Index() {
     const t = useTranslation();
 
-    // Custom hook for data management (now handles achievements via context)
     const {
         today,
         onRefresh,
@@ -50,9 +48,7 @@ export default function Index() {
         );
     }
 
-    // Formatted date values
-    const weekday = DateFormattingService.getWeekday(today);
-    const weekRange = DateFormattingService.getFormattedWeekRange(today);
+    const weekRange = formatWeekRange(today);
 
     // Render
     return (
@@ -75,21 +71,17 @@ export default function Index() {
                 />
 
                 {dailyReadingAssignments && Array.from(dailyReadingAssignments.entries()).map(
-                    ([assignmentTitle, assignments]) => {
-                        logger.debug(`Rendering assignments for ${assignmentTitle}:`, assignments.length, 'assignments');
-
-                        return (
-                            <DailyAssignmentsCard
-                                key={`${assignmentTitle}-${assignments.length}-${assignments.map(a => a.id).join(',')}`}
-                                dailyReadingAssignments={assignments}
-                                onToggle={handleToggleVerses}
-                                onReadMore={handleReadMore}
-                                title={t('home.readingPlanToday', { title: assignmentTitle })}
-                                styles={styles}
-                                customColors={customColors}
-                            />
-                        );
-                    })
+                    ([assignmentTitle, assignments]) => (
+                        <DailyAssignmentsCard
+                            key={assignmentTitle}
+                            dailyReadingAssignments={assignments}
+                            onToggle={handleToggleVerses}
+                            onReadMore={handleReadMore}
+                            title={t('home.readingPlanToday', { title: assignmentTitle })}
+                            styles={styles}
+                            customColors={customColors}
+                        />
+                    ))
                 }
 
                 <WeeklyChecklistCard

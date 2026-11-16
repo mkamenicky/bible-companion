@@ -5,7 +5,7 @@ import type {
     UpdateAchievementProgressDto,
     Achievement
 } from '@/models';
-import {ValidationError} from "@/errors";
+import {ValidationError} from '@/errors';
 
 export class AchievementProgressRepository extends BaseRepository<AchievementProgressModel, CreateAchievementProgressDto, UpdateAchievementProgressDto> {
     protected tableName = 'achievement_progress';
@@ -119,7 +119,7 @@ export class AchievementProgressRepository extends BaseRepository<AchievementPro
             ORDER BY a.sort_order, a.created_at
         `;
 
-        const results = await this.executeCustomQuery(sql, [userId]);
+        const results = await this.query(sql, [userId]);
         return results.map(row => ({
             id: row.id,
             name: row.name,
@@ -148,7 +148,7 @@ export class AchievementProgressRepository extends BaseRepository<AchievementPro
             ORDER BY sort_order
         `;
 
-        const results = await this.executeCustomQuery(sql, []);
+        const results = await this.query(sql, []);
         return results.map(row => ({
             id: row.id,
             name: row.name,
@@ -193,7 +193,7 @@ export class AchievementProgressRepository extends BaseRepository<AchievementPro
             ORDER BY a.sort_order, a.created_at
         `;
 
-        const results = await this.executeCustomQuery(sql, [userId, category]);
+        const results = await this.query(sql, [userId, category]);
         return results.map(row => ({
             id: row.id,
             name: row.name,
@@ -231,7 +231,7 @@ export class AchievementProgressRepository extends BaseRepository<AchievementPro
             WHERE a.is_active = 1
         `;
 
-        const results = await this.executeCustomQuery(sql, [userId]);
+        const results = await this.query(sql, [userId]);
         const row = results[0];
         const total = row.total;
         const unlocked = row.unlocked;
@@ -247,44 +247,42 @@ export class AchievementProgressRepository extends BaseRepository<AchievementPro
     }
 
     /**
-     * Get achievement rules for a specific achievement
+     * Runs the SQL of a 'custom' achievement rule (stored in achievement_rules)
+     * and returns the first column of the first row as a number.
      */
-    async getAchievementRules(achievementId: string): Promise<Array<{
+    async runCustomRuleQuery(sql: string): Promise<number> {
+        const rows = await this.query<Record<string, unknown>>(sql);
+        const value = rows[0] ? Object.values(rows[0])[0] : 0;
+        return typeof value === 'number' ? value : 0;
+    }
+
+    /**
+     * Stores progress for an achievement, creating the row if needed.
+     * `unlockedAt` is only written the first time an achievement unlocks.
+     */
+    async saveProgress(userId: number, achievementId: string, progress: number, isUnlocked: boolean, unlockedAt: string | null): Promise<void> {
+        await this.execute(
+            `INSERT INTO achievement_progress (achievement_id, user_id, progress, is_unlocked, unlocked_at)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT (achievement_id, user_id) DO UPDATE SET progress    = excluded.progress,
+                                                                 is_unlocked = excluded.is_unlocked,
+                                                                 unlocked_at = COALESCE(achievement_progress.unlocked_at, excluded.unlocked_at),
+                                                                 updated_at  = datetime('now')`,
+            [achievementId, userId, progress, isUnlocked ? 1 : 0, unlockedAt]
+        );
+    }
+
+    /** All active rules, for every achievement, in one query. */
+    async getAllAchievementRules(): Promise<Array<{
+        achievement_id: string;
         rule_type: string;
-        calculation_field?: string;
-        calculation_query?: string;
+        calculation_query: string | null;
     }>> {
-        const sql = `
-            SELECT rule_type, calculation_field, calculation_query
-            FROM achievement_rules
-            WHERE achievement_id = ? AND is_active = 1
-            ORDER BY sort_order
-        `;
-
-        return await this.executeCustomQuery(sql, [achievementId]);
-    }
-
-    /**
-     * Get all active achievement IDs
-     */
-    async getActiveAchievementIds(): Promise<string[]> {
-        const sql = `SELECT id FROM achievements WHERE is_active = 1`;
-        const results = await this.executeCustomQuery(sql, []);
-        return results.map(row => row.id);
-    }
-
-    /**
-     * Execute custom SQL query using the database connection from BaseRepository
-     */
-    private async executeCustomQuery(sql: string, params: any[]): Promise<any[]> {
-        return await this.executeQuery(sql, params);
-    }
-
-    /**
-     * Public method to execute queries - needed by ProgressService
-     */
-    async executeQuery(sql: string, params: any[] = []): Promise<any[]> {
-        return await super.executeQuery(sql, params);
+        return this.query(
+            `SELECT achievement_id, rule_type, calculation_query
+             FROM achievement_rules
+             WHERE is_active = 1`
+        );
     }
 }
 

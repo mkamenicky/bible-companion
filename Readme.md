@@ -12,6 +12,7 @@ A spiritual productivity app to help Jehovah's Witnesses track and complete thei
 - 🔄 Pull-to-refresh and dynamic checklists  
 - 📌 Modal confirmations for completed tasks  
 - 📊 Visual reading progress tracking  
+- 📚 Bible overview to mark books, chapters and verses as read  
 - 🎨 Themed UI with Material 3 design  
 - ☁️ Seamless publishing with EAS Update  
 
@@ -19,13 +20,13 @@ A spiritual productivity app to help Jehovah's Witnesses track and complete thei
 
 ## 🧑‍💻 Tech Stack
 
-- **Framework**: [React Native](https://reactnative.dev/) 0.79.5 with [Expo](https://expo.dev/) 53.0.20  
-- **Language**: TypeScript 5.8.3  
-- **Database**: [expo-sqlite](https://docs.expo.dev/versions/latest/sdk/sqlite/) 15.2.14 (SQLite 3.45.1)  
+- **Framework**: [React Native](https://reactnative.dev/) 0.81.5 with [Expo](https://expo.dev/) 54  
+- **Language**: TypeScript 5.9  
+- **Database**: [expo-sqlite](https://docs.expo.dev/versions/latest/sdk/sqlite/) 16  
 - **UI Library**: [React Native Paper](https://callstack.github.io/react-native-paper/) 5.14.5  
-- **Navigation**: Expo Router 5.1.4  
+- **Navigation**: Expo Router 6  
 - **Publishing**: [EAS Update](https://docs.expo.dev/eas-update/introduction/)  
-- **Icons**: Expo Vector Icons 14.1.0  
+- **Icons**: Expo Vector Icons 15  
 
 ---
 
@@ -81,44 +82,66 @@ npx eas update --branch preview
 .
 ├── app/
 │   ├── (tabs)/
-│   │   ├── index.tsx              # Main dashboard with daily/weekly tasks
-│   │   ├── ProgressScreen.tsx     # Reading progress visualization
-│   │   ├── FeedbackScreen.tsx     # Chapter feedback and notes
-│   │   └── SettingsScreen.tsx     # User preferences
-│   ├── +html.tsx                  # Web configuration
-│   ├── +not-found.tsx             # 404 error page
-│   └── _layout.tsx                # Root layout with theme provider
+│   │   ├── index.tsx              # Home: today's reading, daily text, weekly checklist
+│   │   ├── BibleScreen.tsx        # Bible overview: all 66 books with reading progress
+│   │   ├── ProgressScreen.tsx     # Streak, statistics, achievements
+│   │   ├── CalendarScreen.tsx     # Reading days per month
+│   │   └── SettingsScreen.tsx     # Goal, reminders, theme, language, backup
+│   ├── bible/[bookId]/
+│   │   ├── index.tsx              # Chapters of a book
+│   │   └── [chapter].tsx          # Verses of a chapter
+│   └── _layout.tsx                # Startup (database, localization), providers
 ├── assets/
-│   ├── bible.db                   # Pre-seeded Bible database
-│   └── init.sql                   # Database initialization script
-├── components/
-│   └── ScreenContainer.tsx        # Reusable screen wrapper
+│   ├── bible.db                   # Pre-populated database, copied on first launch
+│   └── db/
+│       ├── init.sql               # App tables (runs once)
+│       └── migrations/            # Versioned schema changes
+├── components/                    # UI building blocks, grouped by screen
+├── constants/bible-books.ts       # Short book names per language
+├── hooks/                         # One data hook per screen
+├── localization/locales/          # en, de, es, fr
+├── models/                        # Entity and view types
+├── repository/                    # SQL access, one class per table
 ├── services/
-│   ├── db.native.ts               # SQLite database initialization
-│   └── repository/
-│       └── reading.repository.ts  # Data access layer
-├── utils/
-│   └── readingPlans.ts            # Weekly reading schedule definitions
-├── app.json                       # Expo configuration
-└── README.md
+│   ├── database/                  # Open/copy/migrate/backup the SQLite file
+│   ├── bible/                     # Book / chapter / verse structure
+│   ├── progress/                  # Read-state, streak, statistics, achievements
+│   ├── readings/                  # Daily reading plan
+│   ├── notifications/             # Reminder scheduling and texts
+│   ├── settings/ task/ theme/ localization/
+├── tests/integration/             # Service tests against the real database
+└── utils/                         # Dates, logging, validation
 ```
 
 ---
 
-## 🗄️ Database Schema
+## 🧭 How the pieces fit
 
-### User Data Tables
+- **Read-state** lives in `BibleVerseProgress`: one row per verse and day. Everything else
+  (Bible progress, streak, calendar, achievements, what the plan offers next) is derived from it.
+  `ProgressService` is the only place that writes it.
+- **Dates** are local calendar days (`YYYY-MM-DD`), produced by `utils/date.utils.ts`.
+  Do not use `toISOString()` for dates - it converts to UTC and shifts the day.
+- **Verse ids start at 0** (Genesis 1:1). Never test ids for truthiness.
+- **Reminders** cannot compute their text when they fire, so the goal and streak reminders are
+  scheduled one per day for the next 7 days and rewritten by `notificationService.syncReminders()`
+  on app start, on return to the foreground and after every progress or settings change.
+- **Marks from the Bible overview** are stored as `backfill` ("read earlier": progress only) or
+  `manual` ("read today": also counts for goal, streak and calendar); the daily plan stores `plan`.
 
-- `readings`: User reading progress tracking  
-- `feedback`: User feedback on chapters  
-- `tasks`: Reading tasks and assignments  
-- `chapter_verse_counts`: Metadata about chapters  
+---
 
-### Bible Reference Tables
+## 🗄️ Database
 
-- `BibleBook`: Contains Bible book information  
-- `BibleChapter`: Individual chapters with content  
-- `BibleVerse`: Individual verses  
+`assets/bible.db` is copied to the app's SQLite directory on first launch; afterwards only
+migrations run (`services/(services)/database`). To add a migration, put a
+`V<version>__<name>.sql` file into `assets/db/migrations` and list it in `MigrationProvider.ts`.
+
+- Bible reference: `BibleBook`, `BibleChapter`, `BibleVerse`
+- Reading: `BibleVerseProgress`, `daily_reading_assignments`, `reading_plan_config`,
+  `reading_topics`, `bible_book_topics`
+- Progress: `reading_streaks`, `achievements`, `achievement_rules`, `achievement_progress`
+- Other: `tasks`, `reading_preferences`, `schema_migrations`
 
 ---
 
@@ -139,7 +162,8 @@ npx eas update --branch preview
 ### Running Tests
 
 ```bash
-npm test
+npm run test:integration   # services against a real copy of the database (Node 22.13+)
+npx tsc --noEmit           # type check
 ```
 
 ### Building for Production

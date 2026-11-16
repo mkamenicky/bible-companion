@@ -1,11 +1,16 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import {Platform} from 'react-native';
-import { logger } from "@/utils/(utils)/logger";
+import {
+    getDatabase,
+    getDatabaseFilePath,
+    isDatabaseReady,
+    replaceDatabaseFile
+} from '@/services/(services)/database/Database';
+import {logger} from '@/utils/(utils)/logger';
 
 const BACKUP_FILE_PREFIX = 'bible_app_database_backup';
-const DATABASE_NAME = 'bible.db';
 
 export interface DatabaseBackupResult {
     success: boolean;
@@ -30,10 +35,7 @@ export interface BackupFileInfo {
 
 export class DatabaseBackupService {
     private get databasePath(): string {
-        if (Platform.OS === 'ios') {
-            return `${FileSystem.documentDirectory}SQLite/${DATABASE_NAME}`;
-        }
-        return `${FileSystem.documentDirectory}${DATABASE_NAME}`;
+        return getDatabaseFilePath();
     }
 
     private get backupDirectory(): string {
@@ -53,6 +55,11 @@ export class DatabaseBackupService {
             }
 
             await this.ensureBackupDirectoryExists();
+
+            // Flush pending writes into the main file so the copy is complete.
+            if (isDatabaseReady()) {
+                await getDatabase().execAsync('PRAGMA wal_checkpoint(TRUNCATE)').catch(() => undefined);
+            }
 
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0];
             const backupFilename = `${BACKUP_FILE_PREFIX}_${timestamp}.db`;
@@ -117,15 +124,15 @@ export class DatabaseBackupService {
                 warnings.push(`Current database backed up to: ${currentBackupResult.filePath}`);
             }
 
-            const dbDirectory = this.databasePath.substring(0, this.databasePath.lastIndexOf('/'));
-            const dbDirInfo = await FileSystem.getInfoAsync(dbDirectory);
-            if (!dbDirInfo.exists) {
-                await FileSystem.makeDirectoryAsync(dbDirectory, {intermediates: true});
+            if (!await this.looksLikeSqliteFile(sourceFile)) {
+                return {
+                    success: false, error: 'The selected file is not a database backup',
+                };
             }
 
-            await FileSystem.copyAsync({
-                from: sourceFile, to: this.databasePath,
-            });
+            // Closes the open connection, swaps the file and reopens it, so the
+            // restored data is live immediately (no app restart needed).
+            await replaceDatabaseFile(sourceFile);
 
             logger.debug('✅ Database restored successfully');
             return {
@@ -245,9 +252,6 @@ export class DatabaseBackupService {
         }
     }
 
-    // Remove the chunking method since it's not working properly
-    // The issue was likely in the chunked read/write operations
-
     async listBackups(): Promise<BackupFileInfo[]> {
         try {
             await this.ensureBackupDirectoryExists();
@@ -273,6 +277,19 @@ export class DatabaseBackupService {
         } catch (error) {
             logger.error('Failed to list backups:', error);
             return [];
+        }
+    }
+
+    /** Every SQLite file starts with the text "SQLite format 3". */
+    private async looksLikeSqliteFile(uri: string): Promise<boolean> {
+        try {
+            const header = await FileSystem.readAsStringAsync(uri, {
+                encoding: FileSystem.EncodingType.Base64, position: 0, length: 15,
+            });
+            return header === 'U1FMaXRlIGZvcm1hdCAz';
+        } catch (error) {
+            logger.warn('Could not inspect backup file', error);
+            return false;
         }
     }
 

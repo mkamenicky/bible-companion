@@ -17,6 +17,7 @@ export class ReadingStreakRepository extends BaseRepository<ReadingStreak, Creat
      * Validates ReadingStreak input
      */
     private validateInput(streak: Partial<CreateReadingStreakDto | UpdateReadingStreakDto>): void {
+        // validateId accepts 0, which a streak legitimately is.
         if (streak.currentStreak !== undefined) {
             this.validateId(streak.currentStreak, 'currentStreak');
         }

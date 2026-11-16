@@ -1,6 +1,7 @@
 {
   "navigation": {
     "home": "Home",
+    "bible": "Bible",
     "progress": "Progress",
     "feedback": "Feedback",
     "calendar": "Calendar",
@@ -75,7 +76,21 @@
         "century_reader": "Century Reader",
         "consistent_reader": "Consistent Reader",
         "month_master": "Month Master",
-        "book_explorer": "Book Explorer"
+        "book_explorer": "Book Explorer",
+        "dt_week": "Daily Text Week",
+        "dt_month": "Daily Text Month",
+        "dt_hundred": "Daily Text Devotee",
+        "dt_year": "A Year of Daily Texts",
+        "fw_month": "Family Rhythm",
+        "fw_quarter": "Family Tradition",
+        "fw_year": "A Year of Family Worship",
+        "prep_month": "Well Prepared",
+        "prep_quarter": "Always Prepared",
+        "perfect_week": "Perfect Week",
+        "perfect_month": "Perfect Month",
+        "reading_days_30": "30 Reading Days",
+        "reading_days_100": "100 Reading Days",
+        "reading_days_365": "365 Reading Days"
       },
       "descriptions": {
         "first_steps": "Complete 1 day of reading",
@@ -99,7 +114,21 @@
         "century_reader": "Read 100 verses",
         "consistent_reader": "Read 14 days in a row",
         "month_master": "Read 30 days in a row",
-        "book_explorer": "Start 5 different books"
+        "book_explorer": "Start 5 different books",
+        "dt_week": "Daily text 7 days in a row",
+        "dt_month": "Daily text 30 days in a row",
+        "dt_hundred": "Daily text 100 days in a row",
+        "dt_year": "Complete 365 daily texts",
+        "fw_month": "Family worship 4 weeks in a row",
+        "fw_quarter": "Family worship 12 weeks in a row",
+        "fw_year": "Family worship in 52 weeks",
+        "prep_month": "Prepare both meetings 4 weeks in a row",
+        "prep_quarter": "Prepare both meetings 12 weeks in a row",
+        "perfect_week": "Complete every weekly task in one week",
+        "perfect_month": "Every weekly task 4 weeks in a row",
+        "reading_days_30": "Read the Bible on 30 days",
+        "reading_days_100": "Read the Bible on 100 days",
+        "reading_days_365": "Read the Bible on 365 days"
       },
       "categories": {
         "all": "All",
@@ -108,8 +137,26 @@
         "readingGoals": "Reading Goals",
         "explorer": "Explorer",
         "seasonal": "Seasonal",
-        "general": "General"
-      }
+        "general": "General",
+        "dailyText": "Daily Text",
+        "family": "Family",
+        "meetings": "Meetings",
+        "consistency": "Consistency"
+      },
+      "upNext": "Up next"
+    },
+    "consistency": {
+      "title": "Consistency",
+      "subtitle": "How regularly you keep your routines",
+      "bibleReading": "Bible Reading",
+      "daily": "daily",
+      "weekly": "weekly",
+      "best": "best {{count}}",
+      "rateDays": "{{percentage}}% of the last {{count}} days",
+      "rateWeeks": "{{percentage}}% of the last {{count}} weeks",
+      "notStarted": "not started yet",
+      "thisWeek": "This week: {{done}} of {{total}} done",
+      "legend": "🔥 current streak in days or weeks. Dots show the last 7 days or 8 weeks; the last one is today or this week."
     }
   },
   "calendar": {
@@ -374,5 +421,59 @@
       "november": "November",
       "december": "December"
     }
+  },
+  "bible": {
+    "title": "Bible",
+    "loadingMessage": "Loading Bible...",
+    "hebrewScriptures": "Hebrew-Aramaic Scriptures",
+    "greekScriptures": "Christian Greek Scriptures",
+    "overallProgress": "{{books}} of {{total}} books completed",
+    "chaptersRead": "{{read}} of {{total}} chapters completed",
+    "versesRead": "{{read}} of {{total}} verses read",
+    "chapterHint": "Tap a chapter to mark single verses. Press and hold to mark the whole chapter.",
+    "verseHint": "Tap a verse to mark it as read or unread.",
+    "markAll": "Mark all as read",
+    "clear": "Clear",
+    "markBookTitle": "Mark all of {{book}} as read?",
+    "clearBookTitle": "Clear all marks in {{book}}?",
+    "clearChapterTitle": "Clear {{book}} {{chapter}}?",
+    "clearMessage": "The verses will count as unread again, including the days on which they were read.",
+    "chapterNotFound": "This chapter does not exist.",
+    "superscription": "superscription",
+    "superscriptionShort": "Sup.",
+    "markMode": {
+      "title": "When you mark verses here, record them as",
+      "backfill": "Read earlier",
+      "manual": "Read today",
+      "backfillHint": "New marks add to your Bible progress only. They do not count towards today's goal or your streak.",
+      "manualHint": "New marks are recorded as today's reading. They add to today's goal, your streak and the calendar."
+    }
+  },
+  "notifications": {
+    "daily": {
+      "title": "Daily Bible Reading",
+      "body": "Time to read your {{goal}} verses today!"
+    },
+    "goal": {
+      "title": "Daily Goal Check",
+      "completed": "Great job! You've completed your daily goal of {{goal}} verses! 🎉",
+      "partial": "You've read {{read}}/{{goal}} verses today. You're getting there!",
+      "notStarted": "You haven't read yet today. Your {{goal}} verses are waiting for you."
+    },
+    "streak": {
+      "startTitle": "Start Your Reading Streak!",
+      "startBody": "Begin building a daily Bible reading habit. Every journey starts with a single step!",
+      "keepTitle": "Build Your Streak!",
+      "keepBody": "You're on a {{count}}-day streak. Read today to keep it going.",
+      "protectTitle": "Protect Your Streak!",
+      "protectBody": "Amazing {{count}}-day streak! Don't break it now."
+    }
+  },
+  "startup": {
+    "errorTitle": "The app could not start",
+    "errorMessage": "The Bible database could not be opened. Please try again. If the problem remains, you can reset the database.",
+    "reset": "Reset database",
+    "resetTitle": "Reset database?",
+    "resetMessage": "This deletes your reading history, achievements and settings on this device and installs a fresh database. This cannot be undone."
   }
 }

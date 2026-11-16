@@ -1,222 +1,144 @@
-// Optimized useHomeData.ts
-import {useCallback, useMemo, useState} from 'react';
+import {useCallback, useState} from 'react';
 import {useFocusEffect} from 'expo-router';
-import {progressService, TaskService} from '@/services';
-import {AchievementUnlockEvent, DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
+import {readingService, taskService} from '@/services';
+import type {AchievementUnlockEvent, DailyReadingAssignment, EnhancedDailyReadingAssignment} from '@/models';
 import {useAchievementContext} from '@/components/progress/AchievementContext';
-import {logger} from "@/utils/(utils)/logger";
+import {startOfDay, toLocalDateString} from '@/utils/(utils)/date.utils';
+import {logger} from '@/utils/(utils)/logger';
 
+const {weeklyTasks: WEEKLY_TASKS, dailyTasks: DAILY_TASKS} = taskService.getTaskLists();
+
+/** Groups assignments by their card title, each group in reading order. */
+function groupByTitle(assignments: EnhancedDailyReadingAssignment[]): Map<string, EnhancedDailyReadingAssignment[]> {
+    const groups = new Map<string, EnhancedDailyReadingAssignment[]>();
+    for (const assignment of assignments) {
+        const title = assignment.display_title || 'Reading Assignment';
+        const group = groups.get(title);
+        if (group) {
+            group.push(assignment);
+        } else {
+            groups.set(title, [assignment]);
+        }
+    }
+    groups.forEach(group => group.sort((a, b) => a.start_verse_id - b.start_verse_id));
+    return groups;
+}
+
+/**
+ * Data and actions of the home screen: today's reading assignments and the
+ * daily/weekly checklists.
+ */
 export function useHomeData() {
     const {addAchievementEvents} = useAchievementContext();
 
-    // State management
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [readingPlan, setReadingPlan] = useState<ReadingPlan[]>([]);
-    const [dailyReadingAssignments, setDailyReadingAssignments] = useState<Map<string, EnhancedDailyReadingAssignment[]>>();
+    const [today, setToday] = useState<Date>(() => startOfDay());
+    const [dailyReadingAssignments, setDailyReadingAssignments] = useState<Map<string, EnhancedDailyReadingAssignment[]>>(new Map());
     const [taskStatus, setTaskStatus] = useState<Record<string, boolean>>({});
-    const [confirmationTask, setConfirmationTask] = useState<string | null>(null);
-    const [weeklyChecklistItems, setWeeklyChecklistItems] = useState<string[]>([]);
-    const [dailyChecklistItems, setDailyChecklistItems] = useState<string[]>([]);
 
-    const today = useMemo(() => {
-        const now = new Date();
-        return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    }, [Math.floor(Date.now() / (1000 * 60 * 60 * 24))]);
-
-    const taskService = useMemo(() => new TaskService(), []);
-
-    // Debounced achievement checking to avoid excessive calls
-    const checkForAchievementUnlocks = useCallback(async (userId: number = 1, achievementUnlockEvents: AchievementUnlockEvent[] = []) => {
-        let unlockedEvents = achievementUnlockEvents.length > 0 ? achievementUnlockEvents : await progressService.updateAchievementProgressFromDatabase(userId);
-        try {
-            if (unlockedEvents.length > 0) {
-                addAchievementEvents(unlockedEvents);
-            }
-            return unlockedEvents;
-        } catch (error) {
-            logger.error('Error checking achievements:', error);
-            return [];
-        }
+    const showUnlocks = useCallback((events: AchievementUnlockEvent[]) => {
+        if (events.length > 0) addAchievementEvents(events);
     }, [addAchievementEvents]);
 
-    // Optimized data fetching - reduce redundant operations
-    const fetchAssignments = useCallback(async (): Promise<void> => {
-        try {
-            const todayDateStr = today.toISOString().split('T')[0];
-            const assignments = await taskService.fetchReadingAssignments(today);
+    /** Loads assignments and task states for the given day. */
+    const loadDay = useCallback(async (day: Date): Promise<void> => {
+        const [assignments, states] = await Promise.all([
+            readingService.getAssignmentsForDate(day).catch(error => {
+                logger.error('Error fetching assignments', error);
+                return [] as EnhancedDailyReadingAssignment[];
+            }),
+            taskService.getTaskStates(day).catch(error => {
+                logger.error('Error fetching task states', error);
+                return {} as Record<string, boolean>;
+            }),
+        ]);
 
-            // Filter and group in one pass
-            const assignmentMap = new Map<string, EnhancedDailyReadingAssignment[]>();
+        setDailyReadingAssignments(groupByTitle(assignments));
+        setTaskStatus(states);
+    }, []);
 
-            assignments
-                .filter(item => item.date === todayDateStr)
-                .forEach(item => {
-                    const title = item.display_title || 'Reading Assignment';
-                    if (!assignmentMap.has(title)) {
-                        assignmentMap.set(title, []);
-                    }
-                    assignmentMap.get(title)!.push(item);
-                });
-
-            // Sort once per group
-            assignmentMap.forEach(assignmentList => {
-                assignmentList.sort((a, b) => a.start_verse_id - b.start_verse_id);
-            });
-
-            setDailyReadingAssignments(assignmentMap);
-        } catch (error) {
-            logger.error('Error fetching assignments:', error);
-            setDailyReadingAssignments(new Map());
-        }
-    }, [taskService, today]);
-
-    // Parallel data loading
-    const loadInitialData = useCallback(async (): Promise<void> => {
-        setLoading(true);
-        try {
-            // Load all data in parallel
-            await Promise.all([
-                (async () => {
-                    const {weeklyTasks, dailyTasks} = await taskService.getTaskLists(today);
-                    setWeeklyChecklistItems(weeklyTasks);
-                    setDailyChecklistItems(dailyTasks);
-                })(),
-                fetchAssignments(),
-                (async () => {
-                    const states = await taskService.fetchTaskStates(today);
-                    setTaskStatus(states);
-                })()
-            ]);
-        } finally {
-            setLoading(false);
-        }
-    }, [taskService, today, fetchAssignments]);
-
-    const onRefresh = useCallback(async (): Promise<void> => {
-        setRefreshing(true);
-        try {
-            await Promise.all([
-                (async () => {
-                    const {weeklyTasks, dailyTasks} = await taskService.getTaskLists(today);
-                    setWeeklyChecklistItems(weeklyTasks);
-                    setDailyChecklistItems(dailyTasks);
-                })(),
-                fetchAssignments(),
-                (async () => {
-                    const states = await taskService.fetchTaskStates(today);
-                    setTaskStatus(states);
-                })()
-            ]);
-        } finally {
-            setRefreshing(false);
-        }
-    }, [taskService, today, fetchAssignments]);
-
-    // Optimized toggle with minimal refreshing
-    const handleToggleVerses = useCallback(async (item: DailyReadingAssignment): Promise<void> => {
-        try {
-            const wasCompleted = item.is_completed;
-
-            // Optimistic update
-            setDailyReadingAssignments(prevAssignments => {
-                const newAssignments = new Map(prevAssignments);
-                newAssignments.forEach((assignments, title) => {
-                    const updatedAssignments = assignments.map(assignment => {
-                        if (assignment.id === item.id) {
-                            return {
-                                ...assignment,
-                                is_completed: !assignment.is_completed,
-                                completed_at: !assignment.is_completed ? new Date().toISOString().split('T')[0] : null
-                            };
-                        }
-                        return assignment;
-                    });
-                    newAssignments.set(title, updatedAssignments);
-                });
-                return newAssignments;
-            });
-
-            // Database operation
-            if (wasCompleted) {
-                await taskService.unmarkDailyAssignmentAsRead(item);
-            } else {
-                const achievementUnlockEvents = await taskService.markDailyAssignmentAsRead(item);
-                // Only check achievements on completion, not on every toggle
-                setTimeout(() => checkForAchievementUnlocks(1, achievementUnlockEvents), 100); // Debounced
-            }
-
-            // Only refresh task states, not all assignments
-            const states = await taskService.fetchTaskStates(today);
-            setTaskStatus(states);
-
-        } catch (error) {
-            logger.error('Error toggling verse completion:', error);
-            // Revert on error
-            await fetchAssignments();
-            throw error;
-        }
-    }, [taskService, today, fetchAssignments, checkForAchievementUnlocks]);
-
-    const confirmTaskCompletion = useCallback(async (task: string | null = confirmationTask, status: any): Promise<void> => {
-        if (!task) return;
-
-        if (status === undefined) {
-            status = !taskStatus[task];
-        }
-
-        await taskService.toggleTaskCompletion(task, status, today);
-        setTaskStatus(prev => ({...prev, [task]: status}));
-        setConfirmationTask(null);
-
-        // Only check achievements when completing tasks, with debounce
-        if (status) {
-            setTimeout(() => checkForAchievementUnlocks(), 100);
-        }
-    }, [confirmationTask, taskService, today, taskStatus, checkForAchievementUnlocks]);
-
-    const handleReadMore = useCallback(async (): Promise<void> => {
-        try {
-            const additionalAssignments = await taskService.generateAdditionalAssignments(today);
-
-            if (additionalAssignments.length === 0) {
-                return;
-            }
-
-            // Only refresh assignments, not all data
-            await fetchAssignments();
-            const states = await taskService.fetchTaskStates(today);
-            setTaskStatus(states);
-
-            // Debounced achievement check
-            setTimeout(() => checkForAchievementUnlocks(), 100);
-
-        } catch (error) {
-            logger.error('Error generating additional assignments:', error);
-            throw error;
-        }
-    }, [taskService, today, fetchAssignments, checkForAchievementUnlocks]);
-
+    // Reload whenever the screen gains focus. "Today" is re-read each time so
+    // the screen moves on to the next day when the app stays open overnight.
     useFocusEffect(
         useCallback(() => {
-            loadInitialData();
-        }, [loadInitialData])
+            let active = true;
+            const day = startOfDay();
+            setToday(previous => (toLocalDateString(previous) === toLocalDateString(day) ? previous : day));
+
+            loadDay(day).finally(() => {
+                if (active) setLoading(false);
+            });
+
+            return () => {
+                active = false;
+            };
+        }, [loadDay])
     );
+
+    const onRefresh = useCallback(async (): Promise<void> => {
+        const day = startOfDay();
+        setToday(day);
+        await loadDay(day);
+    }, [loadDay]);
+
+    /** Checks a reading assignment off, or re-opens a completed one. */
+    const handleToggleVerses = useCallback(async (item: DailyReadingAssignment): Promise<void> => {
+        const nowCompleted = !item.is_completed;
+
+        // Optimistic update; reverted by a reload if saving fails.
+        setDailyReadingAssignments(previous => {
+            const next = new Map(previous);
+            next.forEach((assignments, title) => {
+                next.set(title, assignments.map(assignment => assignment.id === item.id
+                    ? {...assignment, is_completed: nowCompleted, completed_at: nowCompleted ? toLocalDateString() : null}
+                    : assignment));
+            });
+            return next;
+        });
+
+        try {
+            if (nowCompleted) {
+                showUnlocks(await readingService.completeAssignment(item));
+            } else {
+                await readingService.reopenAssignment(item);
+            }
+        } catch (error) {
+            logger.error('Error toggling assignment', error);
+            await loadDay(today);
+        }
+    }, [loadDay, today, showUnlocks]);
+
+    /** Sets a checklist task to done / not done. */
+    const confirmTaskCompletion = useCallback(async (task: string | null, status?: boolean): Promise<void> => {
+        if (!task) return;
+        const done = status ?? !taskStatus[task];
+
+        setTaskStatus(previous => ({...previous, [task]: done}));
+        try {
+            showUnlocks(await taskService.setTaskState(task, done, today));
+        } catch (error) {
+            logger.error('Error saving task state', error);
+            setTaskStatus(previous => ({...previous, [task]: !done}));
+        }
+    }, [taskStatus, today, showUnlocks]);
+
+    /** "Read more": adds further passages to today's reading. */
+    const handleReadMore = useCallback(async (): Promise<void> => {
+        const added = await readingService.addMoreAssignments(today);
+        if (added.length > 0) {
+            await loadDay(today);
+        }
+    }, [today, loadDay]);
 
     return {
         loading,
-        refreshing,
-        readingPlan,
-        taskStatus,
-        confirmationTask,
         today,
+        taskStatus,
         dailyReadingAssignments,
-        weeklyChecklistItems,
-        dailyChecklistItems,
+        weeklyChecklistItems: WEEKLY_TASKS,
+        dailyChecklistItems: DAILY_TASKS,
         onRefresh,
         handleToggleVerses,
-        handleConfirmationTaskSet: useCallback((task: string) => setConfirmationTask(task), []),
-        handleConfirmationCancel: useCallback(() => setConfirmationTask(null), []),
         confirmTaskCompletion,
         handleReadMore,
     };

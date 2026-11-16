@@ -1,6 +1,8 @@
 
 import React from 'react';
-import { Platform, Modal, View, TouchableOpacity, SafeAreaView, useColorScheme } from 'react-native';
+import { Platform, Modal, View, TouchableOpacity, useColorScheme } from 'react-native';
+// React Native's own SafeAreaView is deprecated as of 0.81.
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Text } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ThemeService } from '@/services';

@@ -1,384 +1,80 @@
-import {AchievementUnlockEvent, DailyReadingAssignment, EnhancedDailyReadingAssignment, ReadingPlan} from "@/models";
-import {readingService} from "@/services/(services)/readings/ReadingService";
-import {DatabaseMessageError, ValidationError} from '@/errors';
-import {getMondayOfWeek} from "@/utils";
-import {tasksRepository} from '@/repository'
-import {progressService} from "@/services/(services)/progress/ProgressService";
-import { logger } from "@/utils/(utils)/logger";
+import {tasksRepository} from '@/repository';
+import type {AchievementUnlockEvent} from '@/models';
+import {DAILY_TASKS, WEEKLY_TASKS, weeklyTaskKey} from '@/constants/tasks';
+import {progressService} from '@/services/(services)/progress/ProgressService';
+import {DatabaseError} from '@/errors';
+import {getMondayOfWeek, toLocalDateString} from '@/utils/(utils)/date.utils';
+import {validateInput} from '@/utils/(utils)/validation.utils';
+import {logger} from '@/utils/(utils)/logger';
 
-// Default task templates
-const DEFAULT_WEEKLY_TASKS = [
-    'Weekly Bible Reading (Meeting)',
-    'Midweek Meeting Preparation',
-    'Weekend Meeting Preparation',
-    'Family Worship',
-];
-
-const DEFAULT_DAILY_TASKS = ['Daily Text'];
-
-// Helper function to generate task key for weekly tasks
-function getWeeklyTaskKey(taskName: string, mondayDate: string): string {
-    return `${taskName}_WEEKLY_${mondayDate}`;
-}
-
+/**
+ * The weekly and daily checklists on the home screen.
+ */
 export class TaskService {
 
-    /**
-     * Gets or creates weekly tasks for the current week
-     */
-    async getWeeklyTasks(date: Date = new Date()): Promise<string[]> {
-        this.validateInput(date, 'date', 'date');
+    /** Task names for the checklists. */
+    getTaskLists(): { weeklyTasks: string[]; dailyTasks: string[] } {
+        return {weeklyTasks: [...WEEKLY_TASKS], dailyTasks: [...DAILY_TASKS]};
+    }
 
-        const mondayStr = getMondayOfWeek(date);
+    /**
+     * Done-state of every weekly and daily task for the given day,
+     * keyed by task name.
+     */
+    async getTaskStates(date: Date = new Date()): Promise<Record<string, boolean>> {
+        validateInput(date, 'date', 'date');
+
+        const today = toLocalDateString(date);
+        const monday = getMondayOfWeek(date);
 
         try {
-            // Check if weekly tasks exist for this week by looking for our weekly task pattern
-            const allTasks = await tasksRepository.findAll();
-            const existingWeeklyTasks = allTasks.filter(task =>
-                task.task_name.includes(`_WEEKLY_${mondayStr}`)
-            );
+            const [weekRows, dayRows] = await Promise.all([
+                tasksRepository.findByDate(monday),
+                tasksRepository.findByDate(today),
+            ]);
 
-            if (existingWeeklyTasks.length > 0) {
-                // Extract original task names from the stored keys
-                return existingWeeklyTasks.map(task =>
-                    task.task_name.replace(`_WEEKLY_${mondayStr}`, '')
-                );
+            const states: Record<string, boolean> = {};
+            for (const taskName of WEEKLY_TASKS) {
+                const key = weeklyTaskKey(taskName, monday);
+                states[taskName] = weekRows.some(row => row.task_name === key && row.is_done);
             }
-
-            // Create new weekly tasks for this week
-            const newTasks: string[] = [];
-            for (const taskName of DEFAULT_WEEKLY_TASKS) {
-                const weeklyTaskKey = getWeeklyTaskKey(taskName, mondayStr);
-                await tasksRepository.create({
-                    date: mondayStr,
-                    task_name: weeklyTaskKey,
-                    is_done: false
-                });
-                newTasks.push(taskName);
+            for (const taskName of DAILY_TASKS) {
+                states[taskName] = dayRows.some(row => row.task_name === taskName && row.is_done);
             }
-
-            return newTasks;
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get or create weekly tasks', error as Error);
+            return states;
+        } catch (error) {
+            throw new DatabaseError('Failed to load task states', error);
         }
     }
 
     /**
-     * Gets or creates daily tasks for the current date
+     * Marks a task as done or not done for the given day (or its week).
+     * @returns achievements unlocked by this (consistency achievements)
      */
-    async getDailyTasks(date: Date = new Date()): Promise<string[]> {
-        this.validateInput(date, 'date', 'date');
-
-        const dateStr = this.formatDate(date);
+    async setTaskState(taskName: string, done: boolean, date: Date = new Date()): Promise<AchievementUnlockEvent[]> {
+        validateInput(taskName, 'string', 'taskName');
+        validateInput(date, 'date', 'date');
 
         try {
-            // Check if daily tasks exist for this date
-            const allTasks = await tasksRepository.findAll();
-            const existingDailyTasks = allTasks.filter(task =>
-                task.date === dateStr &&
-                DEFAULT_DAILY_TASKS.includes(task.task_name) &&
-                !task.task_name.includes('_WEEKLY_')
-            );
-
-            if (existingDailyTasks.length > 0) {
-                return existingDailyTasks.map(task => task.task_name);
-            }
-
-            // Create new daily tasks for this date
-            const newTasks: string[] = [];
-            for (const taskName of DEFAULT_DAILY_TASKS) {
-                await tasksRepository.create({
-                    date: dateStr,
-                    task_name: taskName,
-                    is_done: false
-                });
-                newTasks.push(taskName);
-            }
-
-            return newTasks;
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get or create daily tasks', error as Error);
-        }
-    }
-
-    /**
-     * Gets the completion states of weekly tasks
-     */
-    async getWeeklyTaskStates(date: Date = new Date()): Promise<Record<string, boolean>> {
-        const weeklyTasks = await this.getWeeklyTasks(date);
-        const mondayStr = getMondayOfWeek(date);
-
-        try {
-            const allTasks = await tasksRepository.findAll();
-
-            // Filter tasks that are weekly tasks from this week
-            const weekTasks = allTasks.filter(task =>
-                task.task_name.includes(`_WEEKLY_${mondayStr}`)
-            );
-
-            const result: Record<string, boolean> = {};
-            for (const task of weeklyTasks) {
-                const weeklyTaskKey = getWeeklyTaskKey(task, mondayStr);
-                const match = weekTasks.find(t => t.task_name === weeklyTaskKey && t.is_done);
-                result[task] = !!match;
-            }
-
-            return result;
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get weekly task states', error as Error);
-        }
-    }
-
-    /**
-     * Gets the completion states of daily tasks
-     */
-    async getDailyTaskStates(date: Date = new Date()): Promise<Record<string, boolean>> {
-        const dailyTasks = await this.getDailyTasks(date);
-
-        if (dailyTasks.length === 0) {
-            return {};
-        }
-
-        const dateStr = this.formatDate(date);
-
-        try {
-            const allTasks = await tasksRepository.findAll();
-
-            // Filter tasks for the specific date and task names (excluding weekly tasks)
-            const dayTasks = allTasks.filter(task =>
-                task.date === dateStr &&
-                dailyTasks.includes(task.task_name) &&
-                !task.task_name.includes('_WEEKLY_')
-            );
-
-            const result: Record<string, boolean> = {};
-            for (const task of dailyTasks) {
-                const match = dayTasks.find(t => t.task_name === task && t.is_done);
-                result[task] = !!match;
-            }
-
-            return result;
-        } catch (error: any) {
-            throw new DatabaseMessageError('Failed to get daily task states', error as Error);
-        }
-    }
-
-    /**
-     * Gets combined task states (weekly + daily)
-     */
-    async fetchTaskStates(date: Date = new Date()): Promise<Record<string, boolean>> {
-        const weekly = await this.getWeeklyTaskStates(date);
-        const daily = await this.getDailyTaskStates(date);
-        return {...weekly, ...daily};
-    }
-
-    /**
-     * Sets the completion state of a task for a specific date
-     */
-    async setTaskState(taskName: string, date: Date, done: boolean): Promise<void> {
-        this.validateInput(taskName, 'string', 'taskName');
-        this.validateInput(date, 'date', 'date');
-
-        const dateStr = this.formatDate(date);
-        const mondayStr = getMondayOfWeek(date);
-
-        // Determine if this is a weekly task and create appropriate task key
-        let taskKey = taskName;
-        let searchDate = dateStr;
-
-        if (DEFAULT_WEEKLY_TASKS.includes(taskName)) {
-            taskKey = getWeeklyTaskKey(taskName, mondayStr);
-            searchDate = mondayStr;
-        }
-
-        try {
-            // Try to find existing task
-            const allTasks = await tasksRepository.findAll();
-            const existingTask = allTasks.find(task =>
-                task.date === searchDate && task.task_name === taskKey
-            );
-
-            if (existingTask) {
-                // Update existing task
-                await tasksRepository.update({
-                    id: existingTask.id,
-                    is_done: done
-                });
+            if (WEEKLY_TASKS.includes(taskName)) {
+                const monday = getMondayOfWeek(date);
+                await tasksRepository.upsert(monday, weeklyTaskKey(taskName, monday), done);
             } else {
-                // Create new task
-                await tasksRepository.create({
-                    date: searchDate,
-                    task_name: taskKey,
-                    is_done: done
-                });
+                await tasksRepository.upsert(toLocalDateString(date), taskName, done);
             }
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to set task state for: ${taskName}`, error as Error);
-        }
-    }
-
-    /**
-     * Toggles the completion state of a task
-     */
-    async toggleTaskCompletion(taskName: string, done: boolean, date: Date = new Date()): Promise<void> {
-        if (!taskName) return;
-        await this.setTaskState(taskName, date, done);
-    }
-
-    /**
-     * Gets the task lists for UI rendering
-     */
-    async getTaskLists(date: Date = new Date()): Promise<{
-        weeklyTasks: string[];
-        dailyTasks: string[];
-    }> {
-        const [weeklyTasks, dailyTasks] = await Promise.all([
-            this.getWeeklyTasks(date),
-            this.getDailyTasks(date)
-        ]);
-
-        return { weeklyTasks, dailyTasks };
-    }
-
-    // Reading-related methods - these delegate to ReadingService
-    async fetchReadingPlan(): Promise<ReadingPlan[]> {
-        return await readingService.getReadingPlan();
-    }
-
-    /**
-     * Updated fetchReadingAssignments to use the provided date
-     */
-    async fetchReadingAssignments(date: Date = new Date()): Promise<EnhancedDailyReadingAssignment[]> {
-        const dateStr = this.formatDate(date);
-        logger.debug("TaskService: Fetching reading assignments for date:", dateStr);
-
-        return await readingService.fetchReadingAssignments(date);
-    }
-
-    /**
-     * Generates additional reading assignments for the specified date (not default date)
-     * This delegates to ReadingService to generate more assignments based on the user's daily verse goal
-     */
-    async generateAdditionalAssignments(date: Date): Promise<EnhancedDailyReadingAssignment[]> {
-        try {
-            const dateStr = this.formatDate(date);
-            logger.debug("TaskService: Generating additional assignments for date:", dateStr);
-
-            // Delegate to ReadingService to generate additional assignments for the EXACT date provided
-            const additionalAssignments = await readingService.generateAdditionalAssignments(date);
-
-            logger.debug("TaskService: Generated additional assignments:", additionalAssignments);
-            return additionalAssignments;
-
-        } catch (error: any) {
-            logger.error('TaskService: Error generating additional assignments:', error);
-            throw new DatabaseMessageError(`Failed to generate additional assignments`, error as Error);
-        }
-    }
-    async markDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<AchievementUnlockEvent[]> {
-        const currentDate = new Date();
-        logger.debug('TaskService: Marking daily assignment as read:', {
-            id: dailyReadingAssignment.id,
-            verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
-            chapter: dailyReadingAssignment.chapter_id,
-            display_title: dailyReadingAssignment.display_title,
-            date: currentDate.toISOString().split('T')[0]
-        });
-
-        try {
-            const dateStr = this.formatDate(currentDate);
-            // Mark individual verses as read
-            for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-                logger.debug('Marking verse as read:', verseId);
-                await readingService.markVerseAsRead(verseId, currentDate);
-            }
-
-            // Mark the assignment itself as completed
-            await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, currentDate, true);
-
-            // **CRITICAL: Update reading progress to record streak and trigger achievements**
-            const versesRead = dailyReadingAssignment.end_verse_id - dailyReadingAssignment.start_verse_id + 1;
-            logger.debug('Updating reading progress with:', {
-                versesRead,
-                date: dateStr,
-                planName: dailyReadingAssignment.plan_name
-            });
-
-            const achievementUnlockEvents = await progressService.updateReadingProgress(
-                1,
-                versesRead,
-                0,
-                [],
-                dailyReadingAssignment.plan_name,
-                `Completed assignment: ${dailyReadingAssignment.display_title}`
-            );
-
-            const streakResult = await progressService.updateReadingStreak(1, dateStr);
-            logger.debug('Streak updated:', {
-                currentStreak: streakResult.currentStreak,
-                longestStreak: streakResult.longestStreak,
-                lastReadingDate: streakResult.lastReadingDate
-            });
-
-            if (streakResult.currentStreak > streakResult.longestStreak) {
-                await progressService.fixStreakRecord(1, streakResult.currentStreak, dateStr);
-            }
-            
-            logger.debug('Successfully marked assignment as read and updated progress');
-            return achievementUnlockEvents;
         } catch (error) {
-            logger.error('Error marking assignment as read:', error);
-            throw error;
+            throw new DatabaseError(`Failed to save task state for: ${taskName}`, error);
         }
-    }
 
-    /**
-     * Enhanced unmark assignment as read with better error handling
-     */
-    async unmarkDailyAssignmentAsRead(dailyReadingAssignment: DailyReadingAssignment): Promise<void> {
-        logger.debug('TaskService: Unmarking daily assignment as read:', {
-            id: dailyReadingAssignment.id,
-            verses: `${dailyReadingAssignment.start_verse_id}-${dailyReadingAssignment.end_verse_id}`,
-            chapter: dailyReadingAssignment.chapter_id,
-            display_title: dailyReadingAssignment.display_title
-        });
-
+        // The task is saved; a problem while updating achievements must not
+        // make the check-off itself look failed.
         try {
-            // Unmark individual verses
-            for (let verseId = dailyReadingAssignment.start_verse_id; verseId <= dailyReadingAssignment.end_verse_id; verseId++) {
-                logger.debug('Unmarking verse:', verseId);
-                await readingService.unmarkVerseAsRead(verseId);
-            }
-
-            // Mark the assignment itself as not completed
-            await readingService.markDailyReadingAssignmentAsRead(dailyReadingAssignment, undefined, false);
-
-            logger.debug('Successfully unmarked assignment as read');
+            return done ? await progressService.updateAchievementProgress() : [];
         } catch (error) {
-            logger.error('Error unmarking assignment as read:', error);
-            throw error;
+            logger.error('Failed to update achievements after a task change', error);
+            return [];
         }
-    }
-
-    /**
-     * Validates input parameters
-     */
-    private validateInput(value: any, type: 'string' | 'date' | 'number', fieldName: string): void {
-        if (type === 'string' && (!value || typeof value !== 'string')) {
-            throw new ValidationError(`${fieldName} must be a non-empty string`);
-        }
-        if (type === 'date' && (!(value instanceof Date) || isNaN(value.getTime()))) {
-            throw new ValidationError(`${fieldName} must be a valid Date`);
-        }
-        if (type === 'number' && (typeof value !== 'number' || value <= 0)) {
-            throw new ValidationError(`${fieldName} must be a positive number`);
-        }
-    }
-
-    /**
-     * Formats date to ISO string (YYYY-MM-DD)
-     */
-    private formatDate(date: Date): string {
-        return date.toISOString().split('T')[0];
     }
 }
+
+export const taskService = new TaskService();

@@ -13,16 +13,14 @@ import {
     SettingsQuickStatusCard,
     SettingsTimePicker
 } from '@/components';
-import { useSettingsData, useTranslation, useProgressData, ExtendedAppSettings, NotificationState } from '@/hooks';
+import { useSettingsData, useTranslation, ExtendedAppSettings } from '@/hooks';
 import { ThemeService } from '@/services';
-import {logger} from "@/utils/(utils)/logger";
 
 interface SettingsScreenProps {}
 
 const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     const t = useTranslation();
     const colorScheme = useColorScheme();
-    const progressData = useProgressData();
 
     const settingsData = useSettingsData();
     const {
@@ -61,14 +59,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
         return { customColors: colors, styles: styleSheet };
     }, [colorScheme]);
 
-    // Combined refresh handler
-    const handleRefresh = useCallback(async (): Promise<void> => {
-        await Promise.all([
-            onRefresh(),
-            progressData.onRefresh(),
-        ]);
-    }, [onRefresh, progressData.onRefresh]);
-
     // Settings update handlers with proper typing
     const handleFontSizeChange = useCallback((size: ExtendedAppSettings['fontSize']) => {
         updateSetting('fontSize', size);
@@ -91,12 +81,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
     const handleExportData = useCallback(() => {
         handleToggleDialog('exportData', true);
     }, [handleToggleDialog]);
-
-    // Empty cancel all notifications handler (can be implemented later)
-    const handleCancelAllNotifications = useCallback(async (): Promise<void> => {
-        // Implementation can be added when needed
-        logger.debug('Cancel all notifications requested');
-    }, []);
 
     // Loading state
     if (loading) {
@@ -134,7 +118,7 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
             </Appbar.Header>
 
             {/* Main Content */}
-            <ScreenContainer onRefresh={handleRefresh}>
+            <ScreenContainer onRefresh={onRefresh}>
                 {/* Quick Status Card */}
                 <SettingsQuickStatusCard
                     dailyVerseGoal={dailyVerseGoal}
@@ -181,7 +165,6 @@ const SettingsScreen: React.FC<SettingsScreenProps> = () => {
                     onShowTimePicker={showTimePicker}
                     onShowStreakTimePicker={showStreakTimePicker}
                     onShowGoalTimePicker={showGoalTimePicker}
-                    onCancelAllNotifications={handleCancelAllNotifications}
                     styles={styles}
                     customColors={customColors}
                 />

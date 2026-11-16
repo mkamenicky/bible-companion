@@ -1,10 +1,5 @@
-// bible-book-topics.repository.ts
-
-// @ts-ignore
-import { getDatabase } from '@/services/(services)/database/db';
-
-import { BaseRepository } from '@/repository/base/base.repository';
-import {DatabaseMessageError, ValidationError} from '@/errors';
+import {BaseRepository} from '@/repository/base/base.repository';
+import {ValidationError} from '@/errors';
 import type {
     BibleBookTopic,
     CreateBibleBookTopic,
@@ -94,26 +89,6 @@ export class BibleBookTopicsRepository extends BaseRepository<BibleBookTopic, Cr
     async findByBookId(bookId: number): Promise<BibleBookTopic[]> {
         this.validateId(bookId, 'Book ID');
         return this.findWhere('bible_book_id = ?', [bookId], 'sort_order');
-    }
-
-    /**
-     * Gets the next available sort order for a topic
-     */
-    async getNextSortOrder(topicId: number): Promise<number> {
-        this.validateId(topicId, 'Topic ID');
-
-        const db = getDatabase();
-        try {
-            const result = await db.getFirstAsync<{ next_sort_order: number }>(
-                `SELECT COALESCE(MAX(sort_order), 0) + 1 as next_sort_order 
-                 FROM bible_book_topics 
-                 WHERE topic_id = ?`,
-                [topicId]
-            );
-            return result?.next_sort_order ?? 1;
-        } catch (error: any) {
-            throw new DatabaseMessageError(`Failed to get next sort order for topic ${topicId}`, error as Error);
-        }
     }
 }
 
